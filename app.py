@@ -228,16 +228,19 @@ with tab2:
 
     html_file = country_file_map.get(country_option)
 
-    try:
-        # Embed the HTML file as an iframe using Markdown for full-width support
+    if html_file:
+        st.success("Click below to view the full Nelson-Siegel curve")
         st.markdown(
             f"""
-            <iframe src="{html_file}" width="100%" height="1000px" style="border:none;"></iframe>
+            <a href="{html_file}" target="_blank">
+                <button style="padding: 0.75rem 1.5rem; font-size: 1rem;">Open Curve in New Tab</button>
+            </a>
             """,
             unsafe_allow_html=True
         )
-    except FileNotFoundError:
-        st.error(f"Could not find HTML file for {country_option}. Expected file: {html_file}")
+    else:
+        st.warning("No file available for the selected country.")
+
 
 
 
