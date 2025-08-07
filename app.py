@@ -211,17 +211,14 @@ with tab1:
     else:
         st.warning("No bonds match your filters")
 
-
 with tab2:
     st.title("Nelson-Siegel Curves by Country")
     
-    # Country selector
     country_option = st.selectbox(
         "Select Country",
         options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪']
     )
     
-    # File mapping (in root directory)
     country_file_map = {
         'Italy 🇮🇹': 'btps_ns_animated.html',
         'Spain 🇪🇸': 'spgb_ns_animated.html',
@@ -234,6 +231,6 @@ with tab2:
     try:
         with open(html_file, 'r', encoding='utf-8') as f:
             html_content = f.read()
-        st.components.v1.html(html_content, height=600, scrolling=True)
+        st.components.v1.html(html_content, height=1600, scrolling=True)
     except FileNotFoundError:
         st.error(f"Could not find HTML file for {country_option}. Expected file: {html_file}")
