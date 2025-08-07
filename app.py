@@ -257,8 +257,8 @@ st.markdown(f"""
 # Signal metrics - centered
 buy_count = len(df[df['SIGNAL'] == 'LONG'])
 sell_count = len(df[df['SIGNAL'] == 'SHORT'])
-watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST LONG'])
-watch_sell_count = len(df[df['SIGNAL'] == 'WATCHLIST SHORT'])
+watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST_LONG'])
+watch_sell_count = len(df[df['SIGNAL'] == 'WATCHLIST_SHORT'])
 
 st.markdown(f"""
 <div class="metrics-container">
@@ -378,7 +378,7 @@ if not filtered_df.empty:
             'SECURITY_NAME': st.column_config.TextColumn('Security Name', width='large'),
             'SIGNAL': st.column_config.SelectboxColumn(
                 'Signal',
-                options=['LONG', 'SHORT', '', 'WATCHLIST_SHORT'],
+                options=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT'],
                 width='medium'
             ),
             'COMPOSITE_SCORE': st.column_config.NumberColumn(
