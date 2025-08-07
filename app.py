@@ -222,10 +222,10 @@ with tab2:
     
     # Map selection to filename
     country_file_map = {
-        'Italy 🇮🇹': 'ns_curve_italy.html',
-        'Spain 🇪🇸': 'ns_curve_spain.html',
-        'France 🇫🇷': 'ns_curve_france.html',
-        'Germany 🇩🇪': 'ns_curve_germany.html'
+        'Italy 🇮🇹': 'btps_ns_animated.html',
+        'Spain 🇪🇸': 'spgb_ns_animated.html',
+        'France 🇫🇷': 'frtr_ns_animated.html',
+        'Germany 🇩🇪': 'bunds_ns_animated.html'
     }
     
     html_file = country_file_map.get(country_option)
@@ -236,4 +236,5 @@ with tab2:
         st.components.v1.html(html_content, height=600, scrolling=True)
     except FileNotFoundError:
         st.error(f"Could not find HTML file for {country_option}. Please check the filename or folder.")
+
 
