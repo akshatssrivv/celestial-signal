@@ -218,20 +218,25 @@ with tab2:
         "Select Country",
         options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪']
     )
-    
+
     country_file_map = {
         'Italy 🇮🇹': 'btps_ns_animated.html',
         'Spain 🇪🇸': 'spgb_ns_animated.html',
         'France 🇫🇷': 'frtr_ns_animated.html',
         'Germany 🇩🇪': 'bunds_ns_animated.html'
     }
-    
+
     html_file = country_file_map.get(country_option)
-    
+
     try:
-        with open(html_file, 'r', encoding='utf-8') as f:
-            html_content = f.read()
-        st.components.v1.html(html_content, height=1600, scrolling=True)
+        # Embed the HTML file as an iframe using Markdown for full-width support
+        st.markdown(
+            f"""
+            <iframe src="{html_file}" width="100%" height="1000px" style="border:none;"></iframe>
+            """,
+            unsafe_allow_html=True
+        )
     except FileNotFoundError:
         st.error(f"Could not find HTML file for {country_option}. Expected file: {html_file}")
+
 
