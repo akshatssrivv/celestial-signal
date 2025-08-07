@@ -211,16 +211,17 @@ with tab1:
     else:
         st.warning("No bonds match your filters")
 
+
 with tab2:
     st.title("Nelson-Siegel Curves by Country")
     
-    # Select country (map to ISIN prefix)
+    # Country selector
     country_option = st.selectbox(
         "Select Country",
         options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪']
     )
     
-    # Correct file names based on your naming convention
+    # File mapping (in root directory)
     country_file_map = {
         'Italy 🇮🇹': 'btps_ns_animated.html',
         'Spain 🇪🇸': 'spgb_ns_animated.html',
@@ -231,7 +232,7 @@ with tab2:
     html_file = country_file_map.get(country_option)
     
     try:
-        with open(f'nelson_siegel_curves/{html_file}', 'r', encoding='utf-8') as f:
+        with open(html_file, 'r', encoding='utf-8') as f:
             html_content = f.read()
         st.components.v1.html(html_content, height=600, scrolling=True)
     except FileNotFoundError:
