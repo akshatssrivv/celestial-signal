@@ -220,7 +220,7 @@ with tab2:
         options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪']
     )
     
-    # Map selection to filename
+    # Correct file names based on your naming convention
     country_file_map = {
         'Italy 🇮🇹': 'btps_ns_animated.html',
         'Spain 🇪🇸': 'spgb_ns_animated.html',
@@ -235,6 +235,4 @@ with tab2:
             html_content = f.read()
         st.components.v1.html(html_content, height=600, scrolling=True)
     except FileNotFoundError:
-        st.error(f"Could not find HTML file for {country_option}. Please check the filename or folder.")
-
-
+        st.error(f"Could not find HTML file for {country_option}. Expected file: {html_file}")
