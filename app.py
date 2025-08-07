@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-tab1, tab2 = st.tabs(["📈 Signal Dashboard", "📉 Nelson-Siegel Curves"])
+tab1, tab2 = st.tabs(["Signal Dashboard", "Nelson-Siegel Curves"])
 
 with tab1:
     st.set_page_config(
@@ -238,5 +238,6 @@ with tab2:
         )
     except FileNotFoundError:
         st.error(f"Could not find HTML file for {country_option}. Expected file: {html_file}")
+
 
 
