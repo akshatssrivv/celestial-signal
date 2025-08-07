@@ -234,3 +234,4 @@ with tab2:
         st.components.v1.html(html_content, height=1600, scrolling=True)
     except FileNotFoundError:
         st.error(f"Could not find HTML file for {country_option}. Expected file: {html_file}")
+
