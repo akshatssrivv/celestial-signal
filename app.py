@@ -1,8 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import numpy as np
 
 # Page config
@@ -23,32 +20,62 @@ st.markdown("""
         text-align: center;
         margin-bottom: 2rem;
     }
-    .metric-card {
+    .metric-container {
         background-color: #f0f2f6;
         padding: 1rem;
         border-radius: 0.5rem;
         border-left: 4px solid #1f77b4;
+        margin-bottom: 1rem;
     }
-    .signal-buy {
-        background-color: #d4edda;
-        color: #155724;
+    .signal-short {
+        background-color: #ffebee;
+        color: #c62828;
         padding: 0.25rem 0.5rem;
         border-radius: 0.25rem;
         font-weight: bold;
+        display: inline-block;
     }
-    .signal-sell {
-        background-color: #f8d7da;
-        color: #721c24;
+    .signal-watchlist-short {
+        background-color: #fff3e0;
+        color: #ef6c00;
         padding: 0.25rem 0.5rem;
         border-radius: 0.25rem;
         font-weight: bold;
+        display: inline-block;
     }
-    .signal-hold {
-        background-color: #fff3cd;
-        color: #856404;
+    .signal-watchlist-long {
+        background-color: #e8f5e8;
+        color: #2e7d32;
         padding: 0.25rem 0.5rem;
         border-radius: 0.25rem;
         font-weight: bold;
+        display: inline-block;
+    }
+    .signal-long {
+        background-color: #e8f5e8;
+        color: #1b5e20;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: bold;
+        display: inline-block;
+    }
+    .high-score {
+        color: #2e7d32;
+        font-weight: bold;
+    }
+    .low-score {
+        color: #c62828;
+        font-weight: bold;
+    }
+    .high-volatility {
+        color: #c62828;
+        font-weight: bold;
+    }
+    .medium-volatility {
+        color: #ef6c00;
+    }
+    .low-volatility {
+        color: #2e7d32;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -79,18 +106,48 @@ def get_country_from_isin(isin):
     }
     return country_map.get(isin[:2], '🌍 Unknown')
 
-def format_signal_badge(signal):
-    """Format signal as colored badge"""
-    if signal == 'SHORT':
-        return f'<span class="signal-sell">🔴 SELL</span>'
-    elif signal == 'WATCHLIST_SHORT':
-        return f'<span class="signal-hold">🟡 WATCH SELL</span>'
-    elif signal == 'WATCHLIST_LONG':
-        return f'<span class="signal-hold">🟡 WATCH BUY</span>'
-    elif signal == 'LONG':
-        return f'<span class="signal-buy">🟢 BUY</span>'
+def format_signal_display(signal):
+    """Format signal for display"""
+    signal_map = {
+        'SHORT': '🔴 SELL',
+        'WATCHLIST_SHORT': '🟡 WATCH SELL',
+        'WATCHLIST_LONG': '🟡 WATCH BUY',
+        'LONG': '🟢 BUY'
+    }
+    return signal_map.get(signal, f'⚪ {signal}')
+
+def style_score(score):
+    """Style composite score based on value"""
+    if score > 0:
+        return f'<span class="high-score">{score:.3f}</span>'
+    elif score < -1.5:
+        return f'<span class="low-score">{score:.3f}</span>'
     else:
-        return f'<span class="signal-hold">⚪ {signal}</span>'
+        return f'{score:.3f}'
+
+def style_volatility(vol):
+    """Style volatility based on value"""
+    if vol > 10:
+        return f'<span class="high-volatility">{vol:.2f}</span>'
+    elif vol > 5:
+        return f'<span class="medium-volatility">{vol:.2f}</span>'
+    elif vol < 1:
+        return f'<span class="low-volatility">{vol:.2f}</span>'
+    else:
+        return f'{vol:.2f}'
+
+def style_signal(signal):
+    """Style signal based on type"""
+    if signal == 'SHORT':
+        return f'<span class="signal-short">🔴 SELL</span>'
+    elif signal == 'WATCHLIST_SHORT':
+        return f'<span class="signal-watchlist-short">🟡 WATCH SELL</span>'
+    elif signal == 'WATCHLIST_LONG':
+        return f'<span class="signal-watchlist-long">🟡 WATCH BUY</span>'
+    elif signal == 'LONG':
+        return f'<span class="signal-long">🟢 BUY</span>'
+    else:
+        return f'⚪ {signal}'
 
 # Load data
 df = load_data()
@@ -105,61 +162,61 @@ df['Country'] = df['ISIN'].apply(get_country_from_isin)
 st.markdown('<h1 class="main-header">📊 Bond Mispricing Signals Dashboard</h1>', unsafe_allow_html=True)
 
 # Sidebar filters
-st.sidebar.header("🔍 Filters")
+st.sidebar.header("🔍 Filters & Controls")
 
 # Signal filter
-signal_options = ['All'] + list(df['SIGNAL'].unique())
+signal_options = list(df['SIGNAL'].unique())
 selected_signals = st.sidebar.multiselect(
-    'Trading Signals',
+    '🎯 Trading Signals',
     options=signal_options,
-    default=['All']
+    default=signal_options,
+    help="Select which trading signals to display"
 )
 
 # Country filter
-country_options = ['All'] + list(df['Country'].unique())
+country_options = list(df['Country'].unique())
 selected_countries = st.sidebar.multiselect(
-    'Countries',
+    '🌍 Countries',
     options=country_options,
-    default=['All']
+    default=country_options,
+    help="Filter bonds by country"
 )
 
-# ISIN filter
-isin_options = ['All'] + list(df['ISIN'].unique())
-selected_isins = st.sidebar.multiselect(
-    'ISIN Codes',
-    options=isin_options,
-    default=['All']
-)
+# ISIN filter (searchable)
+st.sidebar.write("🔍 **Search ISIN:**")
+isin_search = st.sidebar.text_input("Type ISIN to search", "")
 
 # Volatility filter
 vol_min, vol_max = st.sidebar.slider(
-    'Volatility Range',
+    '📊 Volatility Range',
     min_value=float(df['Volatility'].min()),
     max_value=float(df['Volatility'].max()),
     value=(float(df['Volatility'].min()), float(df['Volatility'].max())),
-    step=0.1
+    step=0.1,
+    help="Filter bonds by volatility level"
 )
 
 # Composite score filter
 score_min, score_max = st.sidebar.slider(
-    'Composite Score Range',
+    '⚖️ Composite Score Range',
     min_value=float(df['COMPOSITE_SCORE'].min()),
     max_value=float(df['COMPOSITE_SCORE'].max()),
     value=(float(df['COMPOSITE_SCORE'].min()), float(df['COMPOSITE_SCORE'].max())),
-    step=0.1
+    step=0.1,
+    help="Filter bonds by composite score"
 )
 
 # Apply filters
 filtered_df = df.copy()
 
-if 'All' not in selected_signals:
+if selected_signals:
     filtered_df = filtered_df[filtered_df['SIGNAL'].isin(selected_signals)]
 
-if 'All' not in selected_countries:
+if selected_countries:
     filtered_df = filtered_df[filtered_df['Country'].isin(selected_countries)]
 
-if 'All' not in selected_isins:
-    filtered_df = filtered_df[filtered_df['ISIN'].isin(selected_isins)]
+if isin_search:
+    filtered_df = filtered_df[filtered_df['ISIN'].str.contains(isin_search.upper(), na=False)]
 
 filtered_df = filtered_df[
     (filtered_df['Volatility'] >= vol_min) & 
@@ -169,176 +226,159 @@ filtered_df = filtered_df[
 ]
 
 # Key Metrics Row
+st.markdown("### 📈 Key Metrics")
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     total_bonds = len(filtered_df)
-    st.metric("📈 Total Bonds", total_bonds)
+    st.metric("📊 Total Bonds", total_bonds, delta=f"{total_bonds - len(df)} filtered")
 
 with col2:
     buy_signals = len(filtered_df[filtered_df['SIGNAL'].isin(['LONG', 'WATCHLIST_LONG'])])
-    st.metric("🟢 Buy Signals", buy_signals)
+    buy_pct = (buy_signals / total_bonds * 100) if total_bonds > 0 else 0
+    st.metric("🟢 Buy Signals", buy_signals, delta=f"{buy_pct:.1f}%")
 
 with col3:
     sell_signals = len(filtered_df[filtered_df['SIGNAL'].isin(['SHORT', 'WATCHLIST_SHORT'])])
-    st.metric("🔴 Sell Signals", sell_signals)
+    sell_pct = (sell_signals / total_bonds * 100) if total_bonds > 0 else 0
+    st.metric("🔴 Sell Signals", sell_signals, delta=f"{sell_pct:.1f}%")
 
 with col4:
-    avg_score = filtered_df['COMPOSITE_SCORE'].mean()
+    avg_score = filtered_df['COMPOSITE_SCORE'].mean() if not filtered_df.empty else 0
     st.metric("⚖️ Avg Score", f"{avg_score:.3f}")
 
 with col5:
-    avg_volatility = filtered_df['Volatility'].mean()
+    avg_volatility = filtered_df['Volatility'].mean() if not filtered_df.empty else 0
     st.metric("📊 Avg Volatility", f"{avg_volatility:.2f}")
 
-# Charts Row
+# Signal Distribution
+st.markdown("### 📊 Signal Distribution")
 col1, col2 = st.columns(2)
 
 with col1:
-    # Signal distribution pie chart
-    signal_counts = filtered_df['SIGNAL'].value_counts()
-    fig_pie = px.pie(
-        values=signal_counts.values,
-        names=signal_counts.index,
-        title="Signal Distribution",
-        color_discrete_map={
-            'SHORT': '#ff4444',
-            'WATCHLIST_SHORT': '#ffaa44',
-            'WATCHLIST_LONG': '#44aa44',
-            'LONG': '#44ff44'
-        }
-    )
-    fig_pie.update_layout(height=400)
-    st.plotly_chart(fig_pie, use_container_width=True)
+    if not filtered_df.empty:
+        signal_counts = filtered_df['SIGNAL'].value_counts()
+        st.write("**Trading Signals:**")
+        for signal, count in signal_counts.items():
+            percentage = (count / len(filtered_df)) * 100
+            st.write(f"• {format_signal_display(signal)}: **{count}** bonds ({percentage:.1f}%)")
+    else:
+        st.write("No data to display")
 
 with col2:
-    # Country distribution bar chart
-    country_counts = filtered_df['Country'].value_counts()
-    fig_bar = px.bar(
-        x=country_counts.index,
-        y=country_counts.values,
-        title="Bonds by Country",
-        color=country_counts.values,
-        color_continuous_scale="viridis"
-    )
-    fig_bar.update_layout(height=400, showlegend=False)
-    fig_bar.update_xaxis(title="Country")
-    fig_bar.update_yaxis(title="Number of Bonds")
-    st.plotly_chart(fig_bar, use_container_width=True)
+    if not filtered_df.empty:
+        country_counts = filtered_df['Country'].value_counts()
+        st.write("**By Country:**")
+        for country, count in country_counts.items():
+            percentage = (count / len(filtered_df)) * 100
+            st.write(f"• {country}: **{count}** bonds ({percentage:.1f}%)")
 
-# Scatter plot
-st.subheader("📈 Risk-Return Analysis")
-fig_scatter = px.scatter(
-    filtered_df,
-    x='Volatility',
-    y='COMPOSITE_SCORE',
-    color='SIGNAL',
-    hover_data=['ISIN', 'SECURITY_NAME', 'Country'],
-    title="Composite Score vs Volatility",
-    color_discrete_map={
-        'SHORT': '#ff4444',
-        'WATCHLIST_SHORT': '#ffaa44',
-        'WATCHLIST_LONG': '#44aa44',
-        'LONG': '#44ff44'
-    }
-)
-fig_scatter.update_layout(height=500)
-st.plotly_chart(fig_scatter, use_container_width=True)
+# Charts using Streamlit native charts
+st.markdown("### 📈 Visual Analysis")
+col1, col2 = st.columns(2)
+
+with col1:
+    if not filtered_df.empty:
+        st.write("**Signal Distribution**")
+        signal_chart_data = filtered_df['SIGNAL'].value_counts()
+        st.bar_chart(signal_chart_data)
+
+with col2:
+    if not filtered_df.empty:
+        st.write("**Composite Score Distribution**")
+        st.histogram(filtered_df['COMPOSITE_SCORE'], bins=20)
+
+# Scatter plot using Streamlit
+if not filtered_df.empty:
+    st.markdown("### 📈 Risk-Return Analysis")
+    st.write("**Composite Score vs Volatility**")
+    
+    # Create scatter plot data
+    scatter_data = filtered_df[['Volatility', 'COMPOSITE_SCORE']].copy()
+    st.scatter_chart(scatter_data, x='Volatility', y='COMPOSITE_SCORE', size=20)
 
 # Main data table
-st.subheader("📋 Bond Analysis Results")
-st.write(f"Showing {len(filtered_df)} of {len(df)} bonds")
+st.markdown("### 📋 Bond Analysis Results")
+st.write(f"Showing **{len(filtered_df)}** of **{len(df)}** bonds")
 
-# Prepare display dataframe
-display_df = filtered_df.copy()
-display_df = display_df.round({
-    'Z_RESIDUAL_BUCKET': 3,
-    'Cluster_Deviation_Flipped': 3,
-    'Volatility': 2,
-    'Regression_Component': 3,
-    'COMPOSITE_SCORE': 3
-})
-
-# Reorder columns for better display
-column_order = [
-    'ISIN', 'SECURITY_NAME', 'Country', 'SIGNAL', 'COMPOSITE_SCORE',
-    'Z_RESIDUAL_BUCKET', 'Cluster_Deviation_Flipped', 'Volatility', 
-    'Regression_Component', 'Date'
-]
-display_df = display_df[column_order]
-
-# Style the dataframe
-def style_dataframe(df):
-    def color_signals(val):
-        if val == 'SHORT':
-            return 'background-color: #ffebee; color: #c62828'
-        elif val == 'WATCHLIST_SHORT':
-            return 'background-color: #fff3e0; color: #ef6c00'
-        elif val == 'WATCHLIST_LONG':
-            return 'background-color: #e8f5e8; color: #2e7d32'
-        elif val == 'LONG':
-            return 'background-color: #e8f5e8; color: #1b5e20'
-        return ''
+if not filtered_df.empty:
+    # Prepare display dataframe
+    display_df = filtered_df.copy()
     
-    def color_scores(val):
-        if val > 0:
-            return 'color: #2e7d32; font-weight: bold'
-        elif val < -1.5:
-            return 'color: #c62828; font-weight: bold'
-        return ''
+    # Create formatted columns for display
+    display_df['Signal_Display'] = display_df['SIGNAL'].apply(lambda x: style_signal(x))
+    display_df['Score_Display'] = display_df['COMPOSITE_SCORE'].apply(lambda x: style_score(x))
+    display_df['Volatility_Display'] = display_df['Volatility'].apply(lambda x: style_volatility(x))
     
-    def color_volatility(val):
-        if val > 10:
-            return 'color: #c62828; font-weight: bold'
-        elif val > 5:
-            return 'color: #ef6c00'
-        elif val < 1:
-            return 'color: #2e7d32'
-        return ''
+    # Round numeric columns
+    numeric_columns = ['Z_RESIDUAL_BUCKET', 'Cluster_Deviation_Flipped', 'Regression_Component']
+    for col in numeric_columns:
+        display_df[col] = display_df[col].round(3)
     
-    return df.style.applymap(color_signals, subset=['SIGNAL']) \
-                  .applymap(color_scores, subset=['COMPOSITE_SCORE']) \
-                  .applymap(color_volatility, subset=['Volatility']) \
-                  .format({
-                      'COMPOSITE_SCORE': '{:.3f}',
-                      'Z_RESIDUAL_BUCKET': '{:.3f}',
-                      'Cluster_Deviation_Flipped': '{:.3f}',
-                      'Volatility': '{:.2f}',
-                      'Regression_Component': '{:.3f}'
-                  })
+    # Reorder columns for better display
+    column_config = {
+        'ISIN': st.column_config.TextColumn('ISIN', width='medium'),
+        'SECURITY_NAME': st.column_config.TextColumn('Security Name', width='large'),
+        'Country': st.column_config.TextColumn('Country', width='small'),
+        'Signal_Display': st.column_config.TextColumn('Signal', width='medium'),
+        'Score_Display': st.column_config.TextColumn('Score', width='small'),
+        'Volatility_Display': st.column_config.TextColumn('Volatility', width='small'),
+        'Z_RESIDUAL_BUCKET': st.column_config.NumberColumn('Z-Residual', format='%.3f'),
+        'Cluster_Deviation_Flipped': st.column_config.NumberColumn('Cluster Dev', format='%.3f'),
+        'Regression_Component': st.column_config.NumberColumn('Regression', format='%.3f'),
+        'Date': st.column_config.DateColumn('Date')
+    }
+    
+    # Display the main table
+    st.dataframe(
+        display_df[['ISIN', 'SECURITY_NAME', 'Country', 'Signal_Display', 'Score_Display', 
+                   'Volatility_Display', 'Z_RESIDUAL_BUCKET', 'Cluster_Deviation_Flipped', 
+                   'Regression_Component', 'Date']],
+        column_config=column_config,
+        use_container_width=True,
+        height=600,
+        hide_index=True
+    )
+    
+    # Download button
+    csv = filtered_df.to_csv(index=False)
+    st.download_button(
+        label="📥 Download Filtered Data as CSV",
+        data=csv,
+        file_name=f"bond_analysis_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+    
+    # Summary statistics
+    st.markdown("### 📊 Summary Statistics")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.write("**Composite Score Stats:**")
+        st.write(f"• Mean: {filtered_df['COMPOSITE_SCORE'].mean():.3f}")
+        st.write(f"• Median: {filtered_df['COMPOSITE_SCORE'].median():.3f}")
+        st.write(f"• Std Dev: {filtered_df['COMPOSITE_SCORE'].std():.3f}")
+    
+    with col2:
+        st.write("**Volatility Stats:**")
+        st.write(f"• Mean: {filtered_df['Volatility'].mean():.2f}")
+        st.write(f"• Median: {filtered_df['Volatility'].median():.2f}")
+        st.write(f"• Max: {filtered_df['Volatility'].max():.2f}")
+    
+    with col3:
+        st.write("**Risk Categories:**")
+        low_vol = len(filtered_df[filtered_df['Volatility'] < 1])
+        med_vol = len(filtered_df[(filtered_df['Volatility'] >= 1) & (filtered_df['Volatility'] < 5)])
+        high_vol = len(filtered_df[filtered_df['Volatility'] >= 5])
+        st.write(f"• Low Risk (<1): {low_vol}")
+        st.write(f"• Medium Risk (1-5): {med_vol}")
+        st.write(f"• High Risk (≥5): {high_vol}")
 
-# Display styled dataframe
-styled_df = style_dataframe(display_df)
-st.dataframe(styled_df, use_container_width=True, height=600)
-
-# Download button
-csv = filtered_df.to_csv(index=False)
-st.download_button(
-    label="📥 Download Filtered Data as CSV",
-    data=csv,
-    file_name=f"bond_analysis_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
-    mime="text/csv"
-)
-
-# Summary statistics
-st.subheader("📊 Summary Statistics")
-col1, col2 = st.columns(2)
-
-with col1:
-    st.write("**Signal Summary:**")
-    signal_summary = filtered_df['SIGNAL'].value_counts()
-    for signal, count in signal_summary.items():
-        percentage = (count / len(filtered_df)) * 100
-        st.write(f"• {signal}: {count} bonds ({percentage:.1f}%)")
-
-with col2:
-    st.write("**Score Statistics:**")
-    st.write(f"• Mean Score: {filtered_df['COMPOSITE_SCORE'].mean():.3f}")
-    st.write(f"• Median Score: {filtered_df['COMPOSITE_SCORE'].median():.3f}")
-    st.write(f"• Std Dev: {filtered_df['COMPOSITE_SCORE'].std():.3f}")
-    st.write(f"• Min Score: {filtered_df['COMPOSITE_SCORE'].min():.3f}")
-    st.write(f"• Max Score: {filtered_df['COMPOSITE_SCORE'].max():.3f}")
+else:
+    st.warning("No bonds match the current filters. Please adjust your filter criteria.")
 
 # Footer
 st.markdown("---")
 st.markdown("*Bond Mispricing Analysis Dashboard - Real-time signals for European government bonds*")
+st.markdown("*Last updated: " + pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S') + "*")
