@@ -79,8 +79,8 @@ col1, col2, col3, col4 = st.columns(4)
 
 buy_count = len(df[df['SIGNAL'] == 'LONG'])
 sell_count = len(df[df['SIGNAL'] == 'SHORT'])
-watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST_LONG'])
-watch_sell_count = len(df[df['SIGNAL'] == 'WATCHLIST_SHORT'])
+watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST LONG'])
+watch_sell_count = len(df[df['SIGNAL'] == 'WATCHLIST SHORT'])
 
 with col1:
     st.markdown(f"""
@@ -208,3 +208,4 @@ if not filtered_df.empty:
 
 else:
     st.warning("No bonds match your filters")
+
