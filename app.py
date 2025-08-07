@@ -9,79 +9,198 @@ st.set_page_config(
     layout="wide"
 )
 
-# Professional styling matching the image
+# Professional styling matching the reference
 st.markdown("""
 <style>
+    /* Hide streamlit default elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Main container */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-left: 3rem;
+        padding-right: 3rem;
+        max-width: none;
+    }
+    
+    /* Header styling */
+    .header-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
     .main-title {
-        font-size: 1.5rem;
+        font-size: 1.75rem;
         font-weight: 600;
-        color: #1a365d;
-        margin-bottom: 1rem;
+        color: #1a202c;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+    }
+    
+    .bond-count {
+        font-size: 0.875rem;
+        color: #718096;
+        background: #f7fafc;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
         display: flex;
         align-items: center;
         gap: 0.5rem;
     }
     
-    .bond-count {
-        font-size: 0.9rem;
-        color: #718096;
-        background: #f7fafc;
-        padding: 0.25rem 0.75rem;
-        border-radius: 6px;
-        border: 1px solid #e2e8f0;
-        margin-left: auto;
+    /* Metrics container */
+    .metrics-container {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        justify-content: center;
     }
     
     .metric-box {
         background: white;
-        padding: 1.5rem;
-        border-radius: 8px;
+        padding: 2rem 1.5rem;
+        border-radius: 12px;
         border: 1px solid #e2e8f0;
         text-align: center;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        min-width: 180px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: box-shadow 0.2s;
+    }
+    
+    .metric-box:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
     .metric-value {
-        font-size: 2.5rem;
-        font-weight: bold;
+        font-size: 2.75rem;
+        font-weight: 700;
         margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
     }
     
     .metric-label {
-        font-size: 0.9rem;
+        font-size: 0.875rem;
         color: #718096;
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
     
+    .metric-arrow {
+        font-size: 1.5rem;
+    }
+    
     .buy { color: #38a169; }
     .sell { color: #e53e3e; }
     .watch-buy { color: #3182ce; }
-    .watch-sell { color: #dd6b20; }
+    .watch-sell { color: #ed8936; }
     
+    /* Filter container */
     .filter-container {
         background: #f8fafc;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
         border: 1px solid #e2e8f0;
     }
     
-    /* Custom table styling */
+    .filter-row {
+        display: flex;
+        gap: 2rem;
+        align-items: end;
+    }
+    
+    /* Table container */
+    .table-container {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .table-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+        font-weight: 600;
+        color: #1a202c;
+        font-size: 0.875rem;
+    }
+    
+    /* Custom streamlit overrides */
+    .stSelectbox > div > div {
+        background: white;
+        border-radius: 8px;
+    }
+    
+    .stTextInput > div > div {
+        background: white;
+        border-radius: 8px;
+    }
+    
+    .stMultiSelect > div > div {
+        background: white;
+        border-radius: 8px;
+    }
+    
     .stDataFrame {
-        border: 1px solid #e2e8f0 !important;
-        border-radius: 8px !important;
-        overflow: hidden !important;
+        border: none !important;
     }
     
     .stDataFrame > div {
-        border-radius: 8px !important;
+        border: none !important;
+        border-radius: 0 !important;
     }
     
-    /* Hide default streamlit styling */
-    .stDataFrame [data-testid="stMetricValue"] {
-        color: inherit !important;
+    /* Signal pills */
+    .signal-pill {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .signal-long {
+        background-color: #c6f6d5;
+        color: #22543d;
+    }
+    
+    .signal-short {
+        background-color: #fed7d7;
+        color: #742a2a;
+    }
+    
+    .signal-watchlist-long {
+        background-color: #bee3f8;
+        color: #2a4365;
+    }
+    
+    .signal-watchlist-short {
+        background-color: #feebc8;
+        color: #7b341e;
+    }
+    
+    /* Action buttons */
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        justify-content: flex-start;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -104,51 +223,12 @@ def load_data():
 def get_country_from_isin(isin):
     """Extract country from ISIN code"""
     country_map = {
-        'IT': '🇮🇹 Italy',
-        'ES': '🇪🇸 Spain', 
-        'FR': '🇫🇷 France',
-        'DE': '🇩🇪 Germany'
+        'IT': 'Italy',
+        'ES': 'Spain', 
+        'FR': 'France',
+        'DE': 'Germany'
     }
-    return country_map.get(isin[:2], '🌍 Unknown')
-
-def format_signal_display(signal):
-    """Format signal for display with color"""
-    if signal == 'LONG':
-        return '🟢 LONG'
-    elif signal == 'SHORT':
-        return '🔴 SHORT'
-    elif signal == 'WATCHLIST_LONG':
-        return '🔵 WATCHLIST LONG'
-    elif signal == 'WATCHLIST_SHORT':
-        return '🟠 WATCHLIST SHORT'
-    return signal
-
-def color_code_value(val, column):
-    """Apply color coding to numeric values"""
-    if pd.isna(val):
-        return val
-    
-    if column == 'COMPOSITE_SCORE':
-        if val > 0:
-            return f'<span style="color: #38a169; font-weight: 600;">{val}</span>'
-        elif val < 0:
-            return f'<span style="color: #e53e3e; font-weight: 600;">{val}</span>'
-    elif column in ['Z_RESIDUAL_BUCKET', 'Cluster_Deviation_Flipped', 'Regression_Component']:
-        if val > 0:
-            return f'<span style="color: #38a169; font-weight: 600;">{val}</span>'
-        elif val < 0:
-            return f'<span style="color: #e53e3e; font-weight: 600;">{val}</span>'
-    elif column == 'Volatility':
-        # Format as percentage
-        pct_val = f"{val:.1f}%"
-        if val > 2:
-            return f'<span style="color: #e53e3e; font-weight: 600;">{pct_val}</span>'
-        elif val < 0.5:
-            return f'<span style="color: #38a169; font-weight: 600;">{pct_val}</span>'
-        else:
-            return f'<span style="color: #718096; font-weight: 600;">{pct_val}</span>'
-    
-    return f'<span style="font-weight: 600;">{val}</span>'
+    return country_map.get(isin[:2], 'Unknown')
 
 # Load data
 df = load_data()
@@ -160,71 +240,89 @@ if df.empty:
 # Add country column
 df['Country'] = df['ISIN'].apply(get_country_from_isin)
 
-# Header with bond count
-header_col1, header_col2 = st.columns([3, 1])
-with header_col1:
-    st.markdown('<div class="main-title">📊 Bond Screening Results</div>', unsafe_allow_html=True)
+# Header with title and count
+st.markdown(f"""
+<div class="header-container">
+    <h1 class="main-title">
+        <span style="color: #3182ce;">📊</span>
+        Bond Screening Results
+    </h1>
+    <div class="bond-count">
+        <span style="color: #3182ce;">📋</span>
+        {len(df)} of {len(df)} bonds
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# Signal metrics - horizontal boxes
-col1, col2, col3, col4 = st.columns(4)
-
+# Signal metrics - centered
 buy_count = len(df[df['SIGNAL'] == 'LONG'])
 sell_count = len(df[df['SIGNAL'] == 'SHORT'])
-watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST_LONG'])
-watch_sell_count = len(df[df['SIGNAL'] == 'WATCHLIST_SHORT'])
+watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST LONG'])
+watch_sell_count = len(df[df['SIGNAL'] == 'WATCHLIST SHORT'])
 
-with col1:
-    st.markdown(f"""
+st.markdown(f"""
+<div class="metrics-container">
     <div class="metric-box">
-        <div class="metric-value buy">{buy_count}</div>
+        <div class="metric-value buy">
+            <span class="metric-arrow">↗</span>
+            {buy_count}
+        </div>
         <div class="metric-label">Long</div>
     </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    st.markdown(f"""
+    
     <div class="metric-box">
-        <div class="metric-value sell">{sell_count}</div>
+        <div class="metric-value sell">
+            <span class="metric-arrow">↘</span>
+            {sell_count}
+        </div>
         <div class="metric-label">Short</div>
     </div>
-    """, unsafe_allow_html=True)
-
-with col3:
-    st.markdown(f"""
+    
     <div class="metric-box">
-        <div class="metric-value watch-buy">{watch_buy_count}</div>
+        <div class="metric-value watch-buy">
+            <span class="metric-arrow">↗</span>
+            {watch_buy_count}
+        </div>
         <div class="metric-label">Watchlist Long</div>
     </div>
-    """, unsafe_allow_html=True)
-
-with col4:
-    st.markdown(f"""
+    
     <div class="metric-box">
-        <div class="metric-value watch-sell">{watch_sell_count}</div>
+        <div class="metric-value watch-sell">
+            <span class="metric-arrow">↘</span>
+            {watch_sell_count}
+        </div>
         <div class="metric-label">Watchlist Short</div>
     </div>
-    """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
 
-# Horizontal filters in a styled container
+# Filters
 st.markdown('<div class="filter-container">', unsafe_allow_html=True)
+
 col1, col2, col3 = st.columns([2, 2, 3])
 
 with col1:
     selected_countries = st.multiselect(
         "Countries",
         options=list(df['Country'].unique()),
-        default=list(df['Country'].unique())
+        default=list(df['Country'].unique()),
+        key="countries"
     )
 
 with col2:
     selected_signals = st.multiselect(
         "Signals",
         options=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT'],
-        default=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT']
+        default=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT'],
+        key="signals"
     )
 
 with col3:
-    search_term = st.text_input("Search ISIN or Security Name", placeholder="Type to search...")
+    search_term = st.text_input(
+        "Search ISIN or Security Name", 
+        placeholder="Type to search...",
+        key="search"
+    )
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -244,12 +342,20 @@ if search_term:
     )
     filtered_df = filtered_df[mask]
 
-# Show filtered count
-st.markdown(f'<div class="bond-count">📊 {len(filtered_df)} of {len(df)} bonds</div>', unsafe_allow_html=True)
-st.markdown("<br>", unsafe_allow_html=True)
+# Update bond count after filtering
+if len(filtered_df) != len(df):
+    st.markdown(f"""
+    <div style="text-align: center; margin: 1rem 0;">
+        <span class="bond-count">
+            Showing {len(filtered_df)} of {len(df)} bonds
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Data table
 if not filtered_df.empty:
+    st.markdown('<div class="table-container">', unsafe_allow_html=True)
+    
     # Prepare display dataframe
     display_df = filtered_df[[
         'ISIN', 'SECURITY_NAME', 'SIGNAL', 
@@ -257,14 +363,14 @@ if not filtered_df.empty:
         'Cluster_Deviation_Flipped', 'Regression_Component'
     ]].copy()
     
-    # Round numeric columns
+    # Round and format numeric columns
     display_df['COMPOSITE_SCORE'] = display_df['COMPOSITE_SCORE'].round(1)
     display_df['Z_RESIDUAL_BUCKET'] = display_df['Z_RESIDUAL_BUCKET'].round(2)
     display_df['Cluster_Deviation_Flipped'] = display_df['Cluster_Deviation_Flipped'].round(2)
     display_df['Volatility'] = display_df['Volatility'].round(1)
     display_df['Regression_Component'] = display_df['Regression_Component'].round(2)
     
-    # Display the table with professional styling
+    # Display the table
     st.dataframe(
         display_df,
         column_config={
@@ -272,28 +378,33 @@ if not filtered_df.empty:
             'SECURITY_NAME': st.column_config.TextColumn('Security Name', width='large'),
             'SIGNAL': st.column_config.SelectboxColumn(
                 'Signal',
-                options=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT'],
+                options=['LONG', 'SHORT', '', 'WATCHLIST_SHORT'],
                 width='medium'
             ),
             'COMPOSITE_SCORE': st.column_config.NumberColumn(
                 'Composite Score',
-                format='%.1f'
+                format='%.1f',
+                width='medium'
             ),
             'Volatility': st.column_config.NumberColumn(
                 'Volatility',
-                format='%.1f%%'
+                format='%.1f%%',
+                width='small'
             ),
             'Z_RESIDUAL_BUCKET': st.column_config.NumberColumn(
                 'Z-Residual',
-                format='%.2f'
+                format='%.2f',
+                width='medium'
             ),
             'Cluster_Deviation_Flipped': st.column_config.NumberColumn(
                 'Cluster Dev',
-                format='%.2f'
+                format='%.2f',
+                width='medium'
             ),
             'Regression_Component': st.column_config.NumberColumn(
                 'Regression',
-                format='%.2f'
+                format='%.2f',
+                width='medium'
             )
         },
         use_container_width=True,
@@ -301,22 +412,27 @@ if not filtered_df.empty:
         hide_index=True
     )
     
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     # Action buttons
+    st.markdown('<div class="action-buttons">', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1, 4])
     
     with col1:
         csv = filtered_df.to_csv(index=False)
         st.download_button(
-            "📥 Download CSV",
+            "Download CSV",
             csv,
             f"bond_screening_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
             "text/csv"
         )
     
     with col2:
-        if st.button("🔄 Refresh"):
+        if st.button("Refresh Data"):
             st.cache_data.clear()
             st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     st.warning("No bonds match your filters")
