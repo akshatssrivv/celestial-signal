@@ -231,21 +231,37 @@ with tab2:
     
     if curve_file:
         try:
-            # Read the HTML file
+            # Read and embed the HTML file directly
             with open(curve_file, 'r', encoding='utf-8') as file:
                 curve_html = file.read()
             
-            # Create a container that uses full width
-            container = st.container()
+            # Modify the HTML to ensure it uses full width
+            # Add responsive styling to make it scale properly
+            modified_html = f"""
+            <div style="width: 100%; overflow-x: auto;">
+                <div style="min-width: 800px; width: 100%;">
+                    {curve_html}
+                </div>
+            </div>
+            <style>
+                /* Ensure plotly charts use full width */
+                .plotly-graph-div {{
+                    width: 100% !important;
+                }}
+                /* Make sure any plots scale properly */
+                .js-plotly-plot {{
+                    width: 100% !important;
+                }}
+            </style>
+            """
             
-            with container:
-                # Use st.components.v1.html with full width
-                st.components.v1.html(
-                    curve_html,
-                    height=600,
-                    scrolling=True,
-                    width=None  # This allows full width
-                )
+            # Display the curve directly in the tab with full width
+            st.components.v1.html(
+                modified_html, 
+                height=600, 
+                scrolling=True,
+                width=None  # This allows it to use full container width
+            )
             
         except FileNotFoundError:
             st.error(f"Curve file '{curve_file}' not found. Please ensure the standalone curve files exist.")
