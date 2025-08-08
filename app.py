@@ -20,6 +20,15 @@ def load_ns_curve(country_code, date_str):
     else:
         return None
 
+
+btps_ns_df = pd.read_pickle("data/unzipped/btps_ns_df.pkl")
+spgb_ns_df = pd.read_pickle("data/unzipped/spgb_ns_df.pkl")
+oat_ns_df  = pd.read_pickle("data/unzipped/oat_ns_df.pkl")
+bund_ns_df = pd.read_pickle("data/unzipped/bund_ns_df.pkl")
+gb_ns_df   = pd.read_pickle("data/unzipped/gb_ns_df.pkl")
+
+
+
 tab1, tab2 = st.tabs(["Signal Dashboard", "Nelson-Siegel Curves"])
 
 with tab1:
@@ -253,15 +262,22 @@ with tab2:
     selected_country = country_code_map[country_option]
 
     if subtab == "Animated Yield Curves":
-        # Load full NS dataframe (all dates) for selected country
-        ns_df = load_full_ns_df(selected_country)  # you define this to load whole NS df
+        # Map selected country/issuer to its preloaded dataframe
+        issuer_map = {
+            "BTPS": btps_ns_df,
+            "SPGB": spgb_ns_df,
+            "FRTR": frtr_ns_df,
+            "BUNDS": bunds_ns_df,
+        }
+
+        ns_df = issuer_map.get(selected_country)
 
         if ns_df is not None and not ns_df.empty:
-            # Plot animated NS curve
             fig = plot_ns_animation(ns_df, issuer_label=selected_country)
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No Nelson-Siegel data available for the selected country.")
+
 
     elif subtab == "Single Day Yield Curve":
         # Select date for single-day plot
@@ -284,3 +300,4 @@ with tab2:
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
