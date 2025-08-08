@@ -4,7 +4,7 @@ import numpy as np
 import zipfile
 import plotly.graph_objects as go
 import plotly.express as px
-from nelson_siegel_fn import plot_ns_animation
+from nelson_siegel_fn import plot_ns_animation, nelson_siegel
 import os
 
 @st.cache_resource
@@ -360,5 +360,6 @@ with tab2:
             
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
