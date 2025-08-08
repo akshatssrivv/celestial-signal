@@ -251,7 +251,7 @@ with tab2:
     # Choose subtab inside Tab 2
     subtab = st.radio(
         "Select View",
-        ("Animated Yield Curves", "Single Day Yield Curve")
+        ("Animated Curves", "Single Day Curve")
     )
 
     country_option = st.selectbox(
@@ -277,7 +277,7 @@ with tab2:
         else:
             st.warning("No Nelson-Siegel data available for the selected country.")
 
-    elif subtab == "Single Day Curve":
+     elif subtab == "Single Day Curve":
         # Select date for single-day plot
         date_input = st.date_input("Select Date")
         date_str = date_input.strftime("%Y-%m-%d")
