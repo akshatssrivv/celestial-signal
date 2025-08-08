@@ -17,6 +17,9 @@ def plot_ns_animation(
     template="plotly_dark"
 ):
 
+    print(f"[DEBUG] DataFrame columns: {list(ns_df.columns)}")
+    print(f"[DEBUG] DataFrame shape: {ns_df.shape}")
+    
     dates = sorted(ns_df['Date'].unique())
     if not dates:
         print(f"[{issuer_label}] No available dates to animate.")
@@ -24,90 +27,90 @@ def plot_ns_animation(
 
     first_date = dates[0]
     first_daily = ns_df[ns_df['Date'] == first_date]
-
-    # Initial frame setup - show ALL bonds
-    first_outliers = first_daily[np.abs(first_daily['RESIDUAL_NS']) > resid_threshold]
-    first_inliers = first_daily[np.abs(first_daily['RESIDUAL_NS']) <= resid_threshold]
+    print(f"[DEBUG] First date: {first_date}")
+    print(f"[DEBUG] First daily shape: {first_daily.shape}")
+    
+    # Check if we have the required columns
+    required_cols = ['YTM', 'Z_SPRD_VAL', 'RESIDUAL_NS', 'ISIN', 'NS_PARAMS']
+    missing_cols = [col for col in required_cols if col not in ns_df.columns]
+    if missing_cols:
+        print(f"[ERROR] Missing columns: {missing_cols}")
+        print(f"[DEBUG] Available columns: {list(ns_df.columns)}")
+        return None
 
     fig = go.Figure()
 
-    # Add inliers trace
+    # Show ALL bonds initially without filtering
     fig.add_trace(go.Scatter(
-        x=first_inliers['YTM'],
-        y=first_inliers['Z_SPRD_VAL'],
+        x=first_daily['YTM'],
+        y=first_daily['Z_SPRD_VAL'],
         mode='markers',
-        name='Inliers',
-        marker=dict(size=6, color='white'),
-        text=first_inliers['ISIN'],
-        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>'
-    ))
-
-    # Add outliers trace
-    fig.add_trace(go.Scatter(
-        x=first_outliers['YTM'],
-        y=first_outliers['Z_SPRD_VAL'],
-        mode='markers',
-        name='Outliers',
-        marker=dict(size=8, color='red', symbol='diamond'),
-        text=first_outliers['ISIN'],
-        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>'
+        name='All Bonds',
+        marker=dict(
+            size=8, 
+            color=first_daily['RESIDUAL_NS'],
+            colorscale='RdBu',
+            colorbar=dict(title="Residual"),
+            line=dict(width=1, color='white')
+        ),
+        text=first_daily['ISIN'],
+        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{marker.color:.1f}<br>%{text}<extra></extra>'
     ))
 
     # Add Nelson-Siegel curve
-    ns_params = first_daily['NS_PARAMS'].iloc[0]
-    fig.add_trace(go.Scatter(
-        x=ytm_range,
-        y=nelson_siegel(ytm_range, *ns_params),
-        mode='lines',
-        name='Nelson-Siegel Fit',
-        line=dict(color='deepskyblue', width=2)
-    ))
+    try:
+        ns_params = first_daily['NS_PARAMS'].iloc[0]
+        fig.add_trace(go.Scatter(
+            x=ytm_range,
+            y=nelson_siegel(ytm_range, *ns_params),
+            mode='lines',
+            name='Nelson-Siegel Fit',
+            line=dict(color='deepskyblue', width=3)
+        ))
+    except Exception as e:
+        print(f"[ERROR] Could not plot NS curve: {e}")
 
     # Create frames for animation
     frames = []
     for d in dates:
         daily = ns_df[ns_df['Date'] == d]
+        print(f"[DEBUG] Date {d}: {len(daily)} bonds")
 
-        # Separate outliers and inliers for this date
-        outliers = daily[np.abs(daily['RESIDUAL_NS']) > resid_threshold]
-        inliers = daily[np.abs(daily['RESIDUAL_NS']) <= resid_threshold]
+        try:
+            # Generate Nelson-Siegel curve for this date
+            fit_curve = nelson_siegel(ytm_range, *daily['NS_PARAMS'].iloc[0])
 
-        # Generate Nelson-Siegel curve for this date
-        fit_curve = nelson_siegel(ytm_range, *daily['NS_PARAMS'].iloc[0])
-
-        frames.append(go.Frame(
-            name=str(d.date()),
-            data=[
-                # Inliers trace - ALL inlier bonds
-                go.Scatter(
-                    x=inliers['YTM'],
-                    y=inliers['Z_SPRD_VAL'],
-                    mode='markers',
-                    marker=dict(size=6, color='white'),
-                    text=inliers['ISIN'],
-                    hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>',
-                    name='Inliers'
-                ),
-                # Outliers trace - ALL outlier bonds
-                go.Scatter(
-                    x=outliers['YTM'],
-                    y=outliers['Z_SPRD_VAL'],
-                    mode='markers',
-                    marker=dict(size=8, color='red', symbol='diamond'),
-                    text=outliers['ISIN'],
-                    hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>',
-                    name='Outliers'
-                ),
-                # Nelson-Siegel curve
-                go.Scatter(
-                    x=ytm_range,
-                    y=fit_curve,
-                    mode='lines',
-                    line=dict(color='deepskyblue', width=2),
-                    name='Nelson-Siegel Fit'
-                )
-            ]
-        ))
+            frames.append(go.Frame(
+                name=str(d.date()),
+                data=[
+                    # All bonds colored by residual
+                    go.Scatter(
+                        x=daily['YTM'],
+                        y=daily['Z_SPRD_VAL'],
+                        mode='markers',
+                        marker=dict(
+                            size=8,
+                            color=daily['RESIDUAL_NS'],
+                            colorscale='RdBu',
+                            colorbar=dict(title="Residual"),
+                            line=dict(width=1, color='white')
+                        ),
+                        text=daily['ISIN'],
+                        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{marker.color:.1f}<br>%{text}<extra></extra>',
+                        name='All Bonds'
+                    ),
+                    # Nelson-Siegel curve
+                    go.Scatter(
+                        x=ytm_range,
+                        y=fit_curve,
+                        mode='lines',
+                        line=dict(color='deepskyblue', width=3),
+                        name='Nelson-Siegel Fit'
+                    )
+                ]
+            ))
+        except Exception as e:
+            print(f"[ERROR] Error creating frame for {d}: {e}")
 
     fig.frames = frames
 
@@ -151,8 +154,8 @@ def plot_ns_animation(
         xaxis_title="Years to Maturity",
         yaxis_title="Z-Spread (bps)",
         template=template,
-        height=900,
-        width=1200,  # Made wider to show better in Streamlit
+        height=800,
+        width=1200,
         showlegend=True
     )
     
