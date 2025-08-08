@@ -268,7 +268,7 @@ with tab2:
 
     selected_country = country_code_map[country_option]
 
-    if subtab == "Animated Yield Curves":
+    if subtab == "Animated Curves":
         ns_df = load_full_ns_df(selected_country)
 
         if ns_df is not None and not ns_df.empty:
@@ -278,26 +278,54 @@ with tab2:
             st.warning("No Nelson-Siegel data available for the selected country.")
 
 
-    elif subtab == "Single Day Yield Curve":
-        # Select date for single-day plot
+   elif subtab == "Single Day Curve":
         date_input = st.date_input("Select Date")
         date_str = date_input.strftime("%Y-%m-%d")
 
-        # Load filtered NS dataframe for this date
         ns_df = load_ns_curve(selected_country, date_str)
 
         if ns_df is not None and not ns_df.empty:
-            # Plot static single-day curve (similar to before)
-            fig = px.line(
-                ns_df,
-                x='Maturity',
-                y='Z_SPRD_VAL',
+            import plotly.graph_objs as go
+            from nelson_siegel_fn import fit_nelson_siegel  # assumes you have this function
+
+            # Fit NS curve on this date's data
+            betas, fitted_curve = fit_nelson_siegel(ns_df)  # returns (betas, pd.DataFrame with 'Maturity' and 'Z_SPRD_VAL')
+        
+            fig = go.Figure()
+
+            # Actual bond dots (no lines)
+            fig.add_trace(go.Scatter(
+                x=ns_df['Maturity'],
+                y=ns_df['Z_SPRD_VAL'],
+                mode='markers',
+                marker=dict(color='black', size=8),
+                text=ns_df['ISIN'],
+                name='Bonds',
+                hovertemplate='Maturity: %{x:.1f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>'
+            ))
+
+            # Fitted NS curve
+            fig.add_trace(go.Scatter(
+                x=fitted_curve['Maturity'],
+                y=fitted_curve['Z_SPRD_VAL'],
+                mode='lines',
+                line=dict(color='royalblue', width=2),
+                name='Nelson-Siegel Curve',
+                hoverinfo='skip'  # optional, to reduce clutter
+            ))
+
+            fig.update_layout(
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
-                markers=True
+                xaxis_title="Maturity (Years)",
+                yaxis_title="Z Spread (bps)",
+                height=700
             )
-            fig.update_layout(height=700)  # taller plot
+
             st.plotly_chart(fig, use_container_width=True)
+
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
+
 
 
