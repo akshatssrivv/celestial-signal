@@ -218,7 +218,7 @@ with tab2:
         "Select Country",
         options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪']
     )
-
+    
     # Map countries to standalone curve HTML files
     country_curve_map = {
         'Italy 🇮🇹': 'btps_ns_animated.html',
@@ -226,21 +226,28 @@ with tab2:
         'France 🇫🇷': 'frtr_ns_animated.html',
         'Germany 🇩🇪': 'bunds_ns_animated.html'
     }
-
+    
     curve_file = country_curve_map.get(country_option)
-
+    
     if curve_file:
         try:
-            # Read and embed the HTML file directly
+            # Read the HTML file
             with open(curve_file, 'r', encoding='utf-8') as file:
                 curve_html = file.read()
             
-            # Display the curve directly in the tab
-            st.components.v1.html(curve_html, height=600, scrolling=True)
+            # Create a container that uses full width
+            container = st.container()
+            
+            with container:
+                # Use st.components.v1.html with explicit width
+                components.html(
+                    curve_html,
+                    height=600,
+                    scrolling=True
+                )
             
         except FileNotFoundError:
             st.error(f"Curve file '{curve_file}' not found. Please ensure the standalone curve files exist.")
             st.info("The curve files should contain only the chart HTML, not the full Streamlit app.")
     else:
         st.warning("No curve available for the selected country.")
-
