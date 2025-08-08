@@ -140,5 +140,4 @@ def plot_ns_animation(
         showlegend=True
     )
 
-    fig.show()
     return fig
