@@ -31,7 +31,7 @@ def plot_ns_animation(
     print(f"[DEBUG] First daily shape: {first_daily.shape}")
     
     # Check if we have the required columns
-    required_cols = ['YTM', 'Z_SPRD_VAL', 'RESIDUAL_NS', 'SECURITY_NAME', 'NS_PARAMS']
+    required_cols = ['YTM', 'Z_SPRD_VAL', 'RESIDUAL_NS', 'ISIN', 'NS_PARAMS']
     missing_cols = [col for col in required_cols if col not in ns_df.columns]
     if missing_cols:
         print(f"[ERROR] Missing columns: {missing_cols}")
@@ -40,17 +40,31 @@ def plot_ns_animation(
 
     fig = go.Figure()
 
-    # Show ALL bonds initially without filtering
+    # Get top 7 outliers for first date
+    first_outliers = first_daily.nlargest(7, 'RESIDUAL_NS', keep='all')
+    first_regular = first_daily.drop(first_outliers.index)
+
+    # Add regular bonds (black)
     fig.add_trace(go.Scatter(
-        x=first_daily['YTM'],
-        y=first_daily['Z_SPRD_VAL'],
+        x=first_regular['YTM'],
+        y=first_regular['Z_SPRD_VAL'],
         mode='markers',
-        name='All Bonds',
-        text=first_daily['SECURITY_NAME'],
-        marker=dict(
-            color='black'
-            )
-        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{marker.color:.1f}<br>%{text}<extra></extra>'
+        name='Bonds',
+        marker=dict(size=6, color='black'),
+        text=first_regular['ISIN'],
+        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>'
+    ))
+
+    # Add top 7 outliers (red)
+    fig.add_trace(go.Scatter(
+        x=first_outliers['YTM'],
+        y=first_outliers['Z_SPRD_VAL'],
+        mode='markers',
+        name='Top 7 Outliers',
+        marker=dict(size=8, color='red', symbol='diamond'),
+        text=first_outliers['ISIN'],
+        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>',
+        customdata=first_outliers['RESIDUAL_NS']
     ))
 
     # Add Nelson-Siegel curve
@@ -76,20 +90,33 @@ def plot_ns_animation(
             # Generate Nelson-Siegel curve for this date
             fit_curve = nelson_siegel(ytm_range, *daily['NS_PARAMS'].iloc[0])
 
+            # Get top 7 outliers for this date
+            daily_outliers = daily.nlargest(7, 'RESIDUAL_NS', keep='all')
+            daily_regular = daily.drop(daily_outliers.index)
+
             frames.append(go.Frame(
                 name=str(d.date()),
                 data=[
-                    # All bonds colored by residual
+                    # Regular bonds (black)
                     go.Scatter(
-                        x=daily['YTM'],
-                        y=daily['Z_SPRD_VAL'],
+                        x=daily_regular['YTM'],
+                        y=daily_regular['Z_SPRD_VAL'],
                         mode='markers',
-                        text=daily['ISIN'],
-                        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{marker.color:.1f}<br>%{text}<extra></extra>',
-                        name='All Bonds',
-                        marker=dict(
-                            color='black'
-                        )
+                        marker=dict(size=6, color='black'),
+                        text=daily_regular['ISIN'],
+                        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>',
+                        name='Bonds'
+                    ),
+                    # Top 7 outliers (red)
+                    go.Scatter(
+                        x=daily_outliers['YTM'],
+                        y=daily_outliers['Z_SPRD_VAL'],
+                        mode='markers',
+                        marker=dict(size=8, color='red', symbol='diamond'),
+                        text=daily_outliers['ISIN'],
+                        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>',
+                        customdata=daily_outliers['RESIDUAL_NS'],
+                        name='Top 7 Outliers'
                     ),
                     # Nelson-Siegel curve
                     go.Scatter(
