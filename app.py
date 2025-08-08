@@ -230,80 +230,23 @@ with tab2:
     curve_file = country_curve_map.get(country_option)
     
     if curve_file:
-        try:
-            # Read the HTML file
-            with open(curve_file, 'r', encoding='utf-8') as file:
-                original_html = file.read()
-            
-            # Wrap the content to make it responsive and fit the container
-            responsive_html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    body {{
-                        margin: 0;
-                        padding: 10px;
-                        width: 100%;
-                        height: 100vh;
-                        overflow: hidden;
-                        box-sizing: border-box;
-                    }}
-                    
-                    /* Target Plotly specifically */
-                    .plotly-graph-div {{
-                        width: 100% !important;
-                        height: 100% !important;
-                        max-width: 100% !important;
-                    }}
-                    
-                    .js-plotly-plot {{
-                        width: 100% !important;
-                        height: 100% !important;
-                    }}
-                    
-                    /* Target any divs or charts */
-                    div, svg, canvas {{
-                        max-width: 100% !important;
-                    }}
-                    
-                    /* Make sure content scales */
-                    * {{
-                        box-sizing: border-box;
-                    }}
-                </style>
-            </head>
-            <body>
-                {original_html}
-                
-                <script>
-                    // Force resize any Plotly charts after load
-                    if (typeof Plotly !== 'undefined') {{
-                        setTimeout(function() {{
-                            Plotly.Plots.resize();
-                        }}, 100);
-                    }}
-                    
-                    // Handle window resize
-                    window.addEventListener('resize', function() {{
-                        if (typeof Plotly !== 'undefined') {{
-                            Plotly.Plots.resize();
-                        }}
-                    }});
-                </script>
-            </body>
-            </html>
-            """
-            
-            # Display with larger height and no scrollbars
-            st.components.v1.html(
-                responsive_html,
-                height=700,
-                scrolling=False  # Disable scrollbars
-            )
-            
-        except FileNotFoundError:
-            st.error(f"Curve file '{curve_file}' not found. Please ensure the standalone curve files exist.")
+        # Use markdown to create a full-width iframe
+        iframe_html = f"""
+        <iframe 
+            src="{curve_file}" 
+            width="100%" 
+            height="700" 
+            frameborder="0"
+            style="border: none; width: 100%; min-height: 700px;">
+        </iframe>
+        """
+        
+        st.markdown(iframe_html, unsafe_allow_html=True)
+        
+        # Alternative: provide a direct link
+        st.markdown(f"""
+        ---
+        **Having display issues?** [Open curve in new tab]({curve_file})
+        """)
     else:
         st.warning("No curve available for the selected country.")
