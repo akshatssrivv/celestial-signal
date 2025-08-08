@@ -318,19 +318,26 @@ with tab2:
             ))
             
             # Add Nelson-Siegel fitted curve
+            # Add Nelson-Siegel fitted curve
             if 'NS_PARAMS' in ns_df.columns:
                 try:
-                    # Get NS parameters for this date
-                    ns_params = ns_df['NS_PARAMS'].iloc[0]
+                    ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
                     
-                    # Create smooth curve for plotting
+                    # Ensure it's a list, not a string
+                    if isinstance(ns_params_raw, str):
+                        import ast
+                        ns_params = ast.literal_eval(ns_params_raw)
+                    else:
+                        ns_params = ns_params_raw
+            
+                    # Generate smooth maturity curve for fitting
                     maturity_range = np.linspace(ns_df['Maturity'].min(), ns_df['Maturity'].max(), 100)
                     ns_curve = nelson_siegel(maturity_range, *ns_params)
                     
                     fig.add_trace(go.Scatter(
                         x=maturity_range,
                         y=ns_curve,
-                        mode='lines',  # Only lines
+                        mode='lines',
                         name='Nelson-Siegel Fit',
                         line=dict(color='deepskyblue', width=3)
                     ))
@@ -338,6 +345,7 @@ with tab2:
                 except Exception as e:
                     st.error(f"Error plotting Nelson-Siegel curve: {e}")
             
+                        
             # Update layout
             fig.update_layout(
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
@@ -352,4 +360,5 @@ with tab2:
             
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
