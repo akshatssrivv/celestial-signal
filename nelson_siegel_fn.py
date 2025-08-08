@@ -47,6 +47,9 @@ def plot_ns_animation(
         mode='markers',
         name='All Bonds',
         text=first_daily['SECURITY_NAME'],
+        marker=dict(
+            color='black'
+            )
         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{marker.color:.1f}<br>%{text}<extra></extra>'
     ))
 
@@ -83,7 +86,10 @@ def plot_ns_animation(
                         mode='markers',
                         text=daily['ISIN'],
                         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{marker.color:.1f}<br>%{text}<extra></extra>',
-                        name='All Bonds'
+                        name='All Bonds',
+                        marker=dict(
+                            color='black'
+                        )
                     ),
                     # Nelson-Siegel curve
                     go.Scatter(
