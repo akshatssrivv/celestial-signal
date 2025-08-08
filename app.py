@@ -306,7 +306,7 @@ with tab2:
                 mode='markers',
                 name='Bonds',
                 marker=dict(size=6, color='black'),
-                text=regular['ISIN'],
+                text=regular['SECURITY_NAME'],
                 hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
             ))
     
@@ -317,7 +317,7 @@ with tab2:
                 mode='markers',
                 name='Top 7 Outliers',
                 marker=dict(size=8, color='red', symbol='diamond'),
-                text=outliers['ISIN'],
+                text=outliers['SECURITY_NAME'],
                 customdata=outliers['RESIDUAL_NS'],
                 hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>'
             ))
@@ -363,3 +363,4 @@ with tab2:
     
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
