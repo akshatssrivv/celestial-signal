@@ -254,17 +254,14 @@ with tab2:
 
     if df is not None and not df.empty:
         st.subheader(f"Nelson-Siegel Curve for {country_option} on {date_str}")
-        st.plotly_chart(
-            px.line(
-                df,
-                x="Tenor",  # assuming this is your x-axis (maturity)
-                y="Z-spread",  # assuming this is your y-axis
-                title=f"Yield Curve for {selected_country} - {date_str}",
-                markers=True
-            ),
-            use_container_width=True
+
+        fig = px.line(
+            df,
+            x='Maturity',
+            y='Z_SPRD_VAL',
+            title=f"Nelson-Siegel Curve for {selected_country} - {date_str}",
+            markers=True
         )
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No curve data available for the selected date.")
-
-
