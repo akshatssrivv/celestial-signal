@@ -298,3 +298,4 @@ with tab2:
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
