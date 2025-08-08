@@ -1,3 +1,7 @@
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+
 def nelson_siegel(t, beta0, beta1, beta2, tau):
     t = np.array(t)
     with np.errstate(divide='ignore', invalid='ignore'):
