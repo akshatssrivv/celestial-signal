@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import zipfile
+import plotly.graph_objects as go
 import plotly.express as px
 from nelson_siegel_fn import plot_ns_animation
 import os
@@ -351,3 +352,4 @@ with tab2:
             
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
