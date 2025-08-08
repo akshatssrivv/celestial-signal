@@ -1,6 +1,22 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import zipfile
+import os
+
+@st.cache_resource
+def unzip_ns_curves():
+    if not os.path.exists("ns_curves"):
+        with zipfile.ZipFile("data/ns_curves.zip", "r") as zip_ref:
+            zip_ref.extractall("ns_curves")
+
+@st.cache_data
+def load_ns_curve(country_code, date_str):
+    path = f"ns_curves/{country_code}_{date_str}.parquet"
+    if os.path.exists(path):
+        return pd.read_parquet(path)
+    else:
+        return None
 
 tab1, tab2 = st.tabs(["Signal Dashboard", "Nelson-Siegel Curves"])
 
@@ -212,41 +228,40 @@ with tab1:
         st.warning("No bonds match your filters")
 
 with tab2:
-    st.title("Nelson-Siegel Curves by Country")
+    st.title("Nelson-Siegel Curve Explorer")
     
+    unzip_ns_curves()  # Ensure files are extracted
+
     country_option = st.selectbox(
         "Select Country",
         options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪']
     )
-    
-    # Map countries to standalone curve HTML files
-    country_curve_map = {
-        'Italy 🇮🇹': 'btps_ns_animated.html',
-        'Spain 🇪🇸': 'spgb_ns_animated.html', 
-        'France 🇫🇷': 'frtr_ns_animated.html',
-        'Germany 🇩🇪': 'bunds_ns_animated.html'
+
+    country_code_map = {
+        'Italy 🇮🇹': 'BTPS',
+        'Spain 🇪🇸': 'SPGB',
+        'France 🇫🇷': 'FRTR',
+        'Germany 🇩🇪': 'BUNDS'
     }
-    
-    curve_file = country_curve_map.get(country_option)
-    
-    if curve_file:
-        # Use markdown to create a full-width iframe
-        iframe_html = f"""
-        <iframe 
-            src="{curve_file}" 
-            width="100%" 
-            height="700" 
-            frameborder="0"
-            style="border: none; width: 100%; min-height: 700px;">
-        </iframe>
-        """
-        
-        st.markdown(iframe_html, unsafe_allow_html=True)
-        
-        # Alternative: provide a direct link
-        st.markdown(f"""
-        ---
-        **Having display issues?** [Open curve in new tab]({curve_file})
-        """)
+
+    selected_country = country_code_map[country_option]
+
+    date_input = st.date_input("Select Date")
+    date_str = date_input.strftime("%Y-%m-%d")
+
+    df = load_ns_curve(selected_country, date_str)
+
+    if df is not None and not df.empty:
+        st.subheader(f"Nelson-Siegel Curve for {country_option} on {date_str}")
+        st.plotly_chart(
+            px.line(
+                df,
+                x="Tenor",  # assuming this is your x-axis (maturity)
+                y="Z-spread",  # assuming this is your y-axis
+                title=f"Yield Curve for {selected_country} - {date_str}",
+                markers=True
+            ),
+            use_container_width=True
+        )
     else:
-        st.warning("No curve available for the selected country.")
+        st.warning("No curve data available for the selected date.")
