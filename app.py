@@ -20,13 +20,20 @@ def load_ns_curve(country_code, date_str):
     else:
         return None
 
+@st.cache_data
+def load_full_ns_df(country_code):
+    folder = "ns_curves"  # or "data/unzipped" if that's where files end up
+    all_files = [f for f in os.listdir(folder) if f.startswith(country_code) and f.endswith(".parquet")]
 
-btps_ns_df = pd.read_pickle("data/unzipped/btps_ns_df.pkl")
-spgb_ns_df = pd.read_pickle("data/unzipped/spgb_ns_df.pkl")
-oat_ns_df  = pd.read_pickle("data/unzipped/oat_ns_df.pkl")
-bund_ns_df = pd.read_pickle("data/unzipped/bund_ns_df.pkl")
-gb_ns_df   = pd.read_pickle("data/unzipped/gb_ns_df.pkl")
+    dfs = []
+    for f in sorted(all_files):
+        df = pd.read_parquet(os.path.join(folder, f))
+        dfs.append(df)
 
+    if dfs:
+        return pd.concat(dfs, ignore_index=True)
+    else:
+        return pd.DataFrame()
 
 
 tab1, tab2 = st.tabs(["Signal Dashboard", "Nelson-Siegel Curves"])
@@ -262,15 +269,7 @@ with tab2:
     selected_country = country_code_map[country_option]
 
     if subtab == "Animated Yield Curves":
-        # Map selected country/issuer to its preloaded dataframe
-        issuer_map = {
-            "BTPS": btps_ns_df,
-            "SPGB": spgb_ns_df,
-            "FRTR": frtr_ns_df,
-            "BUNDS": bunds_ns_df,
-        }
-
-        ns_df = issuer_map.get(selected_country)
+        ns_df = load_full_ns_df(selected_country)
 
         if ns_df is not None and not ns_df.empty:
             fig = plot_ns_animation(ns_df, issuer_label=selected_country)
@@ -300,4 +299,5 @@ with tab2:
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
