@@ -287,53 +287,57 @@ with tab2:
         ns_df = load_ns_curve(selected_country, date_str)
     
         if ns_df is not None and not ns_df.empty:
+            # Convert Maturity to datetime and then to Years to Maturity
+            ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
+            curve_date = pd.to_datetime(date_input)
+            ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
+    
             # Create figure with plotly graph objects for better control
             fig = go.Figure()
-        
+    
             # Get top 7 outliers for this date
             outliers = ns_df.nlargest(7, 'RESIDUAL_NS', keep='all')
             regular = ns_df.drop(outliers.index)
-        
+    
             # Add regular bonds as scatter points (black)
             fig.add_trace(go.Scatter(
-                x=regular['Maturity'],  # or 'YTM' if that's your x-axis
+                x=regular['YearsToMaturity'],
                 y=regular['Z_SPRD_VAL'],
-                mode='markers',  # Only markers, no lines
+                mode='markers',
                 name='Bonds',
                 marker=dict(size=6, color='black'),
                 text=regular['ISIN'],
-                hovertemplate='Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
+                hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
             ))
-        
+    
             # Add top 7 outliers (red diamonds)
             fig.add_trace(go.Scatter(
-                x=outliers['Maturity'],  # or 'YTM' if that's your x-axis
+                x=outliers['YearsToMaturity'],
                 y=outliers['Z_SPRD_VAL'],
-                mode='markers',  # Only markers, no lines
+                mode='markers',
                 name='Top 7 Outliers',
                 marker=dict(size=8, color='red', symbol='diamond'),
                 text=outliers['ISIN'],
-                hovertemplate='Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>',
-                customdata=outliers['RESIDUAL_NS']
+                customdata=outliers['RESIDUAL_NS'],
+                hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>'
             ))
-            
-            # Add Nelson-Siegel fitted curve
+    
             # Add Nelson-Siegel fitted curve
             if 'NS_PARAMS' in ns_df.columns:
                 try:
                     ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
-                    
+    
                     # Ensure it's a list, not a string
                     if isinstance(ns_params_raw, str):
                         import ast
                         ns_params = ast.literal_eval(ns_params_raw)
                     else:
                         ns_params = ns_params_raw
-            
-                    # Generate smooth maturity curve for fitting
-                    maturity_range = np.linspace(ns_df['Maturity'].min(), ns_df['Maturity'].max(), 100)
+    
+                    # Generate smooth maturity curve in Years to Maturity
+                    maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
                     ns_curve = nelson_siegel(maturity_range, *ns_params)
-                    
+    
                     fig.add_trace(go.Scatter(
                         x=maturity_range,
                         y=ns_curve,
@@ -341,11 +345,10 @@ with tab2:
                         name='Nelson-Siegel Fit',
                         line=dict(color='deepskyblue', width=3)
                     ))
-                    
+    
                 except Exception as e:
                     st.error(f"Error plotting Nelson-Siegel curve: {e}")
-            
-                        
+    
             # Update layout
             fig.update_layout(
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
@@ -353,13 +356,10 @@ with tab2:
                 yaxis_title="Z-Spread (bps)",
                 height=700,
                 showlegend=True,
-                template="plotly_dark"  # or whatever template you prefer
+                template="plotly_dark"
             )
-            
+    
             st.plotly_chart(fig, use_container_width=True)
-            
+    
         else:
             st.warning("No Nelson-Siegel data available for this date.")
-
-
-
