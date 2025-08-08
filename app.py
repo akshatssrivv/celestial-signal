@@ -239,11 +239,12 @@ with tab2:
             container = st.container()
             
             with container:
-                # Use st.components.v1.html with explicit width
-                components.html(
+                # Use st.components.v1.html with full width
+                st.components.v1.html(
                     curve_html,
                     height=600,
-                    scrolling=True
+                    scrolling=True,
+                    width=None  # This allows full width
                 )
             
         except FileNotFoundError:
