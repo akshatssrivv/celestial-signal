@@ -7,7 +7,7 @@ import os
 @st.cache_resource
 def unzip_ns_curves():
     if not os.path.exists("ns_curves"):
-        with zipfile.ZipFile("data/ns_curves.zip", "r") as zip_ref:
+        with zipfile.ZipFile("ns_curves.zip", "r") as zip_ref:
             zip_ref.extractall("ns_curves")
 
 @st.cache_data
@@ -265,3 +265,4 @@ with tab2:
         )
     else:
         st.warning("No curve data available for the selected date.")
+
