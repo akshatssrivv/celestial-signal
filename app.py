@@ -281,73 +281,20 @@ with tab2:
         # Select date for single-day plot
         date_input = st.date_input("Select Date")
         date_str = date_input.strftime("%Y-%m-%d")
-    
+
         # Load filtered NS dataframe for this date
         ns_df = load_ns_curve(selected_country, date_str)
-    
+
         if ns_df is not None and not ns_df.empty:
-            # Create figure with plotly graph objects for better control
-            fig = go.Figure()
-        
-            # Get top 7 outliers for this date
-            outliers = ns_df.nlargest(7, 'RESIDUAL_NS', keep='all')
-            regular = ns_df.drop(outliers.index)
-        
-            # Add regular bonds as scatter points (black)
-            fig.add_trace(go.Scatter(
-                x=regular['Maturity'],  # or 'YTM' if that's your x-axis
-                y=regular['Z_SPRD_VAL'],
-                mode='markers',  # Only markers, no lines
-                name='Bonds',
-                marker=dict(size=6, color='black'),
-                text=regular['ISIN'],
-                hovertemplate='Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
-            ))
-        
-            # Add top 7 outliers (red diamonds)
-            fig.add_trace(go.Scatter(
-                x=outliers['Maturity'],  # or 'YTM' if that's your x-axis
-                y=outliers['Z_SPRD_VAL'],
-                mode='markers',  # Only markers, no lines
-                name='Top 7 Outliers',
-                marker=dict(size=8, color='red', symbol='diamond'),
-                text=outliers['ISIN'],
-                hovertemplate='Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>',
-                customdata=outliers['RESIDUAL_NS']
-            ))
-        
-            # Add Nelson-Siegel fitted curve
-            if 'NS_PARAMS' in ns_df.columns:
-                try:
-                    # Get NS parameters for this date
-                    ns_params = ns_df['NS_PARAMS'].iloc[0]
-                
-                    # Create smooth curve for plotting
-                    maturity_range = np.linspace(ns_df['Maturity'].min(), ns_df['Maturity'].max(), 100)
-                    ns_curve = nelson_siegel(maturity_range, *ns_params)
-                    
-                    fig.add_trace(go.Scatter(
-                        x=maturity_range,
-                        y=ns_curve,
-                        mode='lines',  # Only lines
-                        name='Nelson-Siegel Fit',
-                        line=dict(color='deepskyblue', width=3)
-                    ))
-                
-                except Exception as e:
-                    st.error(f"Error plotting Nelson-Siegel curve: {e}")
-        
-            # Update layout
-            fig.update_layout(
+            # Plot static single-day curve (similar to before)
+            fig = px.line(
+                ns_df,
+                x='Maturity',
+                y='Z_SPRD_VAL',
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
-                xaxis_title="Years to Maturity",
-                yaxis_title="Z-Spread (bps)",
-                height=700,
-                showlegend=True,
-                template="plotly_dark"  # or whatever template you prefer
+                markers=True
             )
-        
+            fig.update_layout(height=700)  # taller plot
             st.plotly_chart(fig, use_container_width=True)
-        
         else:
             st.warning("No Nelson-Siegel data available for this date.")
