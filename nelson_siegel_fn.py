@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+
 def nelson_siegel(t, beta0, beta1, beta2, tau):
     t = np.array(t)
     with np.errstate(divide='ignore', invalid='ignore'):
@@ -24,11 +25,13 @@ def plot_ns_animation(
     first_date = dates[0]
     first_daily = ns_df[ns_df['Date'] == first_date]
 
+    # Initial frame setup - show ALL bonds
     first_outliers = first_daily[np.abs(first_daily['RESIDUAL_NS']) > resid_threshold]
     first_inliers = first_daily[np.abs(first_daily['RESIDUAL_NS']) <= resid_threshold]
 
     fig = go.Figure()
 
+    # Add inliers trace
     fig.add_trace(go.Scatter(
         x=first_inliers['YTM'],
         y=first_inliers['Z_SPRD_VAL'],
@@ -39,6 +42,7 @@ def plot_ns_animation(
         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>'
     ))
 
+    # Add outliers trace
     fig.add_trace(go.Scatter(
         x=first_outliers['YTM'],
         y=first_outliers['Z_SPRD_VAL'],
@@ -49,6 +53,7 @@ def plot_ns_animation(
         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>'
     ))
 
+    # Add Nelson-Siegel curve
     ns_params = first_daily['NS_PARAMS'].iloc[0]
     fig.add_trace(go.Scatter(
         x=ytm_range,
@@ -58,34 +63,42 @@ def plot_ns_animation(
         line=dict(color='deepskyblue', width=2)
     ))
 
+    # Create frames for animation
     frames = []
     for d in dates:
         daily = ns_df[ns_df['Date'] == d]
 
-        outliers = daily.reindex(np.abs(daily['RESIDUAL_NS']).nlargest(7).index)
-        inliers = daily.drop(outliers.index)
+        # Separate outliers and inliers for this date
+        outliers = daily[np.abs(daily['RESIDUAL_NS']) > resid_threshold]
+        inliers = daily[np.abs(daily['RESIDUAL_NS']) <= resid_threshold]
 
+        # Generate Nelson-Siegel curve for this date
         fit_curve = nelson_siegel(ytm_range, *daily['NS_PARAMS'].iloc[0])
 
         frames.append(go.Frame(
             name=str(d.date()),
             data=[
+                # Inliers trace - ALL inlier bonds
                 go.Scatter(
                     x=inliers['YTM'],
                     y=inliers['Z_SPRD_VAL'],
                     mode='markers',
                     marker=dict(size=6, color='white'),
                     text=inliers['ISIN'],
-                    hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>'
+                    hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>',
+                    name='Inliers'
                 ),
+                # Outliers trace - ALL outlier bonds
                 go.Scatter(
                     x=outliers['YTM'],
                     y=outliers['Z_SPRD_VAL'],
                     mode='markers',
                     marker=dict(size=8, color='red', symbol='diamond'),
                     text=outliers['ISIN'],
-                    hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>'
+                    hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>',
+                    name='Outliers'
                 ),
+                # Nelson-Siegel curve
                 go.Scatter(
                     x=ytm_range,
                     y=fit_curve,
@@ -139,7 +152,8 @@ def plot_ns_animation(
         yaxis_title="Z-Spread (bps)",
         template=template,
         height=900,
-        width=900,
+        width=1200,  # Made wider to show better in Streamlit
         showlegend=True
     )
+    
     return fig
