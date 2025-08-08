@@ -278,7 +278,7 @@ with tab2:
             st.warning("No Nelson-Siegel data available for the selected country.")
 
 
-   elif subtab == "Single Day Curve":
+    elif subtab == "Single Day Curve":
         date_input = st.date_input("Select Date")
         date_str = date_input.strftime("%Y-%m-%d")
 
@@ -325,6 +325,7 @@ with tab2:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
