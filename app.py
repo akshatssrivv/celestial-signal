@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import zipfile
+import plotly.express as px
 import os
 
 @st.cache_resource
@@ -265,4 +266,5 @@ with tab2:
         )
     else:
         st.warning("No curve data available for the selected date.")
+
 
