@@ -221,10 +221,10 @@ with tab2:
 
     # Map countries to standalone curve HTML files
     country_curve_map = {
-        'Italy 🇮🇹': 'btps_curve_only.html',
-        'Spain 🇪🇸': 'spgb_curve_only.html', 
-        'France 🇫🇷': 'frtr_curve_only.html',
-        'Germany 🇩🇪': 'bunds_curve_only.html'
+        'Italy 🇮🇹': 'btps_ns_animated.html',
+        'Spain 🇪🇸': 'spgb_ns_animated.html', 
+        'France 🇫🇷': 'frtr_ns_animated.html',
+        'Germany 🇩🇪': 'bunds_ns_animated.html'
     }
 
     curve_file = country_curve_map.get(country_option)
@@ -243,3 +243,4 @@ with tab2:
             st.info("The curve files should contain only the chart HTML, not the full Streamlit app.")
     else:
         st.warning("No curve available for the selected country.")
+
