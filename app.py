@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import zipfile
 import plotly.express as px
+from nelson_siegel_fn import plot_ns_animation
 import os
 
 @st.cache_resource
@@ -230,8 +231,12 @@ with tab1:
 
 with tab2:
     st.title("Nelson-Siegel Curve Explorer")
-    
-    unzip_ns_curves()  # Ensure files are extracted
+
+    # Choose subtab inside Tab 2
+    subtab = st.radio(
+        "Select View",
+        ("Animated Yield Curves", "Single Day Yield Curve")
+    )
 
     country_option = st.selectbox(
         "Select Country",
@@ -247,21 +252,35 @@ with tab2:
 
     selected_country = country_code_map[country_option]
 
-    date_input = st.date_input("Select Date")
-    date_str = date_input.strftime("%Y-%m-%d")
+    if subtab == "Animated Yield Curves":
+        # Load full NS dataframe (all dates) for selected country
+        ns_df = load_full_ns_df(selected_country)  # you define this to load whole NS df
 
-    df = load_ns_curve(selected_country, date_str)
+        if ns_df is not None and not ns_df.empty:
+            # Plot animated NS curve
+            fig = plot_ns_animation(ns_df, issuer_label=selected_country)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No Nelson-Siegel data available for the selected country.")
 
-    if df is not None and not df.empty:
-        st.subheader(f"Nelson-Siegel Curve for {country_option} on {date_str}")
+    elif subtab == "Single Day Yield Curve":
+        # Select date for single-day plot
+        date_input = st.date_input("Select Date")
+        date_str = date_input.strftime("%Y-%m-%d")
 
-        fig = px.line(
-            df,
-            x='Maturity',
-            y='Z_SPRD_VAL',
-            title=f"Nelson-Siegel Curve for {selected_country} - {date_str}",
-            markers=True
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("No curve data available for the selected date.")
+        # Load filtered NS dataframe for this date
+        ns_df = load_ns_curve(selected_country, date_str)
+
+        if ns_df is not None and not ns_df.empty:
+            # Plot static single-day curve (similar to before)
+            fig = px.line(
+                ns_df,
+                x='Maturity',
+                y='Z_SPRD_VAL',
+                title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
+                markers=True
+            )
+            fig.update_layout(height=700)  # taller plot
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No Nelson-Siegel data available for this date.")
