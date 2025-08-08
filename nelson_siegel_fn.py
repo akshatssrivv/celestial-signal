@@ -138,7 +138,7 @@ def plot_ns_animation(
         xaxis_title="Years to Maturity",
         yaxis_title="Z-Spread (bps)",
         template=template,
-        height=600,
+        height=900,
         width=900,
         showlegend=True
     )
