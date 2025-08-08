@@ -219,28 +219,27 @@ with tab2:
         options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪']
     )
 
-    country_file_map = {
-        'Italy 🇮🇹': 'btps_ns_animated.html',
-        'Spain 🇪🇸': 'spgb_ns_animated.html',
-        'France 🇫🇷': 'frtr_ns_animated.html',
-        'Germany 🇩🇪': 'bunds_ns_animated.html'
+    # Map countries to standalone curve HTML files
+    country_curve_map = {
+        'Italy 🇮🇹': 'btps_curve_only.html',
+        'Spain 🇪🇸': 'spgb_curve_only.html', 
+        'France 🇫🇷': 'frtr_curve_only.html',
+        'Germany 🇩🇪': 'bunds_curve_only.html'
     }
 
-    html_file = country_file_map.get(country_option)
+    curve_file = country_curve_map.get(country_option)
 
-    if html_file:
-        st.success("Click below to view the full Nelson-Siegel curve")
-        st.markdown(
-            f"""
-            <a href="{html_file}" target="_blank">
-                <button style="padding: 0.75rem 1.5rem; font-size: 1rem;">Open Curve in New Tab</button>
-            </a>
-            """,
-            unsafe_allow_html=True
-        )
+    if curve_file:
+        try:
+            # Read and embed the HTML file directly
+            with open(curve_file, 'r', encoding='utf-8') as file:
+                curve_html = file.read()
+            
+            # Display the curve directly in the tab
+            st.components.v1.html(curve_html, height=600, scrolling=True)
+            
+        except FileNotFoundError:
+            st.error(f"Curve file '{curve_file}' not found. Please ensure the standalone curve files exist.")
+            st.info("The curve files should contain only the chart HTML, not the full Streamlit app.")
     else:
-        st.warning("No file available for the selected country.")
-
-
-
-
+        st.warning("No curve available for the selected country.")
