@@ -31,7 +31,7 @@ def plot_ns_animation(
     print(f"[DEBUG] First daily shape: {first_daily.shape}")
     
     # Check if we have the required columns
-    required_cols = ['YTM', 'Z_SPRD_VAL', 'RESIDUAL_NS', 'SECURITY_NAME', 'NS_PARAMS']
+    required_cols = ['YTM', 'Z_SPRD_VAL', 'RESIDUAL_NS', 'ISIN', 'NS_PARAMS']
     missing_cols = [col for col in required_cols if col not in ns_df.columns]
     if missing_cols:
         print(f"[ERROR] Missing columns: {missing_cols}")
@@ -51,7 +51,7 @@ def plot_ns_animation(
         mode='markers',
         name='Bonds',
         marker=dict(size=6, color='black'),
-        text=first_regular['SECURITY_NAME'],
+        text=first_regular['ISIN'],
         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>'
     ))
 
@@ -62,7 +62,7 @@ def plot_ns_animation(
         mode='markers',
         name='Top 7 Outliers',
         marker=dict(size=8, color='red', symbol='diamond'),
-        text=first_outliers['SECURITY_NAME'],
+        text=first_outliers['ISIN'],
         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>',
         customdata=first_outliers['RESIDUAL_NS']
     ))
@@ -103,7 +103,7 @@ def plot_ns_animation(
                         y=daily_regular['Z_SPRD_VAL'],
                         mode='markers',
                         marker=dict(size=6, color='black'),
-                        text=daily_regular['SECURITY_NAME'],
+                        text=daily_regular['ISIN'],
                         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>%{text}<extra></extra>',
                         name='Bonds'
                     ),
@@ -113,7 +113,7 @@ def plot_ns_animation(
                         y=daily_outliers['Z_SPRD_VAL'],
                         mode='markers',
                         marker=dict(size=8, color='red', symbol='diamond'),
-                        text=daily_outliers['SECURITY_NAME'],
+                        text=daily_outliers['ISIN'],
                         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>',
                         customdata=daily_outliers['RESIDUAL_NS'],
                         name='Top 7 Outliers'
