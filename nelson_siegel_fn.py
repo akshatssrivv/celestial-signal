@@ -63,8 +63,9 @@ def plot_ns_animation(
     for d in dates:
         daily = ns_df[ns_df['Date'] == d]
 
-        outliers = daily.reindex(np.abs(daily['RESIDUAL_NS']).nlargest(7).index)
-        inliers = daily.drop(outliers.index)
+        outliers = daily[np.abs(daily['RESIDUAL_NS']) > resid_threshold]
+        inliers = daily[np.abs(daily['RESIDUAL_NS']) <= resid_threshold]
+
 
         fit_curve = nelson_siegel(ytm_range, *daily['NS_PARAMS'].iloc[0])
 
