@@ -31,7 +31,7 @@ def plot_ns_animation(
     print(f"[DEBUG] First daily shape: {first_daily.shape}")
     
     # Check if we have the required columns
-    required_cols = ['YTM', 'Z_SPRD_VAL', 'RESIDUAL_NS', 'ISIN', 'NS_PARAMS']
+    required_cols = ['YTM', 'Z_SPRD_VAL', 'RESIDUAL_NS', 'SECURITY_NAME', 'NS_PARAMS']
     missing_cols = [col for col in required_cols if col not in ns_df.columns]
     if missing_cols:
         print(f"[ERROR] Missing columns: {missing_cols}")
@@ -46,14 +46,7 @@ def plot_ns_animation(
         y=first_daily['Z_SPRD_VAL'],
         mode='markers',
         name='All Bonds',
-        marker=dict(
-            size=8, 
-            color=first_daily['RESIDUAL_NS'],
-            colorscale='RdBu',
-            colorbar=dict(title="Residual"),
-            line=dict(width=1, color='white')
-        ),
-        text=first_daily['ISIN'],
+        text=first_daily['SECURITY_NAME'],
         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{marker.color:.1f}<br>%{text}<extra></extra>'
     ))
 
@@ -88,13 +81,6 @@ def plot_ns_animation(
                         x=daily['YTM'],
                         y=daily['Z_SPRD_VAL'],
                         mode='markers',
-                        marker=dict(
-                            size=8,
-                            color=daily['RESIDUAL_NS'],
-                            colorscale='RdBu',
-                            colorbar=dict(title="Residual"),
-                            line=dict(width=1, color='white')
-                        ),
                         text=daily['ISIN'],
                         hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{marker.color:.1f}<br>%{text}<extra></extra>',
                         name='All Bonds'
