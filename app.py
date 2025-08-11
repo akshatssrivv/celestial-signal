@@ -88,7 +88,6 @@ def load_full_ns_df(country_code):
 tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
 
 with tab2:
-    st.title("Nelson-Siegel Curve Explorer")
 
     # Simple, clean styling
     st.markdown("""
@@ -451,6 +450,7 @@ with tab1:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
