@@ -131,13 +131,6 @@ with tab1:
     # Title
     st.title("Bond Analytics Dashboard")
 
-    # Debug: Show actual signal values in your data
-    st.write("**Debug: Actual SIGNAL values in your data:**")
-    signal_counts = df['SIGNAL'].value_counts()
-    st.write(signal_counts)
-    st.write(f"**Total bonds:** {len(df)}")
-    st.markdown("---")
-
     # Signal metrics - horizontal boxes
     col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -415,4 +408,5 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
