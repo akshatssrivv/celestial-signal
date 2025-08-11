@@ -1,17 +1,6 @@
-import openai
+from openai import OpenAI
 
-def format_bond_diagnostics(row):
-    return {
-        "ISIN": row["ISIN"],
-        "SECURITY_NAME": row["SECURITY_NAME"],
-        "Date": str(row["Date"]),  # keep string if needed
-        "SIGNAL": row["SIGNAL"],  # exact column name
-        "COMPOSITE_SCORE": round(row["COMPOSITE_SCORE"], 2),
-        "Z_RESIDUAL_BUCKET": round(row.get("Z_RESIDUAL_BUCKET", 0), 2),
-        "Cluster_Deviation_Flipped": round(row.get("Cluster_Deviation_Flipped", 0), 2),
-        "Volatility": round(row.get("Volatility", 0), 2),
-        "Regression_Component": round(row.get("Regression_Component", 0), 2),
-    }
+client = OpenAI()
 
 def generate_ai_explanation(diagnostics):
     prompt = f"""
@@ -28,7 +17,7 @@ def generate_ai_explanation(diagnostics):
     Give a short, clear explanation from a trader's perspective.
     """
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are an expert fixed income trader and risk analyst."},
@@ -37,6 +26,17 @@ def generate_ai_explanation(diagnostics):
         temperature=0.3
     )
 
-    answer = response.choices[0].message.content
+    return response.choices[0].message.content
 
-    return answer
+def format_bond_diagnostics(row):
+    return {
+        "ISIN": row["ISIN"],
+        "SECURITY_NAME": row["SECURITY_NAME"],
+        "Date": str(row["Date"]),  # keep string if needed
+        "SIGNAL": row["SIGNAL"],  # exact column name
+        "COMPOSITE_SCORE": round(row["COMPOSITE_SCORE"], 2),
+        "Z_RESIDUAL_BUCKET": round(row.get("Z_RESIDUAL_BUCKET", 0), 2),
+        "Cluster_Deviation_Flipped": round(row.get("Cluster_Deviation_Flipped", 0), 2),
+        "Volatility": round(row.get("Volatility", 0), 2),
+        "Regression_Component": round(row.get("Regression_Component", 0), 2),
+    }
