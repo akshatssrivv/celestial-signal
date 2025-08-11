@@ -4,15 +4,13 @@ def generate_ai_explanation(diagnostics):
     prompt = f"""
     You are a bond trading analyst. 
     Explain why the bond {diagnostics['SECURITY_NAME']} ({diagnostics['ISIN']}) 
-    has a signal of {diagnostics['Signal']} with composite score {diagnostics['Composite_Score']} on {diagnostics['Date']}.
+    has a signal of {diagnostics['Signal']} with composite score {diagnostics['COMPOSITE_SCORE']} on {diagnostics['Date']}.
 
     Context:
-    Residual Z: {diagnostics['Residual_Z']}
-    Cluster Deviation: {diagnostics['Cluster_Deviation']}
+    Residual Z-Score: {diagnostics['Z_RESIDUAL_BUCKET']}
+    Cluster Deviation: {diagnostics['Cluster_Deviation_Flipped']}
     Volatility: {diagnostics['Volatility']}
-    Anomaly Flag: {diagnostics['Anomaly_Flag']}
     Regression Component: {diagnostics['Regression_Component']}
-    Confidence: {diagnostics['Confidence']}
 
     Give a short, clear explanation from a trader's perspective.
     """
@@ -27,3 +25,4 @@ def generate_ai_explanation(diagnostics):
     )
 
     return response.choices[0].message["content"]
+
