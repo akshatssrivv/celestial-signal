@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -90,6 +89,7 @@ with tab1:
         .sell { color: #dc3545; }
         .watch-buy { color: #17a2b8; }
         .watch-sell { color: #fd7e14; }
+        .no-action { color: #6c757d; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -132,12 +132,13 @@ with tab1:
     st.title("Bond Analytics Dashboard")
 
     # Signal metrics - horizontal boxes
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     buy_count = len(df[df['SIGNAL'] == 'LONG'])
     sell_count = len(df[df['SIGNAL'] == 'SHORT'])
     watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST LONG'])
     watch_sell_count = len(df[df['SIGNAL'] == 'WATCHLIST SHORT'])
+    no_action_count = len(df[df['SIGNAL'] == 'NO ACTION'])
 
     with col1:
         st.markdown(f"""
@@ -171,6 +172,14 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
+    with col5:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-value no-action">{no_action_count}</div>
+            <div class="metric-label">NO ACTION</div>
+        </div>
+        """, unsafe_allow_html=True)
+
     st.markdown("---")
 
     # Horizontal filters
@@ -186,7 +195,7 @@ with tab1:
     with col2:
         selected_signals = st.multiselect(
             "Signals",
-            options=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT'],
+            options=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT', 'NO ACTION'],
             default=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT']
         )
 
@@ -391,6 +400,3 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
-
-
-
