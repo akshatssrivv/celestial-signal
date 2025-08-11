@@ -65,13 +65,7 @@ def load_full_ns_df(country_code):
 tab1, tab2 = st.tabs(["Signal Dashboard", "Nelson-Siegel Curves"])
 
 with tab2:
-    st.write("OpenAI package version:", openai.__version__)
-
-    st.set_page_config(
-        page_title="Bond Analytics Dashboard",
-        page_icon="📊",
-        layout="wide"
-    )
+    st.title("Nelson-Siegel Curve Explorer")
 
     # Simple, clean styling
     st.markdown("""
@@ -306,8 +300,12 @@ with tab2:
         st.warning("No bonds match your filters")
 
 with tab1:
-    st.title("Nelson-Siegel Curve Explorer")
-
+    st.set_page_config(
+        page_title="Bond Analytics Dashboard",
+        page_icon="📊",
+        layout="wide"
+    )
+    
     # Choose subtab inside Tab 2
     subtab = st.radio(
         "Select View",
@@ -430,6 +428,7 @@ with tab1:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
