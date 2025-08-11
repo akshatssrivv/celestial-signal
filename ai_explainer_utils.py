@@ -28,13 +28,16 @@ def generate_ai_explanation(diagnostics):
     Give a short, clear explanation from a trader's perspective.
     """
 
-    response = openai.ChatCompletion.acreate(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an expert fixed income trader and risk analyst."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3
+   response = openai.ChatCompletion.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": "You are an expert fixed income trader and risk analyst."},
+        {"role": "user", "content": prompt}
+    ],
+    temperature=0.3
     )
 
-    return response.choices[0].message["content"]
+    answer = response.choices[0].message.content
+
+
+    return answer
