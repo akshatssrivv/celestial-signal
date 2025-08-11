@@ -5,6 +5,7 @@ import zipfile
 import plotly.graph_objects as go
 import plotly.express as px
 from nelson_siegel_fn import plot_ns_animation, nelson_siegel
+from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
 import os
 
 @st.cache_resource
@@ -261,6 +262,20 @@ with tab1:
             height=600,
             hide_index=True
         )
+
+        # Add selectbox to choose bond for explanation
+        isin_options = filtered_df['ISIN'].unique()
+        selected_isin = st.selectbox("Select bond to explain", options=isin_options)
+
+        if selected_isin:
+            selected_bond_row = filtered_df[filtered_df['ISIN'] == selected_isin].iloc[0]
+
+            diagnostics = format_bond_diagnostics(selected_bond_row)
+
+            explanation = generate_ai_explanation(diagnostics)
+
+            st.markdown("### AI Explanation")
+            st.write(explanation)
     
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
@@ -407,6 +422,7 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
