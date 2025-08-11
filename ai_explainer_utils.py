@@ -4,20 +4,20 @@ def format_bond_diagnostics(row):
     return {
         "ISIN": row["ISIN"],
         "SECURITY_NAME": row["SECURITY_NAME"],
-        "Date": str(row["Date"]),  # convert datetime to string if needed
-        "Signal": row["SIGNAL"],
-        "Composite Score": round(row["COMPOSITE_SCORE"], 2),
-        "Residual Z-Score": round(row.get("Z_RESIDUAL_BUCKET", 0), 2),
-        "Cluster Deviation": round(row.get("Cluster_Deviation_Flipped", 0), 2),
+        "Date": str(row["Date"]),  # keep string if needed
+        "SIGNAL": row["SIGNAL"],  # exact column name
+        "COMPOSITE_SCORE": round(row["COMPOSITE_SCORE"], 2),
+        "Z_RESIDUAL_BUCKET": round(row.get("Z_RESIDUAL_BUCKET", 0), 2),
+        "Cluster_Deviation_Flipped": round(row.get("Cluster_Deviation_Flipped", 0), 2),
         "Volatility": round(row.get("Volatility", 0), 2),
-        "Regression Component": round(row.get("Regression_Component", 0), 2),
+        "Regression_Component": round(row.get("Regression_Component", 0), 2),
     }
 
 def generate_ai_explanation(diagnostics):
     prompt = f"""
     You are a bond trading analyst. 
     Explain why the bond {diagnostics['SECURITY_NAME']} ({diagnostics['ISIN']}) 
-    has a signal of {diagnostics['Signal']} with composite score {diagnostics['COMPOSITE_SCORE']} on {diagnostics['Date']}.
+    has a signal of {diagnostics['SIGNAL']} with composite score {diagnostics['COMPOSITE_SCORE']} on {diagnostics['Date']}.
 
     Context:
     Residual Z-Score: {diagnostics['Z_RESIDUAL_BUCKET']}
