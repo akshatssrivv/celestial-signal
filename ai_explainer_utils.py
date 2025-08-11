@@ -1,3 +1,5 @@
+import openai
+
 def format_bond_diagnostics(row):
     return {
         "ISIN": row["ISIN"],
@@ -10,3 +12,29 @@ def format_bond_diagnostics(row):
         "Volatility": round(row.get("Volatility", 0), 2),
         "Regression Component": round(row.get("Regression_Component", 0), 2),
     }
+
+def generate_ai_explanation(diagnostics):
+    prompt = f"""
+    You are a bond trading analyst. 
+    Explain why the bond {diagnostics['SECURITY_NAME']} ({diagnostics['ISIN']}) 
+    has a signal of {diagnostics['Signal']} with composite score {diagnostics['COMPOSITE_SCORE']} on {diagnostics['Date']}.
+
+    Context:
+    Residual Z-Score: {diagnostics['Z_RESIDUAL_BUCKET']}
+    Cluster Deviation: {diagnostics['Cluster_Deviation_Flipped']}
+    Volatility: {diagnostics['Volatility']}
+    Regression Component: {diagnostics['Regression_Component']}
+
+    Give a short, clear explanation from a trader's perspective.
+    """
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are an expert fixed income trader and risk analyst."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3
+    )
+
+    return response.choices[0].message["content"]
