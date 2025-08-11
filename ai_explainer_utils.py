@@ -15,16 +15,15 @@ def generate_ai_explanation(diagnostics):
     - How the bond is performing today compared to its issuer peers and bonds with similar maturity.
     - Whether its mispricing signal is improving or weakening compared to 1 week and 1 month ago.
     - The meaning of each component below in plain language, focusing on what the values imply for trading or risk:
-      * Residual Z-Score: {diagnostics['Z_RESIDUAL_BUCKET']} (percentile among issuer peers: {diagnostics['Residual_Z_Percentile']}%)
-      * Cluster Deviation: {diagnostics['Cluster_Deviation_Flipped']} (percentile within maturity group: {diagnostics['Cluster_Deviation_Percentile']}%)
+      * Residual Z-Score: {diagnostics['Z_RESIDUAL_BUCKET']}
+      * Cluster Deviation: {diagnostics['Cluster_Deviation_Flipped']}
       * Volatility: {diagnostics['Volatility']} (trend: {diagnostics.get('Volatility_Trend', 'stable')})
-      * Regression Component: {diagnostics['Regression_Component']} (percentile vs issuer peers: {diagnostics['Regression_Component_Percentile']}%)
-    
+      * Regression Component: {diagnostics['Regression_Component']}
+
     Include insights about investor sentiment if applicable, and provide a clear recommendation or action item for traders based on these factors.
 
     Use no jargon, and keep the explanation actionable and easy to understand.
     """
-
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
