@@ -399,3 +399,4 @@ with tab2:
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
 
+
