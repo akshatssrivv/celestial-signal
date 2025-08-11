@@ -1,4 +1,5 @@
 from openai import OpenAI
+import pandas as pd
 
 client = OpenAI()
 
