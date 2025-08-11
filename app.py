@@ -179,14 +179,14 @@ with tab1:
         selected_countries = st.multiselect(
             "Countries",
             options=list(df['Country'].unique()),
-            default=list(df['Country'].unique())
+            default=[]
         )
 
     with col2:
         selected_signals = st.multiselect(
             "Signals",
             options=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT'],
-            default=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT']
+            default=[]
         )
 
     with col3:
@@ -197,7 +197,7 @@ with tab1:
 
     if selected_countries:
         filtered_df = filtered_df[filtered_df['Country'].isin(selected_countries)]
-
+    
     if selected_signals:
         filtered_df = filtered_df[filtered_df['SIGNAL'].isin(selected_signals)]
 
