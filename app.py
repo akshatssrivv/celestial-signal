@@ -8,16 +8,20 @@ from nelson_siegel_fn import plot_ns_animation, nelson_siegel
 from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
 import openai
 import os
+import shutil
 
 @st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
 def cached_generate_ai_explanation(diagnostics):
     return generate_ai_explanation(diagnostics)
+    
 
 @st.cache_resource
 def unzip_ns_curves():
-    if not os.path.exists("ns_curves"):
-        with zipfile.ZipFile("ns_curves.zip", "r") as zip_ref:
-            zip_ref.extractall("ns_curves")
+    if os.path.exists("ns_curves"):
+        shutil.rmtree("ns_curves")
+    with zipfile.ZipFile("ns_curves.zip", "r") as zip_ref:
+        zip_ref.extractall("ns_curves")
+
 
 @st.cache_data
 def load_ns_curve(country_code, date_str):
@@ -428,6 +432,7 @@ with tab1:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
