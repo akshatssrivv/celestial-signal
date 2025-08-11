@@ -9,6 +9,10 @@ from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
 import openai
 import os
 
+@st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
+def cached_generate_ai_explanation(diagnostics):
+    return generate_ai_explanation(diagnostics)
+
 @st.cache_resource
 def unzip_ns_curves():
     if not os.path.exists("ns_curves"):
@@ -272,13 +276,14 @@ with tab1:
 
         if selected_isin:
             selected_bond_row = filtered_df[filtered_df['ISIN'] == selected_isin].iloc[0]
-
             diagnostics = format_bond_diagnostics(selected_bond_row)
 
-            explanation = generate_ai_explanation(diagnostics)
+            if st.button("Explain this bond"):
+                with st.spinner("Generating AI explanation..."):
+                    explanation = cached_generate_ai_explanation(diagnostics)
+                    st.markdown("### AI Explanation")
+                    st.write(explanation)
 
-            st.markdown("### AI Explanation")
-            st.write(explanation)
     
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
@@ -425,6 +430,7 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
