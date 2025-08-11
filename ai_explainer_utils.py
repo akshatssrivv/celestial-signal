@@ -1,4 +1,5 @@
 from openai import OpenAI
+from openai.error import RateLimitError
 
 client = OpenAI()
 
