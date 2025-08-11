@@ -61,6 +61,8 @@ def load_full_ns_df(country_code):
 tab1, tab2 = st.tabs(["Signal Dashboard", "Nelson-Siegel Curves"])
 
 with tab1:
+    st.write("OpenAI package version:", openai.__version__)
+
     st.set_page_config(
         page_title="Bond Analytics Dashboard",
         page_icon="📊",
@@ -423,6 +425,7 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
