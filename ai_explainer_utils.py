@@ -15,18 +15,24 @@ def generate_ai_explanation(diagnostics):
     Regression Component: {diagnostics['Regression_Component']}
 
     Give a short, clear explanation from a trader's perspective.
-    """
+    """   
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert fixed income trader and risk analyst."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+        answer = response.choices[0].message.content
+        return answer
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an expert fixed income trader and risk analyst."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3
-    )
-
-    return response.choices[0].message.content
+    except RateLimitError:
+        return "⚠️ Rate limit exceeded. Please wait a moment and try again."
+    except Exception as e:
+        return f"⚠️ An error occurred: {e}"
+        
 
 def format_bond_diagnostics(row):
     return {
