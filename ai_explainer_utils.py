@@ -1,5 +1,4 @@
-from openai import OpenAI
-from openai.error import RateLimitError
+from openai import OpenAI, OpenAIError
 
 client = OpenAI()
 
@@ -29,10 +28,11 @@ def generate_ai_explanation(diagnostics):
         answer = response.choices[0].message.content
         return answer
 
-    except RateLimitError:
-        return "⚠️ Rate limit exceeded. Please wait a moment and try again."
-    except Exception as e:
-        return f"⚠️ An error occurred: {e}"
+    except OpenAIError as e:
+    if "rate limit" in str(e).lower():
+        print("Rate limit hit, please retry later.")
+    else:
+        raise
         
 
 def format_bond_diagnostics(row):
