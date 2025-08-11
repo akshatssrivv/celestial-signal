@@ -85,7 +85,7 @@ def load_full_ns_df(country_code):
         return pd.DataFrame()
 
 
-tab1, tab2 = st.tabs(["Signal Dashboard", "Nelson-Siegel Curves"])
+tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
 
 with tab2:
     st.title("Nelson-Siegel Curve Explorer")
@@ -451,6 +451,7 @@ with tab1:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
