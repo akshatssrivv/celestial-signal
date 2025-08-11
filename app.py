@@ -271,11 +271,11 @@ with tab2:
         )
 
         # Add selectbox to choose bond for explanation
-        isin_options = filtered_df['ISIN'].unique()
-        selected_isin = st.selectbox("Select bond to explain", options=isin_options)
+        securityname_options = filtered_df['SECURITY_NAME'].unique()
+        selected_securityname = st.selectbox("Select bond to explain", options=securityname_options)
 
-        if selected_isin:
-            selected_bond_row = filtered_df[filtered_df['ISIN'] == selected_isin].iloc[0]
+        if selected_securityname:
+            selected_bond_row = filtered_df[filtered_df['SECURITY_NAME'] == selected_securityname].iloc[0]
             diagnostics = format_bond_diagnostics(selected_bond_row)
 
             if st.button("Explain this bond"):
@@ -430,6 +430,7 @@ with tab1:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
