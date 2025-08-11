@@ -9,18 +9,37 @@ from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
 import openai
 import os
 import shutil
+import hashlib
 
 @st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
 def cached_generate_ai_explanation(diagnostics):
     return generate_ai_explanation(diagnostics)
     
-
 @st.cache_resource
 def unzip_ns_curves():
+    def file_hash(filepath):
+        hasher = hashlib.md5()
+        with open(filepath, 'rb') as f:
+            buf = f.read()
+            hasher.update(buf)
+        return hasher.hexdigest()
+    
+    zip_hash = file_hash("ns_curves.zip")
+
     if os.path.exists("ns_curves"):
-        shutil.rmtree("ns_curves")
-    with zipfile.ZipFile("ns_curves.zip", "r") as zip_ref:
-        zip_ref.extractall("ns_curves")
+        # Load previous hash if stored
+        prev_hash = st.session_state.get('ns_zip_hash')
+        if prev_hash != zip_hash:
+            import shutil
+            shutil.rmtree("ns_curves")
+            with zipfile.ZipFile("ns_curves.zip", "r") as zip_ref:
+                zip_ref.extractall("ns_curves")
+            st.session_state['ns_zip_hash'] = zip_hash
+    else:
+        with zipfile.ZipFile("ns_curves.zip", "r") as zip_ref:
+            zip_ref.extractall("ns_curves")
+        st.session_state['ns_zip_hash'] = zip_hash
+
 
 
 @st.cache_data
@@ -432,6 +451,7 @@ with tab1:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
