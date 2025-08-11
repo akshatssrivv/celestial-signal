@@ -125,18 +125,19 @@ with tab1:
         st.stop()
 
     # Add country column
-    df['Country'] = df['ISIN'].apply(get_country_from_isin)
+    df['Issuer'] = df['ISIN'].apply(get_country_from_isin)
 
     # Title
     st.title("Bond Analytics Dashboard")
 
     # Signal metrics - horizontal boxes
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     buy_count = len(df[df['SIGNAL'] == 'LONG'])
     sell_count = len(df[df['SIGNAL'] == 'SHORT'])
     watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST LONG'])
     watch_sell_count = len(df[df['SIGNAL'] == 'WATCHLIST SHORT'])
+    no_action_count = len(df[df['SIGNAL'] == 'NO ACTION'])
 
     with col1:
         st.markdown(f"""
@@ -170,6 +171,14 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
+    with col5:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-value watch-sell">{no_action_count}</div>
+            <div class="metric-label">NO ACTION</div>
+        </div>
+        """, unsafe_allow_html=True)
+
     st.markdown("---")
 
     # Horizontal filters
@@ -177,15 +186,15 @@ with tab1:
 
     with col1:
         selected_countries = st.multiselect(
-            "Countries",
-            options=list(df['Country'].unique()),
+            "Issuer",
+            options=list(df['Issuer'].unique()),
             default=[]
         )
 
     with col2:
         selected_signals = st.multiselect(
             "Signals",
-            options=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT'],
+            options=['LONG', 'SHORT', 'WATCHLIST LONG', 'WATCHLIST SHORT', 'NO ACTION'],
             default=[]
         )
 
@@ -196,7 +205,7 @@ with tab1:
     filtered_df = df.copy()
 
     if selected_countries:
-        filtered_df = filtered_df[filtered_df['Country'].isin(selected_countries)]
+        filtered_df = filtered_df[filtered_df['Issuer'].isin(selected_countries)]
     
     if selected_signals:
         filtered_df = filtered_df[filtered_df['SIGNAL'].isin(selected_signals)]
@@ -216,9 +225,9 @@ with tab1:
     if not filtered_df.empty:
         # Format the dataframe for display
         display_df = filtered_df[[
-            'ISIN', 'SECURITY_NAME', 'Country', 'SIGNAL', 
+            'ISIN', 'SECURITY_NAME', 'Issuer', 'SIGNAL', 
             'COMPOSITE_SCORE', 'Z_RESIDUAL_BUCKET', 'Cluster_Deviation_Flipped', 
-            'Volatility', 'Regression_Component', 'Date'
+            'Volatility', 'Regression_Component'
         ]].copy()
     
         # Round numeric columns
@@ -231,14 +240,13 @@ with tab1:
             column_config={
                 'ISIN': 'ISIN',
                 'SECURITY_NAME': 'Security Name',
-                'Country': 'Country',
+                'Issuer': 'Issuer',
                 'SIGNAL': 'Signal',
                 'COMPOSITE_SCORE': st.column_config.NumberColumn('Composite Score', format='%.4f'),
                 'Z_RESIDUAL_BUCKET': st.column_config.NumberColumn('Z-Residual', format='%.4f'),
                 'Cluster_Deviation_Flipped': st.column_config.NumberColumn('Cluster Deviation', format='%.4f'),
                 'Volatility': st.column_config.NumberColumn('Volatility', format='%.4f'),
                 'Regression_Component': st.column_config.NumberColumn('Regression Component', format='%.4f'),
-                'Date': 'Date'
             },
             use_container_width=True,
             height=600,
@@ -390,3 +398,4 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
