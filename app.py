@@ -233,6 +233,21 @@ with tab2:
     with col3:
         search_term = st.text_input("Search ISIN or Security Name", placeholder="Type to search...")
 
+    with col4:
+        # Add selectbox to choose bond for explanation
+        securityname_options = filtered_df['SECURITY_NAME'].unique()
+        selected_securityname = st.selectbox("Select bond to explain", options=securityname_options)
+
+        if selected_securityname:
+            selected_bond_row = filtered_df[filtered_df['SECURITY_NAME'] == selected_securityname].iloc[0]
+            diagnostics = format_bond_diagnostics(selected_bond_row)
+
+            if st.button("Explain this bond"):
+                with st.spinner("Generating AI explanation..."):
+                    explanation = cached_generate_ai_explanation(diagnostics)
+                    st.markdown("### AI Explanation")
+                    st.write(explanation)
+
     # Apply filters
     filtered_df = df.copy()
 
@@ -285,20 +300,6 @@ with tab2:
             height=600,
             hide_index=True
         )
-
-        # Add selectbox to choose bond for explanation
-        securityname_options = filtered_df['SECURITY_NAME'].unique()
-        selected_securityname = st.selectbox("Select bond to explain", options=securityname_options)
-
-        if selected_securityname:
-            selected_bond_row = filtered_df[filtered_df['SECURITY_NAME'] == selected_securityname].iloc[0]
-            diagnostics = format_bond_diagnostics(selected_bond_row)
-
-            if st.button("Explain this bond"):
-                with st.spinner("Generating AI explanation..."):
-                    explanation = cached_generate_ai_explanation(diagnostics)
-                    st.markdown("### AI Explanation")
-                    st.write(explanation)
 
     
         # Download button
@@ -450,6 +451,7 @@ with tab1:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
