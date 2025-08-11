@@ -243,7 +243,7 @@ with tab1:
         display_df = filtered_df[[
             'ISIN', 'SECURITY_NAME', 'Country', 'SIGNAL', 
             'COMPOSITE_SCORE', 'Z_RESIDUAL_BUCKET', 'Cluster_Deviation_Flipped', 
-            'Volatility', 'Regression_Component', 'Date'
+            'Volatility', 'Regression_Component'
         ]].copy()
     
         # Round numeric columns
@@ -256,7 +256,7 @@ with tab1:
             column_config={
                 'ISIN': 'ISIN',
                 'SECURITY_NAME': 'Security Name',
-                'Country': 'Country',
+                'Country': 'Issuer',
                 'SIGNAL': 'Signal',
                 'COMPOSITE_SCORE': st.column_config.NumberColumn('Composite Score', format='%.4f'),
                 'Z_RESIDUAL_BUCKET': st.column_config.NumberColumn('Z-Residual', format='%.4f'),
@@ -415,3 +415,4 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
