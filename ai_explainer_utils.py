@@ -36,11 +36,9 @@ def generate_ai_explanation(diagnostics):
     return answer
 
 
-def format_bond_diagnostics(row, peer_stats, historical_stats):
-    """
-    peer_stats: dict with percentiles for metrics compared to issuer peers or maturity groups
-    historical_stats: dict with time-based comparisons like 1w ago composite, volatility trends, etc.
-    """
+def format_bond_diagnostics(row):
+    def safe_get(series, key, default=0):
+        return series[key] if key in series and pd.notna(series[key]) else default
 
     def safe_round(val):
         try:
@@ -49,20 +47,20 @@ def format_bond_diagnostics(row, peer_stats, historical_stats):
             return 0
 
     return {
-        "ISIN": row["ISIN"],
-        "SECURITY_NAME": row["SECURITY_NAME"],
-        "Date": str(row["Date"]),
-        "SIGNAL": row["SIGNAL"],
-        "COMPOSITE_SCORE": safe_round(row["COMPOSITE_SCORE"]),
-        "Z_RESIDUAL_BUCKET": safe_round(row.get("Z_RESIDUAL_BUCKET", 0)),
-        # Uncomment if you calculate these percentile columns in your df:
-        # "Residual_Z_Percentile": safe_round(row.get("Residual_Z_Percentile", 50)),
-        "Cluster_Deviation_Flipped": safe_round(row.get("Cluster_Deviation_Flipped", 0)),
-        # "Cluster_Deviation_Percentile": safe_round(row.get("Cluster_Deviation_Percentile", 50)),
-        "Volatility": safe_round(row.get("Volatility", 0)),
-        "Volatility_Trend": row.get("Volatility_Trend", "stable"),
-        "Regression_Component": safe_round(row.get("Regression_Component", 0)),
-        # "Regression_Component_Percentile": safe_round(row.get("Regression_Component_Percentile", 50)),
-        "Composite_1W_Change": safe_round(row.get("Composite_1W_Change", 0)),
-        "Composite_1M_Change": safe_round(row.get("Composite_1M_Change", 0)),
+        "ISIN": safe_get(row, "ISIN", ""),
+        "SECURITY_NAME": safe_get(row, "SECURITY_NAME", ""),
+        "Date": str(safe_get(row, "Date", "")),
+        "SIGNAL": safe_get(row, "SIGNAL", ""),
+        "COMPOSITE_SCORE": safe_round(safe_get(row, "COMPOSITE_SCORE")),
+        "Z_RESIDUAL_BUCKET": safe_round(safe_get(row, "Z_RESIDUAL_BUCKET")),
+        "Cluster_Deviation_Flipped": safe_round(safe_get(row, "Cluster_Deviation_Flipped")),
+        "Volatility": safe_round(safe_get(row, "Volatility")),
+        "Volatility_Trend": safe_get(row, "Volatility_Trend", "stable"),
+        "Regression_Component": safe_round(safe_get(row, "Regression_Component")),
+        "Composite_1W_Change": safe_round(safe_get(row, "Composite_1W_Change")),
+        "Composite_1M_Change": safe_round(safe_get(row, "Composite_1M_Change")),
+        # Uncomment these if you have percentile columns
+        # "Residual_Z_Percentile": safe_round(safe_get(row, "Residual_Z_Percentile", 50)),
+        # "Cluster_Deviation_Percentile": safe_round(safe_get(row, "Cluster_Deviation_Percentile", 50)),
+        # "Regression_Component_Percentile": safe_round(safe_get(row, "Regression_Component_Percentile", 50)),
     }
