@@ -15,6 +15,8 @@ def unzip_ns_curves():
 
 @st.cache_data
 def load_ns_curve(country_code, date_str):
+    # Ensure data is unzipped first
+    unzip_ns_curves()
     path = f"ns_curves/{country_code}_{date_str}.parquet"
     if os.path.exists(path):
         return pd.read_parquet(path)
@@ -23,13 +25,30 @@ def load_ns_curve(country_code, date_str):
 
 @st.cache_data
 def load_full_ns_df(country_code):
-    folder = "ns_curves"  # or "data/unzipped" if that's where files end up
-    all_files = [f for f in os.listdir(folder) if f.startswith(country_code) and f.endswith(".parquet")]
+    # Ensure data is unzipped first
+    unzip_ns_curves()
+    
+    folder = "ns_curves"
+    
+    # Check if folder exists after unzipping
+    if not os.path.exists(folder):
+        st.error(f"Data folder '{folder}' not found. Please ensure ns_curves.zip exists.")
+        return pd.DataFrame()
+    
+    try:
+        all_files = [f for f in os.listdir(folder) if f.startswith(country_code) and f.endswith(".parquet")]
+    except OSError as e:
+        st.error(f"Error accessing folder '{folder}': {e}")
+        return pd.DataFrame()
 
     dfs = []
     for f in sorted(all_files):
-        df = pd.read_parquet(os.path.join(folder, f))
-        dfs.append(df)
+        try:
+            df = pd.read_parquet(os.path.join(folder, f))
+            dfs.append(df)
+        except Exception as e:
+            st.warning(f"Error loading file {f}: {e}")
+            continue
 
     if dfs:
         return pd.concat(dfs, ignore_index=True)
@@ -270,97 +289,104 @@ with tab2:
     selected_country = country_code_map[country_option]
 
     if subtab == "Animated Curves":
-        ns_df = load_full_ns_df(selected_country)
-
-        if ns_df is not None and not ns_df.empty:
-            fig = plot_ns_animation(ns_df, issuer_label=selected_country)
-            st.plotly_chart(fig, use_container_width=True)
+        # Check if zip file exists before trying to load data
+        if not os.path.exists("ns_curves.zip"):
+            st.error("ns_curves.zip file not found. Please ensure the file is uploaded to your Streamlit app.")
         else:
-            st.warning("No Nelson-Siegel data available for the selected country.")
+            ns_df = load_full_ns_df(selected_country)
+
+            if ns_df is not None and not ns_df.empty:
+                fig = plot_ns_animation(ns_df, issuer_label=selected_country)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("No Nelson-Siegel data available for the selected country.")
 
     elif subtab == "Single Day Curve":
-        # Select date for single-day plot
-        date_input = st.date_input("Select Date")
-        date_str = date_input.strftime("%Y-%m-%d")
-    
-        # Load filtered NS dataframe for this date
-        ns_df = load_ns_curve(selected_country, date_str)
-    
-        if ns_df is not None and not ns_df.empty:
-            # Convert Maturity to datetime and then to Years to Maturity
-            ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
-            curve_date = pd.to_datetime(date_input)
-            ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
-    
-            # Create figure with plotly graph objects for better control
-            fig = go.Figure()
-    
-            # Get top 7 outliers for this date
-            outliers = ns_df.nlargest(7, 'RESIDUAL_NS', keep='all')
-            regular = ns_df.drop(outliers.index)
-    
-            # Add regular bonds as scatter points (black)
-            fig.add_trace(go.Scatter(
-                x=regular['YearsToMaturity'],
-                y=regular['Z_SPRD_VAL'],
-                mode='markers',
-                name='Bonds',
-                marker=dict(size=6, color='black'),
-                text=regular['SECURITY_NAME'],
-                hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
-            ))
-    
-            # Add top 7 outliers (red diamonds)
-            fig.add_trace(go.Scatter(
-                x=outliers['YearsToMaturity'],
-                y=outliers['Z_SPRD_VAL'],
-                mode='markers',
-                name='Top 7 Outliers',
-                marker=dict(size=8, color='red', symbol='diamond'),
-                text=outliers['SECURITY_NAME'],
-                customdata=outliers['RESIDUAL_NS'],
-                hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>'
-            ))
-    
-            # Add Nelson-Siegel fitted curve
-            if 'NS_PARAMS' in ns_df.columns:
-                try:
-                    ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
-    
-                    # Ensure it's a list, not a string
-                    if isinstance(ns_params_raw, str):
-                        import ast
-                        ns_params = ast.literal_eval(ns_params_raw)
-                    else:
-                        ns_params = ns_params_raw
-    
-                    # Generate smooth maturity curve in Years to Maturity
-                    maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
-                    ns_curve = nelson_siegel(maturity_range, *ns_params)
-    
-                    fig.add_trace(go.Scatter(
-                        x=maturity_range,
-                        y=ns_curve,
-                        mode='lines',
-                        name='Nelson-Siegel Fit',
-                        line=dict(color='deepskyblue', width=3)
-                    ))
-    
-                except Exception as e:
-                    st.error(f"Error plotting Nelson-Siegel curve: {e}")
-    
-            # Update layout
-            fig.update_layout(
-                title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
-                xaxis_title="Years to Maturity",
-                yaxis_title="Z-Spread (bps)",
-                height=700,
-                showlegend=True,
-                template="plotly_dark"
-            )
-    
-            st.plotly_chart(fig, use_container_width=True)
-    
+        # Check if zip file exists before trying to load data
+        if not os.path.exists("ns_curves.zip"):
+            st.error("ns_curves.zip file not found. Please ensure the file is uploaded to your Streamlit app.")
         else:
-            st.warning("No Nelson-Siegel data available for this date.")
-
+            # Select date for single-day plot
+            date_input = st.date_input("Select Date")
+            date_str = date_input.strftime("%Y-%m-%d")
+        
+            # Load filtered NS dataframe for this date
+            ns_df = load_ns_curve(selected_country, date_str)
+        
+            if ns_df is not None and not ns_df.empty:
+                # Convert Maturity to datetime and then to Years to Maturity
+                ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
+                curve_date = pd.to_datetime(date_input)
+                ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
+        
+                # Create figure with plotly graph objects for better control
+                fig = go.Figure()
+        
+                # Get top 7 outliers for this date
+                outliers = ns_df.nlargest(7, 'RESIDUAL_NS', keep='all')
+                regular = ns_df.drop(outliers.index)
+        
+                # Add regular bonds as scatter points (black)
+                fig.add_trace(go.Scatter(
+                    x=regular['YearsToMaturity'],
+                    y=regular['Z_SPRD_VAL'],
+                    mode='markers',
+                    name='Bonds',
+                    marker=dict(size=6, color='black'),
+                    text=regular['SECURITY_NAME'],
+                    hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
+                ))
+        
+                # Add top 7 outliers (red diamonds)
+                fig.add_trace(go.Scatter(
+                    x=outliers['YearsToMaturity'],
+                    y=outliers['Z_SPRD_VAL'],
+                    mode='markers',
+                    name='Top 7 Outliers',
+                    marker=dict(size=8, color='red', symbol='diamond'),
+                    text=outliers['SECURITY_NAME'],
+                    customdata=outliers['RESIDUAL_NS'],
+                    hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>'
+                ))
+        
+                # Add Nelson-Siegel fitted curve
+                if 'NS_PARAMS' in ns_df.columns:
+                    try:
+                        ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
+        
+                        # Ensure it's a list, not a string
+                        if isinstance(ns_params_raw, str):
+                            import ast
+                            ns_params = ast.literal_eval(ns_params_raw)
+                        else:
+                            ns_params = ns_params_raw
+        
+                        # Generate smooth maturity curve in Years to Maturity
+                        maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
+                        ns_curve = nelson_siegel(maturity_range, *ns_params)
+        
+                        fig.add_trace(go.Scatter(
+                            x=maturity_range,
+                            y=ns_curve,
+                            mode='lines',
+                            name='Nelson-Siegel Fit',
+                            line=dict(color='deepskyblue', width=3)
+                        ))
+        
+                    except Exception as e:
+                        st.error(f"Error plotting Nelson-Siegel curve: {e}")
+        
+                # Update layout
+                fig.update_layout(
+                    title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
+                    xaxis_title="Years to Maturity",
+                    yaxis_title="Z-Spread (bps)",
+                    height=700,
+                    showlegend=True,
+                    template="plotly_dark"
+                )
+        
+                st.plotly_chart(fig, use_container_width=True)
+        
+            else:
+                st.warning("No Nelson-Siegel data available for this date.")
