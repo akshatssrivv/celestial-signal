@@ -202,7 +202,7 @@ with tab1:
         
         selected_signals = st.multiselect(
             "Signals",
-            options=actual_signal_options,
+            options=fixed_signal_options,
             default=default_signals
         )
 
@@ -407,6 +407,7 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
