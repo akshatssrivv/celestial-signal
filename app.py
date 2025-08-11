@@ -136,7 +136,6 @@ with tab1:
 
     # Get actual signal values from your data (case-sensitive and exact match)
     actual_signals = df['SIGNAL'].unique()
-    st.write(f"**Available signals:** {list(actual_signals)}")
     
     buy_count = len(df[df['SIGNAL'] == 'LONG'])
     sell_count = len(df[df['SIGNAL'] == 'SHORT'])
@@ -408,5 +407,6 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
