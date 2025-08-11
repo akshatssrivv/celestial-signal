@@ -131,9 +131,20 @@ with tab1:
     # Title
     st.title("Bond Analytics Dashboard")
 
+    # Debug: Show actual signal values in your data
+    st.write("**Debug: Actual SIGNAL values in your data:**")
+    signal_counts = df['SIGNAL'].value_counts()
+    st.write(signal_counts)
+    st.write(f"**Total bonds:** {len(df)}")
+    st.markdown("---")
+
     # Signal metrics - horizontal boxes
     col1, col2, col3, col4, col5 = st.columns(5)
 
+    # Get actual signal values from your data (case-sensitive and exact match)
+    actual_signals = df['SIGNAL'].unique()
+    st.write(f"**Available signals:** {list(actual_signals)}")
+    
     buy_count = len(df[df['SIGNAL'] == 'LONG'])
     sell_count = len(df[df['SIGNAL'] == 'SHORT'])
     watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST LONG'])
@@ -193,10 +204,14 @@ with tab1:
         )
 
     with col2:
+        # Get actual signal options from your data
+        actual_signal_options = sorted(df['SIGNAL'].unique().tolist())
+        default_signals = [sig for sig in actual_signal_options if sig != 'NO ACTION']
+        
         selected_signals = st.multiselect(
             "Signals",
-            options=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT', 'NO ACTION'],
-            default=['LONG', 'SHORT', 'WATCHLIST_LONG', 'WATCHLIST_SHORT']
+            options=actual_signal_options,
+            default=default_signals
         )
 
     with col3:
