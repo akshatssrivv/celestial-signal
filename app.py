@@ -197,8 +197,8 @@ with tab1:
 
     with col2:
         # Get actual signal options from your data
-        actual_signal_options = sorted(df['SIGNAL'].unique().tolist())
-        default_signals = [sig for sig in actual_signal_options if sig != 'NO ACTION']
+        fixed_signal_options = ['LONG', 'SHORT', 'WATCHLIST LONG', 'WATCHLIST SHORT', 'NO ACTION']
+        default_signals = [sig for sig in fixed_signal_options if sig != 'NO ACTION']
         
         selected_signals = st.multiselect(
             "Signals",
@@ -407,6 +407,7 @@ with tab2:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
