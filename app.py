@@ -431,7 +431,6 @@ with tab1:
                     except Exception as e:
                         st.error(f"Error plotting Nelson-Siegel curve: {e}")
     
-                # ... build fig as before ...
 
             fig.update_layout(
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
@@ -455,23 +454,24 @@ with tab1:
             with col2:
                 # Keep this empty — explanation rendered outside after this
             
-            # Now outside columns, update explanation box based on selected points:
-            if selected_points:
-                isin, date_hovered = selected_points[0]['customdata'][:2]
-                bond_history = final_signal_df[(final_signal_df['ISIN'] == isin) & (final_signal_df['Date'] == date_hovered)]
-                if not bond_history.empty:
-                    diagnostics = format_bond_diagnostics(bond_history)
-                    explanation = generate_ai_explanation(diagnostics)
-                    ai_explanation_placeholder.markdown(f"### AI Explanation for {diagnostics['SECURITY_NAME']} on {diagnostics['Date']}")
-                    ai_explanation_placeholder.write(explanation)
+                # Now outside columns, update explanation box based on selected points:
+                if selected_points:
+                    isin, date_hovered = selected_points[0]['customdata'][:2]
+                    bond_history = final_signal_df[(final_signal_df['ISIN'] == isin) & (final_signal_df['Date'] == date_hovered)]
+                    if not bond_history.empty:
+                        diagnostics = format_bond_diagnostics(bond_history)
+                        explanation = generate_ai_explanation(diagnostics)
+                        ai_explanation_placeholder.markdown(f"### AI Explanation for {diagnostics['SECURITY_NAME']} on {diagnostics['Date']}")
+                        ai_explanation_placeholder.write(explanation)
+                    else:
+                        ai_explanation_placeholder.markdown("No diagnostics found for selected bond.")
                 else:
-                    ai_explanation_placeholder.markdown("No diagnostics found for selected bond.")
-            else:
-                ai_explanation_placeholder.markdown("Click a bond on the plot to see AI explanation here.")
+                    ai_explanation_placeholder.markdown("Click a bond on the plot to see AI explanation here.")
 
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
