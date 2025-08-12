@@ -6,25 +6,24 @@ client = OpenAI()
 def generate_ai_explanation(diagnostics):
     prompt = f"""
     You are an expert fixed income trader and risk analyst.
-
-    Explain the behavior of the bond {diagnostics['SECURITY_NAME']} ({diagnostics['ISIN']}) on {diagnostics['Date']}.
-
-    It currently has a signal: {diagnostics['SIGNAL']} with a composite score of {diagnostics['COMPOSITE_SCORE']}.
-
-    Provide a clear, concise explanation that covers:
-
-    - How the bond is performing today compared to its issuer peers and bonds with similar maturity.
-    - Whether its mispricing signal is improving or weakening compared to 1 week and 1 month ago.
-    - The meaning of each component below in plain language, focusing on what the values imply for trading or risk:
-      * Residual Z-Score: {diagnostics['Z_RESIDUAL_BUCKET']}
-      * Cluster Deviation: {diagnostics['Cluster_Deviation_Flipped']}
-      * Volatility: {diagnostics['Volatility']} (trend: {diagnostics.get('Volatility_Trend', 'stable')})
-      * Regression Component: {diagnostics['Regression_Component']}
-
-    Include insights about investor sentiment if applicable, and provide a clear recommendation or action item for traders based on these factors.
-
-    Use no jargon, and keep the explanation actionable and easy to understand.
+    
+    Explain the bond {diagnostics['SECURITY_NAME']} ({diagnostics['ISIN']}) as of {diagnostics['Date']}, which currently has a signal '{diagnostics['SIGNAL']}' and a composite score of {diagnostics['COMPOSITE_SCORE']:.2f}.
+    
+    Please provide a concise, actionable explanation including:
+    
+    1. How this composite score compares to the bond’s own score 1 week ago ({diagnostics['COMPOSITE_SCORE_1W_AGO']:.2f}), and 1 month ago ({diagnostics['COMPOSITE_SCORE_1M_AGO']:.2f}), including percent changes ({diagnostics['Composite_1W_Change']:+.2f} and {diagnostics['Composite_1M_Change']:+.2f}).
+    2. How the residual Z-score and cluster deviation compare to the average or typical values for similar bonds. For example, say if the bond's residual Z-score ({diagnostics['Z_RESIDUAL_BUCKET']:.2f}) is above or below average for bonds with similar maturity or issuer.
+    3. The current volatility ({diagnostics['Volatility']:.2f}) and its trend over the last month ({diagnostics['Volatility_Trend']}), explaining what that means for price stability or risk.
+    4. How the regression component ({diagnostics['Regression_Component']:.2f}) fits into expected market behavior.
+    5. Based on these factors, give a clear trader recommendation (e.g., hold, buy, sell, watchlist), emphasizing the magnitude and direction of changes, not just labels.
+    
+    Use simple language focused on what this means practically for trading decisions. Avoid jargon but use the numbers to explain relative strength or weakness and changes over time.
+    
+    Example:
+    "The bond’s composite score has decreased by 0.10 (-15%) compared to last month, indicating weakening mispricing. Its residual Z-score is 0.5 standard deviations below the peer average, suggesting slight overpricing relative to issuer peers. Volatility has risen by 12% this month, signaling increasing risk. Given these factors, it is advisable to hold or avoid initiating new positions until signals improve."
+    
     """
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
