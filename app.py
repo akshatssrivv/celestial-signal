@@ -450,7 +450,9 @@ with tab1:
                     def load_final_signal():
                         return pd.read_csv("final_signal.csv")
                     final_signal_df = load_final_signal()
+                    
                     bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
+                    # Map ISIN → SECURITY_NAME
                     bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
                     
                     search_input = st.text_input("Search Bond by Name")
@@ -469,25 +471,24 @@ with tab1:
                             format_func=lambda isin: bond_labels.get(isin, isin),
                             key="bond_selector"
                         )
-                    else:
-                        st.write("No bonds found matching your search.")
-                    
-                    if selected_name:
-                        selected_isin = bond_labels[selected_name]
-                        st.write(f"Selected Bond ISIN: {selected_isin}")
-                    
-                        # Then you can fetch diagnostics and explain
+                        
+                        selected_name = bond_labels[selected_isin]
+                        st.write(f"Selected Bond: {selected_name} (ISIN: {selected_isin})")
+                        
                         selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
+                        
                         if st.button("Explain this bond"):
                             diagnostics = format_bond_diagnostics(selected_bond_history)
                             explanation = generate_ai_explanation(diagnostics)
                             st.markdown(f"### AI Explanation for {selected_name}")
                             st.write(explanation)
-                        else:
-                            st.markdown("No diagnostics found for this bond.")
+                    else:
+                        st.write("No bonds found matching your search.")
+
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
