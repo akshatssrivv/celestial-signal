@@ -87,26 +87,6 @@ def load_full_ns_df(country_code):
 tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
 
 with tab2:
-
-    final_signal_df = pd.read_csv("final_signal.csv")
-    
-    all_bonds = final_signal_df[["ISIN", "SECURITY_NAME"]].drop_duplicates().sort_values("SECURITY_NAME")
-    bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in all_bonds.iterrows()}
-        
-    selected_isin = st.selectbox(
-        "Select bond for detailed AI explanation",
-        options=bond_labels.keys(),
-        format_func=lambda x: bond_labels[x]
-    )
-    
-    selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
-        
-    if st.button("Explain this bond"):
-        with st.spinner("Generating AI explanation..."):
-            diagnostics = format_bond_diagnostics(selected_bond_history)
-            explanation = cached_generate_ai_explanation(diagnostics)
-            st.markdown("### AI Explanation")
-            st.write(explanation)
             
     st.markdown("""
     <style>
@@ -304,6 +284,25 @@ with tab2:
             hide_index=True
         )
 
+        final_signal_df = pd.read_csv("final_signal.csv")
+    
+        all_bonds = final_signal_df[["ISIN", "SECURITY_NAME"]].drop_duplicates().sort_values("SECURITY_NAME")
+        bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in all_bonds.iterrows()}
+            
+        selected_isin = st.selectbox(
+            "Select bond for detailed AI explanation",
+            options=bond_labels.keys(),
+            format_func=lambda x: bond_labels[x]
+        )
+        
+        selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
+            
+        if st.button("Explain this bond"):
+            with st.spinner("Generating AI explanation..."):
+                diagnostics = format_bond_diagnostics(selected_bond_history)
+                explanation = cached_generate_ai_explanation(diagnostics)
+                st.markdown("### AI Explanation")
+                st.write(explanation)
     
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
@@ -454,6 +453,7 @@ with tab1:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
