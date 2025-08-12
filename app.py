@@ -430,8 +430,7 @@ with tab1:
                         ))
                     except Exception as e:
                         st.error(f"Error plotting Nelson-Siegel curve: {e}")
-
-                
+    
                 fig.update_layout(
                     title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
                     xaxis_title="Years to Maturity",
@@ -440,30 +439,36 @@ with tab1:
                     showlegend=True,
                     template="plotly_white"  # white background for the plot
                 )
-                
-                from streamlit_plotly_events import plotly_events
-                
+    
                 col1, col2 = st.columns([3, 2])
-                
+    
                 with col1:
-                    selected_points = plotly_events(fig, click_event=True, hover_event=False, key="ns_curve_plot")
-                
+                    st.plotly_chart(fig, use_container_width=True)
+    
                 with col2:
-                    if selected_points:
-                        isin, date_hovered = selected_points[0]['customdata'][:2]
-                        bond_history = final_signal_df[(final_signal_df['ISIN'] == isin) & (final_signal_df['Date'] == date_hovered)]
+                    # Bond selection dropdown to trigger AI explanation
+                    bond_options = ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
+                    selected_isin = st.selectbox(
+                        "Select Bond to view AI explanation",
+                        options=bond_options['ISIN'],
+                        format_func=lambda isin: bond_options.loc[bond_options['ISIN'] == isin, 'SECURITY_NAME'].values[0]
+                    )
+    
+                    if selected_isin:
+                        # Get latest bond diagnostics or adjust as you prefer
+                        bond_history = final_signal_df[final_signal_df['ISIN'] == selected_isin]
                         if not bond_history.empty:
-                            diagnostics = format_bond_diagnostics(bond_history)
+                            diagnostics = format_bond_diagnostics(bond_history.iloc[-1])  # latest date row
                             explanation = generate_ai_explanation(diagnostics)
                             st.markdown(f"### AI Explanation for {diagnostics['SECURITY_NAME']} on {diagnostics['Date']}")
                             st.write(explanation)
                         else:
-                            st.markdown("No diagnostics found for selected bond.")
-                    else:
-                        st.markdown("Click a bond on the plot to see AI explanation here.")
-                
+                            st.markdown("No diagnostics found for this bond.")
+    
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
+
 
 
 
