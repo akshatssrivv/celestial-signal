@@ -469,5 +469,6 @@ with tab1:
                 ai_explanation_placeholder.markdown("Click a bond on the plot to see AI explanation here.")
 
     
-            else:
-                st.warning("No Nelson-Siegel data available for this date.")
+        else:
+            st.warning("No Nelson-Siegel data available for this date.")
+
