@@ -441,11 +441,11 @@ with tab1:
                 )
                 
                 col1, col2 = st.columns([3, 2])
+                from streamlit_plotly_events import plotly_events
 
                 with col1:
-                    st.plotly_chart(fig, use_container_width=True)
-                    from streamlit_plotly_events import plotly_events
-                    selected_points = plotly_events(fig, click_event=True, hover_event=False)
+                    selected_points = plotly_events(fig, click_event=True, hover_event=False, key="ns_curve_plot")
+
                 
                 with col2:
                     if selected_points:
@@ -463,5 +463,6 @@ with tab1:
                 
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
