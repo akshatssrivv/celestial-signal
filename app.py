@@ -11,6 +11,12 @@ import os
 import shutil
 import hashlib
 
+@st.cache_data
+def load_final_signal():
+    return pd.read_csv("final_signal.csv")
+
+final_signal_df = load_final_signal()
+
 
 @st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
 def cached_generate_ai_explanation(diagnostics):
@@ -478,4 +484,5 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
