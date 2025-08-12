@@ -10,7 +10,6 @@ import openai
 import os
 import shutil
 import hashlib
-from streamlit_autocomplete import st_autocomplete
 
 
 @st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
@@ -450,6 +449,7 @@ with tab1:
                 with col2:
                     def load_final_signal():
                         return pd.read_csv("final_signal.csv")
+                    from streamlit_autocomplete import st_autocomplete
                     final_signal_df = load_final_signal()
                     bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
                     bond_labels = {row["SECURITY_NAME"]: row["ISIN"] for _, row in bond_options.iterrows()}
@@ -475,6 +475,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
