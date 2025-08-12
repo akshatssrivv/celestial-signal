@@ -430,22 +430,23 @@ with tab1:
                         ))
                     except Exception as e:
                         st.error(f"Error plotting Nelson-Siegel curve: {e}")
-    
+
+                
                 fig.update_layout(
                     title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
                     xaxis_title="Years to Maturity",
                     yaxis_title="Z-Spread (bps)",
                     height=700,
                     showlegend=True,
-                    template="plotly_dark"
+                    template="plotly_white"  # white background for the plot
                 )
                 
-                col1, col2 = st.columns([3, 2])
                 from streamlit_plotly_events import plotly_events
-
+                
+                col1, col2 = st.columns([3, 2])
+                
                 with col1:
                     selected_points = plotly_events(fig, click_event=True, hover_event=False, key="ns_curve_plot")
-
                 
                 with col2:
                     if selected_points:
@@ -463,6 +464,7 @@ with tab1:
                 
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
