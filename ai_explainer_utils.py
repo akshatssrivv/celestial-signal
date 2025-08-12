@@ -37,6 +37,9 @@ def generate_ai_explanation(diagnostics):
 
 
 def format_bond_diagnostics(history_df):
+    def safe_get(series, key, default=0):
+        return series[key] if key in series and pd.notna(series[key]) else default
+        
     def safe_round(val):
         try:
             return round(val, 2)
