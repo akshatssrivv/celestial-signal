@@ -449,15 +449,28 @@ with tab1:
                 with col2:
                     def load_final_signal():
                         return pd.read_csv("final_signal.csv")
-                    from streamlit_autocomplete import st_autocomplete
                     final_signal_df = load_final_signal()
                     bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
-                    bond_labels = {row["SECURITY_NAME"]: row["ISIN"] for _, row in bond_options.iterrows()}
+                    bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
                     
-                    # List of bond names for autocomplete
-                    bond_names = bond_options['SECURITY_NAME'].tolist()
+                    search_input = st.text_input("Search Bond by Name")
                     
-                    selected_name = st_autocomplete("Search Bond by Name", options=bond_names, key="bond_autocomplete")
+                    if search_input:
+                        filtered_bonds = bond_options[
+                            bond_options['SECURITY_NAME'].str.contains(search_input, case=False, na=False)
+                        ]
+                    else:
+                        filtered_bonds = bond_options  # show all if no input
+                    
+                    if not filtered_bonds.empty:
+                        selected_isin = st.selectbox(
+                            "Select Bond for AI Explanation",
+                            options=filtered_bonds['ISIN'].tolist(),
+                            format_func=lambda isin: bond_labels.get(isin, isin),
+                            key="bond_selector"
+                        )
+                    else:
+                        st.write("No bonds found matching your search.")
                     
                     if selected_name:
                         selected_isin = bond_labels[selected_name]
@@ -475,6 +488,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
