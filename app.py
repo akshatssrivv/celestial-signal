@@ -364,6 +364,7 @@ with tab1:
             else:
                 st.warning("No Nelson-Siegel data available for the selected country.")
 
+
     elif subtab == "Single Day Curve":
         if not os.path.exists("ns_curves.zip"):
             st.error("ns_curves.zip file not found. Please ensure the file is uploaded to your Streamlit app.")
@@ -437,7 +438,7 @@ with tab1:
                     yaxis_title="Z-Spread (bps)",
                     height=700,
                     showlegend=True,
-                    template="plotly_white"  # white background for the plot
+                    template="plotly_white"
                 )
     
                 col1, col2 = st.columns([3, 2])
@@ -446,30 +447,34 @@ with tab1:
                     st.plotly_chart(fig, use_container_width=True)
     
                 with col2:
-                    # Bond selection dropdown to trigger AI explanation
-                    bond_options = ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
+                    # Build bond labels dict
+                    bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
+                    bond_labels = {row['ISIN']: row['SECURITY_NAME'] for _, row in bond_options.iterrows()}
+    
+                    # Searchable text input
+                    search_input = st.text_input("Search Bond by Name")
+    
+                    # Filter bonds based on search input (case insensitive substring match)
+                    filtered_bonds = bond_options[
+                        bond_options['SECURITY_NAME'].str.contains(search_input, case=False, na=False)
+                    ]
+    
+                    # Selectbox with filtered options
                     selected_isin = st.selectbox(
-                        "Select Bond to view AI explanation",
-                        options=bond_options['ISIN'],
-                        format_func=lambda isin: bond_options.loc[bond_options['ISIN'] == isin, 'SECURITY_NAME'].values[0]
+                        "Select Bond for AI Explanation",
+                        options=filtered_bonds['ISIN'].tolist(),
+                        format_func=lambda isin: bond_labels.get(isin, isin)
                     )
     
-                    if selected_isin:
-                        # Get latest bond diagnostics or adjust as you prefer
-                        bond_history = final_signal_df[final_signal_df['ISIN'] == selected_isin]
-                        if not bond_history.empty:
-                            diagnostics = format_bond_diagnostics(bond_history.iloc[-1])  # latest date row
+                    if st.button("Explain this bond"):
+                        selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
+                        if not selected_bond_history.empty:
+                            diagnostics = format_bond_diagnostics(selected_bond_history)  # Pass full df here
                             explanation = generate_ai_explanation(diagnostics)
-                            st.markdown(f"### AI Explanation for {diagnostics['SECURITY_NAME']} on {diagnostics['Date']}")
+                            st.markdown(f"### AI Explanation for {bond_labels[selected_isin]}")
                             st.write(explanation)
                         else:
                             st.markdown("No diagnostics found for this bond.")
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
-
-
-
-
-
-
