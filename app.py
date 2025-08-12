@@ -10,6 +10,9 @@ import openai
 import os
 import shutil
 import hashlib
+import streamlit_autocomplete as sac
+dir(sac)
+
 
 
 @st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
@@ -488,6 +491,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
