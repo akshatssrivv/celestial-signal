@@ -451,20 +451,19 @@ with tab1:
                     selected_points = plotly_events(fig, click_event=True, hover_event=False)
     
                 with col2:
-                    pass  # Just leave empty, explanation outside columns
-    
-                # Now outside columns, update explanation box based on selected points:
-                if selected_points:
-                    isin, date_hovered = selected_points[0]['customdata'][:2]
-                    bond_history = final_signal_df[(final_signal_df['ISIN'] == isin) & (final_signal_df['Date'] == date_hovered)]
-                    if not bond_history.empty:
-                        diagnostics = format_bond_diagnostics(bond_history)
-                        explanation = generate_ai_explanation(diagnostics)
-                        ai_explanation_placeholder.markdown(f"### AI Explanation for {diagnostics['SECURITY_NAME']} on {diagnostics['Date']}")
-                        ai_explanation_placeholder.write(explanation)
+                     # Now outside columns, update explanation box based on selected points:
+                    if selected_points:
+                        isin, date_hovered = selected_points[0]['customdata'][:2]
+                        bond_history = final_signal_df[(final_signal_df['ISIN'] == isin) & (final_signal_df['Date'] == date_hovered)]
+                        if not bond_history.empty:
+                            diagnostics = format_bond_diagnostics(bond_history)
+                            explanation = generate_ai_explanation(diagnostics)
+                            ai_explanation_placeholder.markdown(f"### AI Explanation for {diagnostics['SECURITY_NAME']} on {diagnostics['Date']}")
+                            ai_explanation_placeholder.write(explanation)
+                        else:
+                            ai_explanation_placeholder.markdown("No diagnostics found for selected bond.")
                     else:
-                        ai_explanation_placeholder.markdown("No diagnostics found for selected bond.")
-                else:
-                    ai_explanation_placeholder.markdown("Click a bond on the plot to see AI explanation here.")
+                        ai_explanation_placeholder.markdown("Click a bond on the plot to see AI explanation here.")
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
