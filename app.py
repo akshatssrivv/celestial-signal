@@ -11,12 +11,6 @@ import os
 import shutil
 import hashlib
 
-@st.cache_data
-def load_final_signal():
-    return pd.read_csv("final_signal.csv")
-
-final_signal_df = load_final_signal()
-
 
 @st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
 def cached_generate_ai_explanation(diagnostics):
@@ -453,24 +447,30 @@ with tab1:
                     st.plotly_chart(fig, use_container_width=True)
     
                 with col2:
-                    # Build bond labels dict
+                    def load_final_signal():
+                        return pd.read_csv("final_signal.csv")
+                    final_signal_df = load_final_signal()
                     bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
                     bond_labels = {row['ISIN']: row['SECURITY_NAME'] for _, row in bond_options.iterrows()}
-    
-                    # Searchable text input
                     search_input = st.text_input("Search Bond by Name")
-    
-                    # Filter bonds based on search input (case insensitive substring match)
-                    filtered_bonds = bond_options[
-                        bond_options['SECURITY_NAME'].str.contains(search_input, case=False, na=False)
-                    ]
-    
-                    # Selectbox with filtered options
-                    selected_isin = st.selectbox(
-                        "Select Bond for AI Explanation",
-                        options=filtered_bonds['ISIN'].tolist(),
-                        format_func=lambda isin: bond_labels.get(isin, isin)
-                    )
+                    
+                    if search_input:
+                        filtered_bonds = bond_options[
+                            bond_options['SECURITY_NAME'].str.contains(search_input, case=False, na=False)
+                        ]
+                    else:
+                        filtered_bonds = bond_options  # show all if no input
+                    
+                    if not filtered_bonds.empty:
+                        selected_isin = st.selectbox(
+                            "Select Bond for AI Explanation",
+                            options=filtered_bonds['ISIN'].tolist(),
+                            format_func=lambda isin: bond_labels.get(isin, isin),
+                            key="bond_selector"
+                        )
+                    else:
+                        st.write("No bonds found matching your search.")
+
     
                     if st.button("Explain this bond"):
                         selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
@@ -484,5 +484,6 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
