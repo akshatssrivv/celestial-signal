@@ -37,31 +37,26 @@ def generate_ai_explanation(diagnostics):
     return answer
 
 
-def format_bond_diagnostics(row):
-    def safe_get(series, key, default=0):
-        return series[key] if key in series and pd.notna(series[key]) else default
-
+def format_bond_diagnostics(history_df):
     def safe_round(val):
         try:
             return round(val, 2)
         except:
             return 0
 
+    latest_row = history_df.sort_values("Date").iloc[-1]
+
     return {
-        "ISIN": safe_get(row, "ISIN", ""),
-        "SECURITY_NAME": safe_get(row, "SECURITY_NAME", ""),
-        "Date": str(safe_get(row, "Date", "")),
-        "SIGNAL": safe_get(row, "SIGNAL", ""),
-        "COMPOSITE_SCORE": safe_round(safe_get(row, "COMPOSITE_SCORE")),
-        "Z_RESIDUAL_BUCKET": safe_round(safe_get(row, "Z_RESIDUAL_BUCKET")),
-        "Cluster_Deviation_Flipped": safe_round(safe_get(row, "Cluster_Deviation_Flipped")),
-        "Volatility": safe_round(safe_get(row, "Volatility")),
-        "Volatility_Trend": safe_get(row, "Volatility_Trend", "stable"),
-        "Regression_Component": safe_round(safe_get(row, "Regression_Component")),
-        "Composite_1W_Change": safe_round(safe_get(row, "Composite_1W_Change")),
-        "Composite_1M_Change": safe_round(safe_get(row, "Composite_1M_Change")),
-        # Uncomment these if you have percentile columns
-        # "Residual_Z_Percentile": safe_round(safe_get(row, "Residual_Z_Percentile", 50)),
-        # "Cluster_Deviation_Percentile": safe_round(safe_get(row, "Cluster_Deviation_Percentile", 50)),
-        # "Regression_Component_Percentile": safe_round(safe_get(row, "Regression_Component_Percentile", 50)),
+        "ISIN": latest_row["ISIN"],
+        "SECURITY_NAME": latest_row["SECURITY_NAME"],
+        "Date": str(latest_row["Date"]),
+        "SIGNAL": latest_row["SIGNAL"],
+        "COMPOSITE_SCORE": safe_round(latest_row.get("COMPOSITE_SCORE", 0)),
+        "Z_RESIDUAL_BUCKET": safe_round(latest_row.get("Z_RESIDUAL_BUCKET", 0)),
+        "Cluster_Deviation_Flipped": safe_round(latest_row.get("Cluster_Deviation_Flipped", 0)),
+        "Volatility": safe_round(latest_row.get("Volatility", 0)),
+        "Regression_Component": safe_round(latest_row.get("Regression_Component", 0)),
+        "Composite_1W_Change": safe_round(latest_row.get("Composite_1W_Change", 0)),
+        "Composite_1M_Change": safe_round(latest_row.get("Composite_1M_Change", 0)),
+        "Volatility_Trend": latest_row.get("Volatility_Trend", "stable"),
     }
