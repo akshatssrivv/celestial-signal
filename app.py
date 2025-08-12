@@ -10,8 +10,6 @@ import openai
 import os
 import shutil
 import hashlib
-import streamlit as st
-from streamlit_plotly_events import plotly_events  # if you want click events
 
 
 @st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
@@ -329,8 +327,7 @@ with tab2:
 
 with tab1:
     st.set_page_config(
-        page_title="Bond Analytics Dashboard",
-        page_icon="📊",
+        page_title="The Curves",
         layout="wide"
     )
     
@@ -368,51 +365,26 @@ with tab1:
                 st.warning("No Nelson-Siegel data available for the selected country.")
 
     elif subtab == "Single Day Curve":
-        # Check if zip file exists before trying to load data
         if not os.path.exists("ns_curves.zip"):
             st.error("ns_curves.zip file not found. Please ensure the file is uploaded to your Streamlit app.")
         else:
-            # Select date for single-day plot
             date_input = st.date_input("Select Date")
             date_str = date_input.strftime("%Y-%m-%d")
-        
-            # Load filtered NS dataframe for this date
+            
             ns_df = load_ns_curve(selected_country, date_str)
-        
+    
             if ns_df is not None and not ns_df.empty:
-                # Convert Maturity to datetime and then to Years to Maturity
                 ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
                 curve_date = pd.to_datetime(date_input)
                 ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
-        
-                # Create figure with plotly graph objects for better control
-                fig = go.Figure()
-        
-                # Get top 7 outliers for this date
+    
+                # Separate outliers and regular bonds
                 outliers = ns_df.nlargest(7, 'RESIDUAL_NS', keep='all')
                 regular = ns_df.drop(outliers.index)
-
-
-
-                # Or use native streamlit plotly_events or st.plotly_chart with hover events
-                
-                selected_points = plotly_events(fig, click_event=True, hover_event=False)  # or hover_event=True if preferred
-                
-                if selected_points:
-                    # Each selected_point is a dict with 'customdata' list you passed above
-                    isin, date_str = selected_points[0]['customdata'][:2]  # unpack first two items
-                    
-                    # Use isin and date_str to filter your final_signal df or data source
-                    bond_history = final_signal_df[(final_signal_df['ISIN'] == isin) & (final_signal_df['Date'] == date_str)]
-                    
-                    if not bond_history.empty:
-                        diagnostics = format_bond_diagnostics(bond_history)
-                        explanation = generate_ai_explanation(diagnostics)
-                        st.markdown(f"### AI Explanation for {diagnostics['SECURITY_NAME']} on {diagnostics['Date']}")
-                        st.write(explanation)
-
-        
-                # Add regular bonds as scatter points (black)
+    
+                fig = go.Figure()
+    
+                # Add regular bonds (black)
                 fig.add_trace(go.Scatter(
                     x=regular['YearsToMaturity'],
                     y=regular['Z_SPRD_VAL'],
@@ -420,11 +392,11 @@ with tab1:
                     name='Bonds',
                     marker=dict(size=6, color='black'),
                     text=regular['SECURITY_NAME'],
-                    customdata=np.stack((regular['ISIN'], regular['Date'].astype(str)), axis=-1),  # <-- here
+                    customdata=np.stack((regular['ISIN'], regular['Date'].astype(str)), axis=-1),
                     hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
                 ))
-
-        
+    
+                # Add outliers (red diamonds)
                 fig.add_trace(go.Scatter(
                     x=outliers['YearsToMaturity'],
                     y=outliers['Z_SPRD_VAL'],
@@ -435,24 +407,20 @@ with tab1:
                     customdata=np.stack((outliers['ISIN'], outliers['Date'].astype(str), outliers['RESIDUAL_NS']), axis=-1),
                     hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata[2]:.1f}<br>%{text}<extra></extra>'
                 ))
-                
-                        
-                # Add Nelson-Siegel fitted curve
+    
+                # Add Nelson-Siegel fit line if available
                 if 'NS_PARAMS' in ns_df.columns:
                     try:
                         ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
-        
-                        # Ensure it's a list, not a string
                         if isinstance(ns_params_raw, str):
                             import ast
                             ns_params = ast.literal_eval(ns_params_raw)
                         else:
                             ns_params = ns_params_raw
-        
-                        # Generate smooth maturity curve in Years to Maturity
+    
                         maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
                         ns_curve = nelson_siegel(maturity_range, *ns_params)
-        
+    
                         fig.add_trace(go.Scatter(
                             x=maturity_range,
                             y=ns_curve,
@@ -460,11 +428,9 @@ with tab1:
                             name='Nelson-Siegel Fit',
                             line=dict(color='deepskyblue', width=3)
                         ))
-        
                     except Exception as e:
                         st.error(f"Error plotting Nelson-Siegel curve: {e}")
-        
-                # Update layout
+    
                 fig.update_layout(
                     title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
                     xaxis_title="Years to Maturity",
@@ -473,11 +439,35 @@ with tab1:
                     showlegend=True,
                     template="plotly_dark"
                 )
-        
-                st.plotly_chart(fig, use_container_width=True)
-        
+    
+                # Create two columns for plot and explanation side by side
+                col1, col2 = st.columns([3, 2])
+    
+                with col1:
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Now that fig is shown, capture click or hover events here
+                    from streamlit_plotly_events import plotly_events
+                    selected_points = plotly_events(fig, click_event=True, hover_event=False)
+    
+                with col2:
+                    ai_explanation_placeholder = st.empty()
+                    if selected_points:
+                        isin, date_hovered = selected_points[0]['customdata'][:2]
+                        bond_history = final_signal_df[(final_signal_df['ISIN'] == isin) & (final_signal_df['Date'] == date_hovered)]
+                        if not bond_history.empty:
+                            diagnostics = format_bond_diagnostics(bond_history)
+                            explanation = generate_ai_explanation(diagnostics)
+                            ai_explanation_placeholder.markdown(f"### AI Explanation for {diagnostics['SECURITY_NAME']} on {diagnostics['Date']}")
+                            ai_explanation_placeholder.write(explanation)
+                        else:
+                            ai_explanation_placeholder.markdown("No diagnostics found for selected bond.")
+                    else:
+                        ai_explanation_placeholder.markdown("Click a bond on the plot to see AI explanation here.")
+    
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
