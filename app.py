@@ -10,6 +10,9 @@ import openai
 import os
 import shutil
 import hashlib
+import streamlit as st
+from streamlit_plotly_events import plotly_events  # if you want click events
+
 
 @st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
 def cached_generate_ai_explanation(diagnostics):
@@ -388,6 +391,26 @@ with tab1:
                 # Get top 7 outliers for this date
                 outliers = ns_df.nlargest(7, 'RESIDUAL_NS', keep='all')
                 regular = ns_df.drop(outliers.index)
+
+
+
+                # Or use native streamlit plotly_events or st.plotly_chart with hover events
+                
+                selected_points = plotly_events(fig, click_event=True, hover_event=False)  # or hover_event=True if preferred
+                
+                if selected_points:
+                    # Each selected_point is a dict with 'customdata' list you passed above
+                    isin, date_str = selected_points[0]['customdata'][:2]  # unpack first two items
+                    
+                    # Use isin and date_str to filter your final_signal df or data source
+                    bond_history = final_signal_df[(final_signal_df['ISIN'] == isin) & (final_signal_df['Date'] == date_str)]
+                    
+                    if not bond_history.empty:
+                        diagnostics = format_bond_diagnostics(bond_history)
+                        explanation = generate_ai_explanation(diagnostics)
+                        st.markdown(f"### AI Explanation for {diagnostics['SECURITY_NAME']} on {diagnostics['Date']}")
+                        st.write(explanation)
+
         
                 # Add regular bonds as scatter points (black)
                 fig.add_trace(go.Scatter(
@@ -397,10 +420,11 @@ with tab1:
                     name='Bonds',
                     marker=dict(size=6, color='black'),
                     text=regular['SECURITY_NAME'],
+                    customdata=np.stack((regular['ISIN'], regular['Date'].astype(str)), axis=-1),  # <-- here
                     hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
                 ))
+
         
-                # Add top 7 outliers (red diamonds)
                 fig.add_trace(go.Scatter(
                     x=outliers['YearsToMaturity'],
                     y=outliers['Z_SPRD_VAL'],
@@ -408,10 +432,11 @@ with tab1:
                     name='Top 7 Outliers',
                     marker=dict(size=8, color='red', symbol='diamond'),
                     text=outliers['SECURITY_NAME'],
-                    customdata=outliers['RESIDUAL_NS'],
-                    hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>'
+                    customdata=np.stack((outliers['ISIN'], outliers['Date'].astype(str), outliers['RESIDUAL_NS']), axis=-1),
+                    hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata[2]:.1f}<br>%{text}<extra></extra>'
                 ))
-        
+                
+                        
                 # Add Nelson-Siegel fitted curve
                 if 'NS_PARAMS' in ns_df.columns:
                     try:
@@ -453,6 +478,7 @@ with tab1:
         
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
