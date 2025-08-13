@@ -22,7 +22,7 @@ def get_zip_hash(zip_path="ns_curves.zip"):
         hasher.update(f.read())
     return hasher.hexdigest()
 
-def unzip_ns_curves(force=False):
+def load_ns_curves(force=False):
     zip_path = "ns_curves.zip"
     folder = "ns_curves"
     zip_hash = get_zip_hash(zip_path)
@@ -432,6 +432,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
