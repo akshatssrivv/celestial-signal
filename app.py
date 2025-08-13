@@ -11,80 +11,42 @@ import os
 import shutil
 import hashlib
 
-
-
 @st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
 def cached_generate_ai_explanation(diagnostics):
     return generate_ai_explanation(diagnostics)
-    
-@st.cache_resource
-def unzip_ns_curves():
-    def file_hash(filepath):
-        hasher = hashlib.md5()
-        with open(filepath, 'rb') as f:
-            buf = f.read()
-            hasher.update(buf)
-        return hasher.hexdigest()
-    
-    zip_hash = file_hash("ns_curves.zip")
-
-    if os.path.exists("ns_curves"):
-        # Load previous hash if stored
-        prev_hash = st.session_state.get('ns_zip_hash')
-        if prev_hash != zip_hash:
-            import shutil
-            shutil.rmtree("ns_curves")
-            with zipfile.ZipFile("ns_curves.zip", "r") as zip_ref:
-                zip_ref.extractall("ns_curves")
-            st.session_state['ns_zip_hash'] = zip_hash
-    else:
-        with zipfile.ZipFile("ns_curves.zip", "r") as zip_ref:
-            zip_ref.extractall("ns_curves")
-        st.session_state['ns_zip_hash'] = zip_hash
 
 
+def get_zip_hash(zip_path="ns_curves.zip"):
+    hasher = hashlib.md5()
+    with open(zip_path, "rb") as f:
+        hasher.update(f.read())
+    return hasher.hexdigest()
 
-@st.cache_data
-def load_ns_curve(country_code, date_str):
-    # Ensure data is unzipped first
-    unzip_ns_curves()
-    path = f"ns_curves/{country_code}_{date_str}.parquet"
-    if os.path.exists(path):
-        return pd.read_parquet(path)
-    else:
-        return None
-
-@st.cache_data
-def load_full_ns_df(country_code):
-    # Ensure data is unzipped first
-    unzip_ns_curves()
-    
+def unzip_ns_curves(force=False):
+    zip_path = "ns_curves.zip"
     folder = "ns_curves"
-    
-    # Check if folder exists after unzipping
-    if not os.path.exists(folder):
-        st.error(f"Data folder '{folder}' not found. Please ensure ns_curves.zip exists.")
-        return pd.DataFrame()
-    
-    try:
-        all_files = [f for f in os.listdir(folder) if f.startswith(country_code) and f.endswith(".parquet")]
-    except OSError as e:
-        st.error(f"Error accessing folder '{folder}': {e}")
-        return pd.DataFrame()
+    zip_hash = get_zip_hash(zip_path)
+    prev_hash = st.session_state.get("ns_zip_hash")
 
-    dfs = []
-    for f in sorted(all_files):
-        try:
-            df = pd.read_parquet(os.path.join(folder, f))
-            dfs.append(df)
-        except Exception as e:
-            st.warning(f"Error loading file {f}: {e}")
-            continue
-
-    if dfs:
-        return pd.concat(dfs, ignore_index=True)
+    if force or prev_hash != zip_hash:
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(folder)
+        st.session_state["ns_zip_hash"] = zip_hash
+        st.session_state["ns_zip_force_reload"] = True
     else:
-        return pd.DataFrame()
+        st.session_state["ns_zip_force_reload"] = False
+
+
+@st.cache_data(show_spinner=False)
+def load_full_ns_df(country_code, force_reload=False):
+    unzip_ns_curves(force=force_reload)
+    folder = "ns_curves"
+    all_files = sorted([f for f in os.listdir(folder) if f.startswith(country_code) and f.endswith(".parquet")])
+    dfs = [pd.read_parquet(os.path.join(folder, f)) for f in all_files]
+    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
 
 tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
 
@@ -470,6 +432,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
