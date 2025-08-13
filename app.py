@@ -15,17 +15,17 @@ import hashlib
 def cached_generate_ai_explanation(diagnostics):
     return generate_ai_explanation(diagnostics)
 
-
-def get_zip_hash(zip_path="ns_curves.zip"):
+def file_hash(filepath):
     hasher = hashlib.md5()
-    with open(zip_path, "rb") as f:
+    with open(filepath, "rb") as f:
         hasher.update(f.read())
     return hasher.hexdigest()
 
-def load_ns_curve(force=False):
+@st.cache_resource
+def unzip_ns_curves(force=False):
     zip_path = "ns_curves.zip"
     folder = "ns_curves"
-    zip_hash = get_zip_hash(zip_path)
+    zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
     if force or prev_hash != zip_hash:
@@ -39,13 +39,49 @@ def load_ns_curve(force=False):
         st.session_state["ns_zip_force_reload"] = False
 
 
-@st.cache_data(show_spinner=False)
-def load_full_ns_df(country_code, force_reload=False):
-    unzip_ns_curves(force=force_reload)
+@st.cache_data
+def load_ns_curve(country_code, date_str):
+    unzip_ns_curves()
+    path = f"ns_curves/{country_code}_{date_str}.parquet"
+    if os.path.exists(path):
+        return pd.read_parquet(path)
+    else:
+        return None
+
+
+@st.cache_data
+def load_full_ns_df(country_code):
+    unzip_ns_curves()
     folder = "ns_curves"
-    all_files = sorted([f for f in os.listdir(folder) if f.startswith(country_code) and f.endswith(".parquet")])
-    dfs = [pd.read_parquet(os.path.join(folder, f)) for f in all_files]
-    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
+    if not os.path.exists(folder):
+        st.error(f"Data folder '{folder}' not found. Please ensure ns_curves.zip exists.")
+        return pd.DataFrame()
+
+    try:
+        all_files = sorted([f for f in os.listdir(folder)
+                            if f.startswith(country_code) and f.endswith(".parquet")])
+    except OSError as e:
+        st.error(f"Error accessing folder '{folder}': {e}")
+        return pd.DataFrame()
+
+    dfs = []
+    for f in all_files:
+        try:
+            df = pd.read_parquet(os.path.join(folder, f))
+            dfs.append(df)
+        except Exception as e:
+            st.warning(f"Error loading file {f}: {e}")
+            continue
+
+    if dfs:
+        ns_df = pd.concat(dfs, ignore_index=True)
+        if "Date" in ns_df.columns:
+            ns_df["Date"] = pd.to_datetime(ns_df["Date"])
+            ns_df.sort_values("Date", inplace=True)
+        return ns_df
+    else:
+        return pd.DataFrame()
 
 
 tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
@@ -432,6 +468,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
