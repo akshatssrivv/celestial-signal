@@ -2,16 +2,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import zipfile
-import plotly.graph_objects as go
-import plotly.express as px
-from nelson_siegel_fn import plot_ns_animation, nelson_siegel
-from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
-import openai
-import os
 import shutil
 import hashlib
+import os
 
-@st.cache_data(ttl=3600)  # Cache AI explanations for 1 hour
+@st.cache_data(ttl=3600)
 def cached_generate_ai_explanation(diagnostics):
     return generate_ai_explanation(diagnostics)
 
@@ -21,10 +16,11 @@ def file_hash(filepath):
         hasher.update(f.read())
     return hasher.hexdigest()
 
-@st.cache_resource
-def unzip_ns_curves(force=False):
-    zip_path = "ns_curves.zip"
-    folder = "ns_curves"
+def unzip_ns_curves(zip_path="ns_curves.zip", folder="ns_curves", force=False):
+    """
+    Unzip NS curves. Returns folder path.
+    `force=True` forces re-extraction.
+    """
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
@@ -34,36 +30,33 @@ def unzip_ns_curves(force=False):
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(folder)
         st.session_state["ns_zip_hash"] = zip_hash
-        st.session_state["ns_zip_force_reload"] = True
-    else:
-        st.session_state["ns_zip_force_reload"] = False
-
+    return folder
 
 @st.cache_data
-def load_ns_curve(country_code, date_str):
-    unzip_ns_curves()
-    path = f"ns_curves/{country_code}_{date_str}.parquet"
+def load_ns_curve(country_code, date_str, zip_hash):
+    """
+    Load NS curve for a single day.
+    `zip_hash` ensures cache invalidation when the zip changes.
+    """
+    folder = unzip_ns_curves()
+    path = os.path.join(folder, f"{country_code}_{date_str}.parquet")
     if os.path.exists(path):
         return pd.read_parquet(path)
-    else:
-        return None
-
+    return None
 
 @st.cache_data
-def load_full_ns_df(country_code):
-    unzip_ns_curves()
-    folder = "ns_curves"
-
+def load_full_ns_df(country_code, zip_hash):
+    """
+    Load all NS curves for a country.
+    `zip_hash` ensures cache invalidation when the zip changes.
+    """
+    folder = unzip_ns_curves()
     if not os.path.exists(folder):
         st.error(f"Data folder '{folder}' not found. Please ensure ns_curves.zip exists.")
         return pd.DataFrame()
 
-    try:
-        all_files = sorted([f for f in os.listdir(folder)
-                            if f.startswith(country_code) and f.endswith(".parquet")])
-    except OSError as e:
-        st.error(f"Error accessing folder '{folder}': {e}")
-        return pd.DataFrame()
+    all_files = sorted([f for f in os.listdir(folder)
+                        if f.startswith(country_code) and f.endswith(".parquet")])
 
     dfs = []
     for f in all_files:
@@ -80,8 +73,8 @@ def load_full_ns_df(country_code):
             ns_df["Date"] = pd.to_datetime(ns_df["Date"])
             ns_df.sort_values("Date", inplace=True)
         return ns_df
-    else:
-        return pd.DataFrame()
+    return pd.DataFrame()
+
 
 
 tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
@@ -465,6 +458,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
