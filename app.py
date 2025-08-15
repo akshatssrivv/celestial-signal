@@ -305,7 +305,6 @@ with tab2:
         st.warning("No bonds match your filters")
 
 
-
 with tab1:
     st.set_page_config(
         page_title="The Curves",
@@ -332,140 +331,143 @@ with tab1:
 
     selected_country = country_code_map[country_option]
 
-    # Compute zip hash for cache invalidation
+    # Ensure zip exists
     zip_path = "ns_curves.zip"
     if not os.path.exists(zip_path):
         st.error("ns_curves.zip file not found. Upload the file.")
         st.stop()
-        zip_hash = file_hash(zip_path)
-    
-        if subtab == "Animated Curves":
-            ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
-            if ns_df is not None and not ns_df.empty:
-                fig = plot_ns_animation(ns_df, issuer_label=selected_country)
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No Nelson-Siegel data available for the selected country.")
-    
-        elif subtab == "Single Day Curve":
-            date_input = st.date_input("Select Date")
-            date_str = date_input.strftime("%Y-%m-%d")
-        
-            ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
-        
-            if ns_df is not None and not ns_df.empty:
-                ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
-                curve_date = pd.to_datetime(date_input)
-                ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
-    
-                # Separate outliers and regular bonds
-                outliers = ns_df.nlargest(7, 'RESIDUAL_NS', keep='all')
-                regular = ns_df.drop(outliers.index)
-    
-                fig = go.Figure()
-    
-                # Add regular bonds (black)
-                fig.add_trace(go.Scatter(
-                    x=regular['YearsToMaturity'],
-                    y=regular['Z_SPRD_VAL'],
-                    mode='markers',
-                    name='Bonds',
-                    marker=dict(size=6, color='black'),
-                    text=regular['SECURITY_NAME'],
-                    customdata=np.stack((regular['ISIN'], regular['Date'].astype(str)), axis=-1),
-                    hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
-                ))
-    
-                # Add outliers (red diamonds)
-                fig.add_trace(go.Scatter(
-                    x=outliers['YearsToMaturity'],
-                    y=outliers['Z_SPRD_VAL'],
-                    mode='markers',
-                    name='Top 7 Outliers',
-                    marker=dict(size=8, color='red', symbol='diamond'),
-                    text=outliers['SECURITY_NAME'],
-                    customdata=np.stack((outliers['ISIN'], outliers['Date'].astype(str), outliers['RESIDUAL_NS']), axis=-1),
-                    hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata[2]:.1f}<br>%{text}<extra></extra>'
-                ))
-    
-                # Add Nelson-Siegel fit line if available
-                if 'NS_PARAMS' in ns_df.columns:
-                    try:
-                        ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
-                        if isinstance(ns_params_raw, str):
-                            import ast
-                            ns_params = ast.literal_eval(ns_params_raw)
-                        else:
-                            ns_params = ns_params_raw
-    
-                        maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
-                        ns_curve = nelson_siegel(maturity_range, *ns_params)
-    
-                        fig.add_trace(go.Scatter(
-                            x=maturity_range,
-                            y=ns_curve,
-                            mode='lines',
-                            name='Nelson-Siegel Fit',
-                            line=dict(color='deepskyblue', width=3)
-                        ))
-                    except Exception as e:
-                        st.error(f"Error plotting Nelson-Siegel curve: {e}")
-    
-                fig.update_layout(
-                    title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
-                    xaxis_title="Years to Maturity",
-                    yaxis_title="Z-Spread (bps)",
-                    height=700,
-                    showlegend=True,
-                    template="plotly_white"
-                )
-    
-                col1, col2 = st.columns([3, 2])
-                with col1:
-                    st.plotly_chart(fig, use_container_width=True)
-    
-                with col2:
-                    def load_final_signal():
-                        return pd.read_csv("final_signal.csv")
-                    final_signal_df = load_final_signal()
-                    
-                    bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
-                    # Map ISIN → SECURITY_NAME
-                    bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
-                    
-                    search_input = st.text_input("Search Bond by Name")
-                    
-                    if search_input:
-                        filtered_bonds = bond_options[
-                            bond_options['SECURITY_NAME'].str.contains(search_input, case=False, na=False)
-                        ]
-                    else:
-                        filtered_bonds = bond_options  # show all if no input
-                    
-                    if not filtered_bonds.empty:
-                        selected_isin = st.selectbox(
-                            "Select Bond for AI Explanation",
-                            options=filtered_bonds['ISIN'].tolist(),
-                            format_func=lambda isin: bond_labels.get(isin, isin),
-                            key="bond_selector"
-                        )
-                        
-                        selected_name = bond_labels[selected_isin]
-                        st.write(f"Selected Bond: {selected_name} (ISIN: {selected_isin})")
-                        
-                        selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
-                        
-                        if st.button("Explain this bond"):
-                            diagnostics = format_bond_diagnostics(selected_bond_history)
-                            explanation = generate_ai_explanation(diagnostics)
-                            st.markdown(f"### AI Explanation for {selected_name}")
-                            st.write(explanation)
-                    else:
-                        st.write("No bonds found matching your search.")
 
+    # Compute zip hash for cache invalidation
+    zip_hash = file_hash(zip_path)
+
+    if subtab == "Animated Curves":
+        ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
+        if ns_df is not None and not ns_df.empty:
+            fig = plot_ns_animation(ns_df, issuer_label=selected_country)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No Nelson-Siegel data available for the selected country.")
+
+    elif subtab == "Single Day Curve":
+        date_input = st.date_input("Select Date")
+        date_str = date_input.strftime("%Y-%m-%d")
     
-            else:
-                st.warning("No Nelson-Siegel data available for this date.")
+        ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
+    
+        if ns_df is not None and not ns_df.empty:
+            ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
+            curve_date = pd.to_datetime(date_input)
+            ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
+
+            # Separate outliers and regular bonds
+            outliers = ns_df.nlargest(7, 'RESIDUAL_NS', keep='all')
+            regular = ns_df.drop(outliers.index)
+
+            fig = go.Figure()
+
+            # Add regular bonds (black)
+            fig.add_trace(go.Scatter(
+                x=regular['YearsToMaturity'],
+                y=regular['Z_SPRD_VAL'],
+                mode='markers',
+                name='Bonds',
+                marker=dict(size=6, color='black'),
+                text=regular['SECURITY_NAME'],
+                customdata=np.stack((regular['ISIN'], regular['Date'].astype(str)), axis=-1),
+                hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
+            ))
+
+            # Add outliers (red diamonds)
+            fig.add_trace(go.Scatter(
+                x=outliers['YearsToMaturity'],
+                y=outliers['Z_SPRD_VAL'],
+                mode='markers',
+                name='Top 7 Outliers',
+                marker=dict(size=8, color='red', symbol='diamond'),
+                text=outliers['SECURITY_NAME'],
+                customdata=np.stack((outliers['ISIN'], outliers['Date'].astype(str), outliers['RESIDUAL_NS']), axis=-1),
+                hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata[2]:.1f}<br>%{text}<extra></extra>'
+            ))
+
+            # Add Nelson-Siegel fit line if available
+            if 'NS_PARAMS' in ns_df.columns:
+                try:
+                    ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
+                    if isinstance(ns_params_raw, str):
+                        import ast
+                        ns_params = ast.literal_eval(ns_params_raw)
+                    else:
+                        ns_params = ns_params_raw
+
+                    maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
+                    ns_curve = nelson_siegel(maturity_range, *ns_params)
+
+                    fig.add_trace(go.Scatter(
+                        x=maturity_range,
+                        y=ns_curve,
+                        mode='lines',
+                        name='Nelson-Siegel Fit',
+                        line=dict(color='deepskyblue', width=3)
+                    ))
+                except Exception as e:
+                    st.error(f"Error plotting Nelson-Siegel curve: {e}")
+
+            fig.update_layout(
+                title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
+                xaxis_title="Years to Maturity",
+                yaxis_title="Z-Spread (bps)",
+                height=700,
+                showlegend=True,
+                template="plotly_white"
+            )
+
+            col1, col2 = st.columns([3, 2])
+            with col1:
+                st.plotly_chart(fig, use_container_width=True)
+
+            # AI explanation panel
+            with col2:
+                def load_final_signal():
+                    return pd.read_csv("final_signal.csv")
+                final_signal_df = load_final_signal()
+                
+                bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
+                bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
+                
+                search_input = st.text_input("Search Bond by Name")
+                
+                if search_input:
+                    filtered_bonds = bond_options[
+                        bond_options['SECURITY_NAME'].str.contains(search_input, case=False, na=False)
+                    ]
+                else:
+                    filtered_bonds = bond_options
+                
+                if not filtered_bonds.empty:
+                    selected_isin = st.selectbox(
+                        "Select Bond for AI Explanation",
+                        options=filtered_bonds['ISIN'].tolist(),
+                        format_func=lambda isin: bond_labels.get(isin, isin),
+                        key="bond_selector"
+                    )
+                    
+                    selected_name = bond_labels[selected_isin]
+                    st.write(f"Selected Bond: {selected_name} (ISIN: {selected_isin})")
+                    
+                    selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
+                    
+                    if st.button("Explain this bond"):
+                        diagnostics = format_bond_diagnostics(selected_bond_history)
+                        explanation = generate_ai_explanation(diagnostics)
+                        st.markdown(f"### AI Explanation for {selected_name}")
+                        st.write(explanation)
+                else:
+                    st.write("No bonds found matching your search.")
+
+        else:
+            st.warning("No Nelson-Siegel data available for this date.")
+
+
 
 
 
