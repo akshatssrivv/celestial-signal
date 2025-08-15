@@ -260,7 +260,8 @@ with tab2:
         cols_to_display = [
             'Date', 'ISIN', 'SECURITY_NAME', 'RESIDUAL_NS', 'SIGNAL',
             'Z_Residual_Score', 'Volatility_Score', 'Market_Stress_Score',
-            'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE'
+            'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE',
+            'Top_Features', 'Top_Feature_Effects_Pct'
         ]
         
         # Keep only columns that exist in the dataframe
@@ -268,28 +269,19 @@ with tab2:
         
         # Create display dataframe safely
         display_df = filtered_df[existing_cols].copy()
-    
-        # Display table with sorting enabled
-        st.dataframe(
-            display_df,
-            column_config={
-                'ISIN': 'ISIN',
-                'SECURITY_NAME': 'Security Name',
-                'Country': 'Issuer',
-                'SIGNAL': 'Signal',
-                'COMPOSITE_SCORE': st.column_config.NumberColumn('Composite Score', format='%.4f'),
-                'Z_Residual_Score': st.column_config.NumberColumn('Z-Residual', format='%.4f'),
-                'Cluster_Score': st.column_config.NumberColumn('Cluster Deviation', format='%.4f'),
-                'Regression_Score': st.column_config.NumberColumn('Regression Score', format='%.4f'),
-                'RESIDUAL_NS': st.column_config.NumberColumn('Residual NS', format='%.4f'),
-                'Volatility_Score': st.column_config.NumberColumn('Volatility', format='%.4f'),
-                'Market_Stress_Score': st.column_config.NumberColumn('Market Stress', format='%.4f'),
-                'Date': 'Date'
-            },
-            use_container_width=True,
-            height=600,
-            hide_index=True
-        )
+        
+        # Prepare column config dynamically
+        column_config = {}
+        
+        for col in existing_cols:
+            if col in ['COMPOSITE_SCORE', 'Z_Residual_Score', 'Cluster_Score', 'Regression_Score',
+                       'RESIDUAL_NS', 'Volatility_Score', 'Market_Stress_Score']:
+                column_config[col] = st.column_config.NumberColumn(col.replace('_', ' '), format='%.4f')
+            elif col in ['ISIN', 'SECURITY_NAME', 'SIGNAL', 'Date', 'Top_Features', 'Top_Feature_Effects_Pct']:
+                column_config[col] = col.replace('_', ' ')
+        
+        # Display table
+        st.dataframe(display_df, column_config=column_config)
 
     
         # Download button
@@ -474,6 +466,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
