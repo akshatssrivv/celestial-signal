@@ -256,14 +256,18 @@ with tab2:
 
     if not filtered_df.empty:
         # Format the dataframe for display
-        display_df = filtered_df[['Date', 'ISIN', 'SECURITY_NAME', 'RESIDUAL_NS', 'SIGNAL',
-       'Z_Residual_Score', 'Volatility_Score', 'Market_Stress_Score',
-       'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE'
-        ]].copy()
-    
-        # Round numeric columns
-        numeric_cols = ['Z_Residual_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE', 'RESIDUAL_NS', 'Volatility_Score', 'Market_Stress_Score']
-        display_df[numeric_cols] = display_df[numeric_cols].round(4)
+        # Desired columns
+        cols_to_display = [
+            'Date', 'ISIN', 'SECURITY_NAME', 'RESIDUAL_NS', 'SIGNAL',
+            'Z_Residual_Score', 'Volatility_Score', 'Market_Stress_Score',
+            'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE'
+        ]
+        
+        # Keep only columns that exist in the dataframe
+        existing_cols = [col for col in cols_to_display if col in filtered_df.columns]
+        
+        # Create display dataframe safely
+        display_df = filtered_df[existing_cols].copy()
     
         # Display table with sorting enabled
         st.dataframe(
@@ -470,6 +474,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
