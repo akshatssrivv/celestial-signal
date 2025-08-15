@@ -119,12 +119,12 @@ with tab2:
     def load_data():
         """Load data from CSV with caching"""
         try:
-            csv_url = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/today_all_signals.csv"
+            csv_url = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/issuer_signals.csv"
             df = pd.read_csv(csv_url)
             return df
         except Exception as e:
             try:
-                df = pd.read_csv('today_all_signals.csv')
+                df = pd.read_csv('issuer_signals.csv')
                 return df
             except Exception as e2:
                 st.error(f"Error loading data: {e2}")
@@ -468,6 +468,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
