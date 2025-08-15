@@ -436,7 +436,7 @@ with tab1:
             # AI explanation panel
             with col2:
                 def load_final_signal():
-                    return pd.read_csv("issuer_signals.csv")
+                    return pd.read_csv("today_all_signals.csv")
                 final_signal_df = load_final_signal()
                 
                 bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
@@ -474,6 +474,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
