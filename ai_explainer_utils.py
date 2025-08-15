@@ -18,7 +18,7 @@ def generate_ai_explanation(diagnostics):
        {f"- Compare to 1 month ago ({diagnostics['COMPOSITE_SCORE_1M_AGO']:.2f}, change {diagnostics['Composite_1M_Change']:+.2f} / {diagnostics['Composite_1M_Change_Pct']:+.1f}%)" if diagnostics['COMPOSITE_SCORE_1M_AGO'] is not None else '- No 1-month ago data available.'}
     
     2. **Cross-Sectional Positioning**
-       {f"- Residual Z-score: {diagnostics['Z_RESIDUAL_BUCKET']:.2f} ({diagnostics['Z_Residual_Score_Issuer_Category']} vs issuer, {diagnostics['Z_Residual_Score_Market_Category']} vs market)" if diagnostics['Z_RESIDUAL_BUCKET'] is not None else '- Residual Z-score data unavailable.'}
+       {f"- Residual Z-score: {diagnostics['Z_RESIDUAL_BUCKET']:.2f} ({diagnostics.get('Z_Residual_Score_Issuer_Category', 'N/A')} vs issuer, {diagnostics['Z_Residual_Score_Market_Category']} vs market)" if diagnostics['Z_RESIDUAL_BUCKET'] is not None else '- Residual Z-score data unavailable.'}
        {f"- Cluster deviation score: {diagnostics['Cluster_Score']:.2f} ({diagnostics['Cluster_Score_Issuer_Category']} vs issuer, {diagnostics['Cluster_Score_Market_Category']} vs market)" if diagnostics['Cluster_Score'] is not None else '- Cluster deviation data unavailable.'}
     
     3. **Risk & Stability**
