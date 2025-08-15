@@ -159,17 +159,17 @@ with tab2:
     # Get actual signal values from your data (case-sensitive and exact match)
     actual_signals = df['SIGNAL'].unique()
     
-    buy_count = len(df[df['SIGNAL'] == 'LONG'])
-    sell_count = len(df[df['SIGNAL'] == 'SHORT'])
-    watch_buy_count = len(df[df['SIGNAL'] == 'WATCHLIST LONG'])
-    watch_sell_count = len(df[df['SIGNAL'] == 'WATCHLIST SHORT'])
+    buy_count = len(df[df['SIGNAL'] == 'STRONG BUY'])
+    sell_count = len(df[df['SIGNAL'] == 'STRONG SELL'])
+    watch_buy_count = len(df[df['SIGNAL'] == 'WEAK BUY'])
+    watch_sell_count = len(df[df['SIGNAL'] == 'WEAK SELL'])
     no_action_count = len(df[df['SIGNAL'] == 'NO ACTION'])
 
     with col1:
         st.markdown(f"""
         <div class="metric-box">
             <div class="metric-value buy">{buy_count}</div>
-            <div class="metric-label">BUY</div>
+            <div class="metric-label">STRONG BUY</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -177,7 +177,7 @@ with tab2:
         st.markdown(f"""
         <div class="metric-box">
             <div class="metric-value sell">{sell_count}</div>
-            <div class="metric-label">SELL</div>
+            <div class="metric-label">STRONG SELL</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -185,7 +185,7 @@ with tab2:
         st.markdown(f"""
         <div class="metric-box">
             <div class="metric-value watch-buy">{watch_buy_count}</div>
-            <div class="metric-label">WATCHLIST BUY</div>
+            <div class="metric-label">WEAK BUY</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -193,7 +193,7 @@ with tab2:
         st.markdown(f"""
         <div class="metric-box">
             <div class="metric-value watch-sell">{watch_sell_count}</div>
-            <div class="metric-label">WATCHLIST SELL</div>
+            <div class="metric-label">WEAK SELL</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -219,7 +219,7 @@ with tab2:
 
     with col2:
         # Get actual signal options from your data
-        fixed_signal_options = ['LONG', 'SHORT', 'WATCHLIST LONG', 'WATCHLIST SHORT', 'NO ACTION']
+        fixed_signal_options = ['STRONG BUY', 'STRONG SELL', 'WEAK BUY', 'WEAK SELL', 'NO ACTION']
         default_signals = [sig for sig in fixed_signal_options if sig != 'NO ACTION']
         
         selected_signals = st.multiselect(
@@ -468,6 +468,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
