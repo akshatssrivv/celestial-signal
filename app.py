@@ -273,16 +273,16 @@ with tab2:
         # Prepare column config dynamically
         column_config = {}
 
-        # Format Top_Feature_Effects_Pct as comma-separated with 4 decimals
-        if 'Top_Feature_Effects_Pct' in display_df.columns:
-            display_df['Top_Feature_Effects_Pct'] = display_df['Top_Feature_Effects_Pct'].apply(
-                lambda x: ', '.join([f"{v:.4f}" for v in x]) if isinstance(x, (list, np.ndarray)) else 'N/A'
-            )
-        
-        # Format Top_Features as comma-separated without quotes/brackets
+        # Convert Top_Features strings to lists
         if 'Top_Features' in display_df.columns:
             display_df['Top_Features'] = display_df['Top_Features'].apply(
-                lambda x: ', '.join(x) if isinstance(x, (list, np.ndarray)) else 'N/A'
+                lambda x: ', '.join(ast.literal_eval(x)) if isinstance(x, str) else 'N/A'
+            )
+        
+        # Convert Top_Feature_Effects_Pct strings to lists
+        if 'Top_Feature_Effects_Pct' in display_df.columns:
+            display_df['Top_Feature_Effects_Pct'] = display_df['Top_Feature_Effects_Pct'].apply(
+                lambda x: ', '.join([f"{v:.4f}" for v in ast.literal_eval(x)]) if isinstance(x, str) else 'N/A'
             )
         
         # Prepare column config dynamically
@@ -480,6 +480,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
