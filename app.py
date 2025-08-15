@@ -282,9 +282,10 @@ with tab2:
             )
         
         # Convert Top_Feature_Effects_Pct strings to lists
-        if 'Top_Feature_Effects_Pct' in display_df.columns:
+       if 'Top_Feature_Effects_Pct' in display_df.columns:
             display_df['Top_Feature_Effects_Pct'] = display_df['Top_Feature_Effects_Pct'].apply(
-                lambda x: ', '.join([f"{float(v):.4f}" for v in x.strip('[]').split()]) if isinstance(x, str) else 'N/A'
+                lambda x: ', '.join([f"{int(round(float(v)))}%" for v in x.replace('[','').replace(']','').split()]) 
+                if isinstance(x, str) else 'N/A'
             )
 
         
@@ -483,6 +484,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
