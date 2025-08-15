@@ -1,13 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import zipfile
-import shutil
-import hashlib
-import os
-import streamlit as st
-import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 import zipfile
 import shutil
@@ -20,35 +13,47 @@ from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
 # Utility functions
 # ------------------------------
 
-def file_hash(filepath):
+def file_hash(filepath: str) -> str:
+    """Compute MD5 hash of a file"""
     hasher = hashlib.md5()
     with open(filepath, "rb") as f:
         hasher.update(f.read())
     return hasher.hexdigest()
 
-def unzip_ns_curves(zip_path="ns_curves.zip", folder="ns_curves", force=False):
-    """Unzip NS curves, returns folder path"""
+
+def unzip_ns_curves(zip_path: str = "ns_curves.zip", folder: str = "ns_curves", force: bool = False) -> str:
+    """
+    Unzip NS curves into folder. Returns folder path.
+    Re-extracts only if zip has changed or force=True.
+    """
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
-    
+
     if force or prev_hash != zip_hash:
         if os.path.exists(folder):
             shutil.rmtree(folder)
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(folder)
         st.session_state["ns_zip_hash"] = zip_hash
+
     return folder
 
+
 @st.cache_data
-def load_full_ns_df(country_code, zip_hash):
-    """Load all NS curves for a country, invalidates cache if zip changes"""
+def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
+    """
+    Load all NS curves for a country.
+    Passing zip_hash ensures cache invalidation when zip changes.
+    """
     folder = unzip_ns_curves()
     if not os.path.exists(folder):
         st.error(f"Data folder '{folder}' not found.")
         return pd.DataFrame()
 
-    all_files = sorted([f for f in os.listdir(folder)
-                        if f.startswith(country_code) and f.endswith(".parquet")])
+    all_files = sorted([
+        f for f in os.listdir(folder)
+        if f.startswith(country_code) and f.endswith(".parquet")
+    ])
 
     dfs = []
     for f in all_files:
@@ -65,11 +70,16 @@ def load_full_ns_df(country_code, zip_hash):
             ns_df["Date"] = pd.to_datetime(ns_df["Date"])
             ns_df.sort_values("Date", inplace=True)
         return ns_df
+
     return pd.DataFrame()
 
+
 @st.cache_data
-def load_ns_curve(country_code, date_str, zip_hash):
-    """Load NS curve for a single day"""
+def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFrame | None:
+    """
+    Load NS curve for a single day.
+    Passing zip_hash ensures cache invalidation when zip changes.
+    """
     folder = unzip_ns_curves()
     path = os.path.join(folder, f"{country_code}_{date_str}.parquet")
     if os.path.exists(path):
@@ -294,13 +304,15 @@ with tab2:
     else:
         st.warning("No bonds match your filters")
 
+
+
 with tab1:
     st.set_page_config(
         page_title="The Curves",
         layout="wide"
     )
     
-    # Choose subtab inside Tab 2
+    # Choose subtab inside Tab 1
     subtab = st.radio(
         "Select View",
         ("Animated Curves", "Single Day Curve")
@@ -320,29 +332,27 @@ with tab1:
 
     selected_country = country_code_map[country_option]
 
-    if subtab == "Animated Curves":
-        # Check if zip file exists before trying to load data
-        if not os.path.exists("ns_curves.zip"):
-            st.error("ns_curves.zip file not found. Please ensure the file is uploaded to your Streamlit app.")
-        else:
-            ns_df = load_full_ns_df(selected_country)
-
+    # Compute zip hash for cache invalidation
+    zip_path = "ns_curves.zip"
+    if not os.path.exists(zip_path):
+        st.error("ns_curves.zip file not found. Upload the file.")
+        st.stop()
+        zip_hash = file_hash(zip_path)
+    
+        if subtab == "Animated Curves":
+            ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
             if ns_df is not None and not ns_df.empty:
                 fig = plot_ns_animation(ns_df, issuer_label=selected_country)
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.warning("No Nelson-Siegel data available for the selected country.")
-
-
-    elif subtab == "Single Day Curve":
-        if not os.path.exists("ns_curves.zip"):
-            st.error("ns_curves.zip file not found. Please ensure the file is uploaded to your Streamlit app.")
-        else:
+    
+        elif subtab == "Single Day Curve":
             date_input = st.date_input("Select Date")
             date_str = date_input.strftime("%Y-%m-%d")
-    
-            ns_df = load_ns_curve(selected_country, date_str)
-    
+        
+            ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
+        
             if ns_df is not None and not ns_df.empty:
                 ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
                 curve_date = pd.to_datetime(date_input)
@@ -411,7 +421,6 @@ with tab1:
                 )
     
                 col1, col2 = st.columns([3, 2])
-    
                 with col1:
                     st.plotly_chart(fig, use_container_width=True)
     
@@ -457,6 +466,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
