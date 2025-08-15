@@ -258,7 +258,7 @@ with tab2:
         # Format the dataframe for display
         # Desired columns
         cols_to_display = [
-            'Date', 'ISIN', 'SECURITY_NAME', 'RESIDUAL_NS', 'SIGNAL',
+            'SECURITY_NAME', 'RESIDUAL_NS', 'SIGNAL',
             'Z_Residual_Score', 'Volatility_Score', 'Market_Stress_Score',
             'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE',
             'Top_Features', 'Top_Feature_Effects_Pct'
@@ -466,6 +466,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
