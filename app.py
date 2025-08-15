@@ -298,10 +298,6 @@ with tab2:
         # Display table
         st.dataframe(display_df, column_config=column_config)
 
-        
-        # Display table
-        st.dataframe(display_df, column_config=column_config)
-
     
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
@@ -485,6 +481,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
