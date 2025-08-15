@@ -255,13 +255,11 @@ with tab2:
     if not filtered_df.empty:
         # Format the dataframe for display
         display_df = filtered_df[[
-            'ISIN', 'SECURITY_NAME', 'Country', 'SIGNAL', 
-            'COMPOSITE_SCORE', 'Z_RESIDUAL_BUCKET', 'Cluster_Deviation_Flipped', 
-            'Volatility', 'Regression_Component'
+            'ISIN', 'SECURITY_NAME', 'Country', 'Z_Residual_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE', 'SIGNAL'
         ]].copy()
     
         # Round numeric columns
-        numeric_cols = ['COMPOSITE_SCORE', 'Z_RESIDUAL_BUCKET', 'Cluster_Deviation_Flipped', 'Volatility', 'Regression_Component']
+        numeric_cols = ['Z_Residual_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
         display_df[numeric_cols] = display_df[numeric_cols].round(4)
     
         # Display table with sorting enabled
@@ -273,10 +271,9 @@ with tab2:
                 'Country': 'Issuer',
                 'SIGNAL': 'Signal',
                 'COMPOSITE_SCORE': st.column_config.NumberColumn('Composite Score', format='%.4f'),
-                'Z_RESIDUAL_BUCKET': st.column_config.NumberColumn('Z-Residual', format='%.4f'),
-                'Cluster_Deviation_Flipped': st.column_config.NumberColumn('Cluster Deviation', format='%.4f'),
-                'Volatility': st.column_config.NumberColumn('Volatility', format='%.4f'),
-                'Regression_Component': st.column_config.NumberColumn('Regression Component', format='%.4f'),
+                'Z_Residual_Score': st.column_config.NumberColumn('Z-Residual', format='%.4f'),
+                'Cluster_Score': st.column_config.NumberColumn('Cluster Deviation', format='%.4f'),
+                'Regression_Score': st.column_config.NumberColumn('Regression Score', format='%.4f'),
                 'Date': 'Date'
             },
             use_container_width=True,
@@ -468,6 +465,7 @@ with tab1:
     
             else:
                 st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
