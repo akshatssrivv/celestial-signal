@@ -8,6 +8,8 @@ import hashlib
 import os
 from nelson_siegel_fn import plot_ns_animation, nelson_siegel
 from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
+import ast
+
 
 # ------------------------------
 # Utility functions
@@ -480,6 +482,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
