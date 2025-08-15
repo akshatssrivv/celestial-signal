@@ -272,13 +272,32 @@ with tab2:
         
         # Prepare column config dynamically
         column_config = {}
+
+        # Pre-format Top_Feature_Effects_Pct for display
+        if 'Top_Feature_Effects_Pct' in display_df.columns:
+            def format_shap_list(val):
+                try:
+                    # If val is a string representation of a list, convert to list
+                    if isinstance(val, str):
+                        val = eval(val)
+                    return ', '.join([f"{x:.4f}" for x in val])
+                except:
+                    return 'N/A'
+            
+            display_df['Top_Feature_Effects_Pct'] = display_df['Top_Feature_Effects_Pct'].apply(format_shap_list)
         
+        # Prepare column config dynamically
+        column_config = {}
         for col in existing_cols:
             if col in ['COMPOSITE_SCORE', 'Z_Residual_Score', 'Cluster_Score', 'Regression_Score',
                        'RESIDUAL_NS', 'Volatility_Score', 'Market_Stress_Score']:
                 column_config[col] = st.column_config.NumberColumn(col.replace('_', ' '), format='%.4f')
             elif col in ['ISIN', 'SECURITY_NAME', 'SIGNAL', 'Date', 'Top_Features', 'Top_Feature_Effects_Pct']:
                 column_config[col] = col.replace('_', ' ')
+        
+        # Display table
+        st.dataframe(display_df, column_config=column_config)
+
         
         # Display table
         st.dataframe(display_df, column_config=column_config)
@@ -466,6 +485,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
