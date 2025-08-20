@@ -416,25 +416,32 @@ with tab1:
             bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
             bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
     
-            # Multi-select bonds to highlight
+            # Multi-select bonds to show in animation
             selected_animation_bonds = st.multiselect(
-                "Select Bonds to Highlight in Animation",
+                "Select Bonds to Display in Animation",
                 options=bond_options['ISIN'].tolist(),
                 format_func=lambda isin: bond_labels.get(isin, isin)
             )
     
-            # Merge signals into ns_df for coloring
-            ns_df = ns_df.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+            if not selected_animation_bonds:
+                st.warning("Select at least one bond to display in the animation.")
+            else:
+                # Filter ns_df to only the selected bonds
+                ns_df_filtered = ns_df[ns_df['ISIN'].isin(selected_animation_bonds)].copy()
     
-            # Plot with highlighting
-            fig = plot_ns_animation(
-                ns_df,
-                issuer_label=selected_country,
-                highlight_isins=selected_animation_bonds  # list of ISINs to emphasize
-            )
-            st.plotly_chart(fig, use_container_width=True)
+                # Merge signals for coloring
+                ns_df_filtered = ns_df_filtered.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+    
+                # Plot only the selected bonds
+                fig = plot_ns_animation(
+                    ns_df_filtered,
+                    issuer_label=selected_country,
+                    highlight_isins=selected_animation_bonds
+                )
+                st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No Nelson-Siegel data available for the selected country.")
+
 
     elif subtab == "Single Day Curve":
         date_input = st.date_input("Select Date")
@@ -554,6 +561,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
