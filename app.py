@@ -111,13 +111,16 @@ with tab2:
             color: #666;
             font-weight: 500;
         }
-        .buy { color: #28a745; }
-        .sell { color: #dc3545; }
-        .watch-buy { color: #17a2b8; }
-        .watch-sell { color: #fd7e14; }
-        .no-action { color: #6c757d; }
+        .buy { color: #28a745; }          /* Strong Buy */
+        .sell { color: #dc3545; }         /* Strong Sell */
+        .mod-buy { color: #20c997; }      /* Moderate Buy */
+        .mod-sell { color: #e55353; }     /* Moderate Sell */
+        .watch-buy { color: #17a2b8; }    /* Weak Buy */
+        .watch-sell { color: #fd7e14; }   /* Weak Sell */
+        .no-action { color: #6c757d; }    /* No Action */
     </style>
     """, unsafe_allow_html=True)
+
 
     @st.cache_data(ttl=300)
     def load_data():
@@ -158,18 +161,19 @@ with tab2:
     # Title
     st.title("Bond Analytics Dashboard")
 
-    # Signal metrics - horizontal boxes
-    col1, col2, col3, col4, col5 = st.columns(5)
-
     # Get actual signal values from your data (case-sensitive and exact match)
     actual_signals = df['SIGNAL'].unique()
     
     buy_count = len(df[df['SIGNAL'] == 'STRONG BUY'])
     sell_count = len(df[df['SIGNAL'] == 'STRONG SELL'])
+    mod_buy_count = len(df[df['SIGNAL'] == 'MODERATE BUY'])
+    mod_sell_count = len(df[df['SIGNAL'] == 'MODERATE SELL'])
     watch_buy_count = len(df[df['SIGNAL'] == 'WEAK BUY'])
     watch_sell_count = len(df[df['SIGNAL'] == 'WEAK SELL'])
     no_action_count = len(df[df['SIGNAL'] == 'NO ACTION'])
 
+    col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
+    
     with col1:
         st.markdown(f"""
         <div class="metric-box">
@@ -177,7 +181,7 @@ with tab2:
             <div class="metric-label">STRONG BUY</div>
         </div>
         """, unsafe_allow_html=True)
-
+    
     with col2:
         st.markdown(f"""
         <div class="metric-box">
@@ -185,24 +189,40 @@ with tab2:
             <div class="metric-label">STRONG SELL</div>
         </div>
         """, unsafe_allow_html=True)
-
+    
     with col3:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-value mod-buy">{mod_buy_count}</div>
+            <div class="metric-label">MODERATE BUY</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-value mod-sell">{mod_sell_count}</div>
+            <div class="metric-label">MODERATE SELL</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col5:
         st.markdown(f"""
         <div class="metric-box">
             <div class="metric-value watch-buy">{watch_buy_count}</div>
             <div class="metric-label">WEAK BUY</div>
         </div>
         """, unsafe_allow_html=True)
-
-    with col4:
+    
+    with col6:
         st.markdown(f"""
         <div class="metric-box">
             <div class="metric-value watch-sell">{watch_sell_count}</div>
             <div class="metric-label">WEAK SELL</div>
         </div>
         """, unsafe_allow_html=True)
-
-    with col5:
+    
+    with col7:
         st.markdown(f"""
         <div class="metric-box">
             <div class="metric-value no-action">{no_action_count}</div>
@@ -224,7 +244,12 @@ with tab2:
 
     with col2:
         # Get actual signal options from your data
-        fixed_signal_options = ['STRONG BUY', 'STRONG SELL', 'WEAK BUY', 'WEAK SELL', 'NO ACTION']
+        fixed_signal_options = [
+            'STRONG BUY', 'STRONG SELL',
+            'MODERATE BUY', 'MODERATE SELL',
+            'WEAK BUY', 'WEAK SELL',
+            'NO ACTION'
+        ]
         default_signals = [sig for sig in fixed_signal_options if sig != 'NO ACTION']
         
         selected_signals = st.multiselect(
@@ -486,6 +511,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
