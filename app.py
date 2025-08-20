@@ -414,18 +414,19 @@ with tab1:
             # Load issuer signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
     
-            # Merge NS maturity info for ordering and safe lookup
-            bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates()
-            
-            # Precompute a single maturity per ISIN from ns_df
+            # Filter bonds for the selected country only
+            country_isins = ns_df['ISIN'].unique()
+            bond_options = final_signal_df[final_signal_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
+    
+            # Precompute maturity for ordering
             isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
             bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
             bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
     
-            # Sort by maturity ascending, NaT goes last
+            # Sort by maturity
             bond_options.sort_values('Maturity', inplace=True)
     
-            # Map for labels
+            # Map ISIN to name
             bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
     
             # Safe label formatter
@@ -437,12 +438,18 @@ with tab1:
                 else:
                     return f"{bond_labels.get(isin, isin)} (N/A)"
     
-            # Multi-select for bonds to highlight
-            selected_animation_bonds = st.multiselect(
-                "Select Bonds to Display in Animation",
-                options=bond_options['ISIN'].tolist(),
-                format_func=format_bond_label
-            )
+            # "Select All" button
+            if st.button(f"Select All {country_option} Bonds"):
+                selected_animation_bonds = bond_options['ISIN'].tolist()
+            else:
+                # Multiselect with search
+                selected_animation_bonds = st.multiselect(
+                    "Select Bonds to Display in Animation",
+                    options=bond_options['ISIN'].tolist(),
+                    format_func=format_bond_label,
+                    default=[],
+                    key="animation_bond_selector"
+                )
     
             if not selected_animation_bonds:
                 st.warning("Select at least one bond to display in the animation.")
@@ -455,7 +462,7 @@ with tab1:
                     final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left'
                 )
     
-                # Plot the animation with only selected bonds
+                # Plot the animation
                 fig = plot_ns_animation(
                     ns_df_filtered,
                     issuer_label=selected_country,
@@ -465,6 +472,7 @@ with tab1:
     
         else:
             st.warning("No Nelson-Siegel data available for the selected country.")
+
 
     elif subtab == "Single Day Curve":
         date_input = st.date_input("Select Date")
@@ -584,6 +592,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
