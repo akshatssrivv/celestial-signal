@@ -470,8 +470,16 @@ with tab1:
     
             # Load signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
-            ns_df = ns_df.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
-    
+            # Merge signals into ns_df
+            ns_df = ns_df.merge(
+                final_signal_df[['ISIN', 'SIGNAL']],
+                on='ISIN',
+                how='left'
+            )
+            
+            # Normalize SIGNAL column
+            ns_df['SIGNAL'] = ns_df['SIGNAL'].str.strip().str.lower()
+            
             # Map signals to colors
             signal_color_map = {
                 'strong buy': 'red',
@@ -567,6 +575,7 @@ with tab1:
     
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
