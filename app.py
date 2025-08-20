@@ -438,14 +438,27 @@ with tab1:
                 else:
                     return f"{bond_labels.get(isin, isin)} (N/A)"
     
+            # Search input for filtering
+            search_input = st.text_input(f"Search {country_option} Bonds by ISIN or Year", placeholder="e.g. BTPS 54")
+    
+            if search_input:
+                search_upper = search_input.upper()
+                filtered_bonds = bond_options[
+                    bond_options['ISIN'].str.contains(search_upper, na=False) |
+                    bond_options['SECURITY_NAME'].str.upper().str.contains(search_upper, na=False) |
+                    bond_options['Maturity'].dt.year.astype(str).str.contains(search_upper)
+                ]
+            else:
+                filtered_bonds = bond_options
+    
             # "Select All" button
             if st.button(f"Select All {country_option} Bonds"):
-                selected_animation_bonds = bond_options['ISIN'].tolist()
+                selected_animation_bonds = filtered_bonds['ISIN'].tolist()
             else:
-                # Multiselect with search
+                # Multiselect with filtered options
                 selected_animation_bonds = st.multiselect(
                     "Select Bonds to Display in Animation",
-                    options=bond_options['ISIN'].tolist(),
+                    options=filtered_bonds['ISIN'].tolist(),
                     format_func=format_bond_label,
                     default=[],
                     key="animation_bond_selector"
@@ -469,10 +482,9 @@ with tab1:
                     highlight_isins=selected_animation_bonds
                 )
                 st.plotly_chart(fig, use_container_width=True)
-    
-        else:
-            st.warning("No Nelson-Siegel data available for the selected country.")
 
+    else:
+        st.warning("No Nelson-Siegel data available for the selected country.")
 
     elif subtab == "Single Day Curve":
         date_input = st.date_input("Select Date")
@@ -592,6 +604,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
