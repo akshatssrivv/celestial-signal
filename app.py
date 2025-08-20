@@ -296,6 +296,10 @@ with tab2:
         existing_cols = [col for col in cols_to_display if col in filtered_df.columns]
         
         display_df = filtered_df[existing_cols].copy()
+
+        if 'Volatility_Score' in display_df.columns:
+            display_df.rename(columns={'Volatility_Score': 'Stability_Score'}, inplace=True)
+
         
         # Extract maturity date
         def extract_maturity(name):
@@ -338,6 +342,8 @@ with tab2:
             if col in ['COMPOSITE_SCORE', 'Z_Residual_Score', 'Cluster_Score', 'Regression_Score',
                        'RESIDUAL_NS', 'Volatility_Score', 'Market_Stress_Score']:
                 column_config[col] = st.column_config.NumberColumn(col.replace('_', ' '), format='%.4f')
+                column_config['Stability_Score'] = st.column_config.NumberColumn('Stability Score', format='%.4f')
+
             else:
                 column_config[col] = col.replace('_', ' ')
 
@@ -528,6 +534,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
