@@ -313,10 +313,10 @@ with tab2:
             return 'N/A'
         
         # Add MATURITY_DATE column
-        display_df['MATURITY_DATE'] = display_df['SECURITY_NAME'].apply(extract_maturity)
+        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
         
         # Rearrange columns to have SECURITY_NAME first, then MATURITY_DATE
-        cols_order = ['SECURITY_NAME', 'MATURITY_DATE'] + [col for col in display_df.columns if col not in ['SECURITY_NAME', 'MATURITY_DATE']]
+        cols_order = ['SECURITY_NAME', 'Maturity'] + [col for col in display_df.columns if col not in ['SECURITY_NAME', 'Maturity']]
         display_df = display_df[cols_order]
         
         # Combine Top_Features + Top_Feature_Effects_Pct into one column
@@ -528,6 +528,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
