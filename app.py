@@ -411,25 +411,17 @@ with tab1:
     if subtab == "Animated Curves":
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         if ns_df is not None and not ns_df.empty:
-            # Load issuer signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
-    
-            # Filter bonds for the selected country only
             country_isins = ns_df['ISIN'].unique()
             bond_options = final_signal_df[final_signal_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
     
-            # Precompute maturity for ordering
             isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
             bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
             bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
-    
-            # Sort by maturity
             bond_options.sort_values('Maturity', inplace=True)
     
-            # Map ISIN to name
             bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
     
-            # Safe label formatter
             def format_bond_label(isin):
                 maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
                 if len(maturity) > 0 and pd.notnull(maturity[0]):
@@ -438,48 +430,30 @@ with tab1:
                 else:
                     return f"{bond_labels.get(isin, isin)} (N/A)"
     
-            if search_input:
-                search_upper = search_input.upper()
-                filtered_bonds = bond_options[
-                    bond_options['ISIN'].str.upper().str.contains(search_upper, na=False) |
-                    bond_options['SECURITY_NAME'].str.upper().str.contains(search_upper, na=False) |
-                    bond_options['Maturity'].dt.year.astype(str).str.contains(search_upper)
-                ]
-            else:
-                filtered_bonds = bond_options
-    
-            # Multiselect with filtered options
+            # Multiselect directly with all bonds (no search box)
             selected_animation_bonds = st.multiselect(
                 "Select Bonds to Display in Animation",
-                options=filtered_bonds['ISIN'].tolist(),
+                options=bond_options['ISIN'].tolist(),
                 format_func=format_bond_label,
                 default=[],
                 key="animation_bond_selector"
             )
     
-            # "Select All" button
             if st.button(f"Select All {country_option} Bonds"):
-                selected_animation_bonds = filtered_bonds['ISIN'].tolist()
+                selected_animation_bonds = bond_options['ISIN'].tolist()
     
             if not selected_animation_bonds:
                 st.warning("Select at least one bond to display in the animation.")
             else:
-                # Filter ns_df to only the selected bonds
                 ns_df_filtered = ns_df[ns_df['ISIN'].isin(selected_animation_bonds)].copy()
+                ns_df_filtered = ns_df_filtered.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
     
-                # Merge signal info for highlighting
-                ns_df_filtered = ns_df_filtered.merge(
-                    final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left'
-                )
-    
-                # Plot the animation
                 fig = plot_ns_animation(
                     ns_df_filtered,
                     issuer_label=selected_country,
                     highlight_isins=selected_animation_bonds
                 )
                 st.plotly_chart(fig, use_container_width=True)
-    
         else:
             st.warning("No Nelson-Siegel data available for the selected country.")
 
@@ -601,6 +575,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
