@@ -411,7 +411,27 @@ with tab1:
     if subtab == "Animated Curves":
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         if ns_df is not None and not ns_df.empty:
-            fig = plot_ns_animation(ns_df, issuer_label=selected_country)
+            # Load issuer signals
+            final_signal_df = pd.read_csv("today_all_signals.csv")
+            bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
+            bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
+    
+            # Multi-select bonds to highlight
+            selected_animation_bonds = st.multiselect(
+                "Select Bonds to Highlight in Animation",
+                options=bond_options['ISIN'].tolist(),
+                format_func=lambda isin: bond_labels.get(isin, isin)
+            )
+    
+            # Merge signals into ns_df for coloring
+            ns_df = ns_df.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+    
+            # Plot with highlighting
+            fig = plot_ns_animation(
+                ns_df,
+                issuer_label=selected_country,
+                highlight_isins=selected_animation_bonds  # list of ISINs to emphasize
+            )
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No Nelson-Siegel data available for the selected country.")
@@ -534,6 +554,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
