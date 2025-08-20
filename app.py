@@ -337,14 +337,15 @@ with tab1:
 
     country_option = st.selectbox(
         "Select Country",
-        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪']
+        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland']
     )
 
     country_code_map = {
         'Italy 🇮🇹': 'BTPS',
         'Spain 🇪🇸': 'SPGB',
         'France 🇫🇷': 'FRTR',
-        'Germany 🇩🇪': 'BUNDS'
+        'Germany 🇩🇪': 'BUNDS',
+        'Finland': 'RFGB'
     }
 
     selected_country = country_code_map[country_option]
@@ -484,6 +485,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
