@@ -467,37 +467,44 @@ with tab1:
             ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
             curve_date = pd.to_datetime(date_input)
             ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
-
-            # Separate outliers and regular bonds
-            outliers = ns_df.nlargest(7, 'RESIDUAL_NS', keep='all')
-            regular = ns_df.drop(outliers.index)
-
+    
+            # Load signals
+            final_signal_df = pd.read_csv("today_all_signals.csv")
+            ns_df = ns_df.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+    
+            # Map signals to colors
+            signal_color_map = {
+                'strong buy': 'red',
+                'strong sell': 'red',
+                'weak buy': 'orange',
+                'weak sell': 'orange',
+                'moderate buy': 'yellow',
+                'moderate sell': 'yellow'
+            }
+            ns_df['Signal_Color'] = ns_df['SIGNAL'].map(signal_color_map).fillna('black')
+    
             fig = go.Figure()
-
-            # Add regular bonds (black)
-            fig.add_trace(go.Scatter(
-                x=regular['YearsToMaturity'],
-                y=regular['Z_SPRD_VAL'],
-                mode='markers',
-                name='Bonds',
-                marker=dict(size=6, color='black'),
-                text=regular['SECURITY_NAME'],
-                customdata=np.stack((regular['ISIN'], regular['Date'].astype(str)), axis=-1),
-                hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
-            ))
-
-            # Add outliers (red diamonds)
-            fig.add_trace(go.Scatter(
-                x=outliers['YearsToMaturity'],
-                y=outliers['Z_SPRD_VAL'],
-                mode='markers',
-                name='Top 7 Outliers',
-                marker=dict(size=8, color='red', symbol='diamond'),
-                text=outliers['SECURITY_NAME'],
-                customdata=np.stack((outliers['ISIN'], outliers['Date'].astype(str), outliers['RESIDUAL_NS']), axis=-1),
-                hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>Residual: %{customdata[2]:.1f}<br>%{text}<extra></extra>'
-            ))
-
+    
+            # Plot bonds by signal color
+            for color, df_subset in ns_df.groupby('Signal_Color'):
+                if not df_subset.empty:
+                    fig.add_trace(go.Scatter(
+                        x=df_subset['YearsToMaturity'],
+                        y=df_subset['Z_SPRD_VAL'],
+                        mode='markers',
+                        name=f"{color.capitalize()} Bonds",
+                        marker=dict(size=8 if color != 'black' else 6,
+                                    color=color,
+                                    symbol='diamond' if color != 'black' else 'circle'),
+                        text=df_subset['SECURITY_NAME'],
+                        customdata=np.stack((
+                            df_subset['ISIN'],
+                            df_subset['Date'].astype(str),
+                            df_subset.get('RESIDUAL_NS', np.zeros(len(df_subset)))
+                        ), axis=-1),
+                        hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
+                    ))
+    
             # Add Nelson-Siegel fit line if available
             if 'NS_PARAMS' in ns_df.columns:
                 try:
@@ -507,10 +514,10 @@ with tab1:
                         ns_params = ast.literal_eval(ns_params_raw)
                     else:
                         ns_params = ns_params_raw
-
+    
                     maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
                     ns_curve = nelson_siegel(maturity_range, *ns_params)
-
+    
                     fig.add_trace(go.Scatter(
                         x=maturity_range,
                         y=ns_curve,
@@ -520,7 +527,7 @@ with tab1:
                     ))
                 except Exception as e:
                     st.error(f"Error plotting Nelson-Siegel curve: {e}")
-
+    
             fig.update_layout(
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
                 xaxis_title="Years to Maturity",
@@ -529,19 +536,16 @@ with tab1:
                 showlegend=True,
                 template="plotly_white"
             )
-
+    
             col1, col2 = st.columns([3, 2])
             with col1:
                 st.plotly_chart(fig, use_container_width=True)
-
-            # AI explanation panel
+    
             # AI explanation panel
             with col2:
-                final_signal_df = pd.read_csv("today_all_signals.csv")
-                
                 bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
                 bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
-                
+    
                 # Single selectbox without search input
                 selected_isin = st.selectbox(
                     "Select Bond for AI Explanation",
@@ -549,20 +553,22 @@ with tab1:
                     format_func=lambda isin: bond_labels.get(isin, isin),
                     key="bond_selector"
                 )
-                
+    
                 selected_name = bond_labels[selected_isin]
                 st.write(f"Selected Bond: {selected_name} (ISIN: {selected_isin})")
-                
+    
                 selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
-                
+    
                 if st.button("Explain this bond"):
                     diagnostics = format_bond_diagnostics(selected_bond_history)
                     explanation = generate_ai_explanation(diagnostics)
                     st.markdown(f"### AI Explanation for {selected_name}")
                     st.write(explanation)
-
+    
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
+
 
 
 
