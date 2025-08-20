@@ -413,14 +413,23 @@ with tab1:
         if ns_df is not None and not ns_df.empty:
             # Load issuer signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
-            bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
+    
+            # Merge NS maturity info for ordering
+            bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates()
+            ns_maturity = ns_df[['ISIN', 'Maturity']].drop_duplicates()
+            bond_options = bond_options.merge(ns_maturity, on='ISIN', how='left')
+            bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'])
+    
+            # Sort by maturity ascending
+            bond_options.sort_values('Maturity', inplace=True)
+    
             bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
     
-            # Multi-select bonds to show in animation
+            # Multi-select bonds to show in animation, now ordered by maturity
             selected_animation_bonds = st.multiselect(
                 "Select Bonds to Display in Animation",
                 options=bond_options['ISIN'].tolist(),
-                format_func=lambda isin: bond_labels.get(isin, isin)
+                format_func=lambda isin: f"{bond_labels.get(isin, isin)} ({ns_df.loc[ns_df['ISIN']==isin, 'Maturity'].iloc[0].strftime('%Y-%m-%d')})"
             )
     
             if not selected_animation_bonds:
@@ -428,11 +437,8 @@ with tab1:
             else:
                 # Filter ns_df to only the selected bonds
                 ns_df_filtered = ns_df[ns_df['ISIN'].isin(selected_animation_bonds)].copy()
-    
-                # Merge signals for coloring
                 ns_df_filtered = ns_df_filtered.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
     
-                # Plot only the selected bonds
                 fig = plot_ns_animation(
                     ns_df_filtered,
                     issuer_label=selected_country,
@@ -561,6 +567,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
