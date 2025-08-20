@@ -411,7 +411,7 @@ with tab1:
     if subtab == "Animated Curves":
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         if ns_df is not None and not ns_df.empty:
-            # Load today's signals
+            # Load issuer signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
     
             # Filter bonds for the selected country only
@@ -438,36 +438,36 @@ with tab1:
                 else:
                     return f"{bond_labels.get(isin, isin)} (N/A)"
     
-            # Search input for dynamic filtering
+            # Search input for filtering
             search_input = st.text_input(f"Search {country_option} Bonds by ISIN, Name, or Year", placeholder="e.g. BTPS 54")
     
             if search_input:
                 search_upper = search_input.upper()
                 filtered_bonds = bond_options[
-                    bond_options['ISIN'].str.contains(search_upper, na=False) |
+                    bond_options['ISIN'].str.upper().str.contains(search_upper, na=False) |
                     bond_options['SECURITY_NAME'].str.upper().str.contains(search_upper, na=False) |
                     bond_options['Maturity'].dt.year.astype(str).str.contains(search_upper)
                 ]
             else:
                 filtered_bonds = bond_options
     
+            # Multiselect with filtered options
+            selected_animation_bonds = st.multiselect(
+                "Select Bonds to Display in Animation",
+                options=filtered_bonds['ISIN'].tolist(),
+                format_func=format_bond_label,
+                default=[],
+                key="animation_bond_selector"
+            )
+    
             # "Select All" button
             if st.button(f"Select All {country_option} Bonds"):
                 selected_animation_bonds = filtered_bonds['ISIN'].tolist()
-            else:
-                # Single multiselect for choosing bonds
-                selected_animation_bonds = st.multiselect(
-                    "Select Bonds to Display in Animation",
-                    options=filtered_bonds['ISIN'].tolist(),
-                    format_func=format_bond_label,
-                    default=[],
-                    key="animation_bond_selector"
-                )
     
             if not selected_animation_bonds:
                 st.warning("Select at least one bond to display in the animation.")
             else:
-                # Filter ns_df to only selected bonds
+                # Filter ns_df to only the selected bonds
                 ns_df_filtered = ns_df[ns_df['ISIN'].isin(selected_animation_bonds)].copy()
     
                 # Merge signal info for highlighting
@@ -604,6 +604,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
