@@ -535,46 +535,35 @@ with tab1:
                 st.plotly_chart(fig, use_container_width=True)
 
             # AI explanation panel
+            # AI explanation panel
             with col2:
-                def load_final_signal():
-                    return pd.read_csv("today_all_signals.csv")
-                final_signal_df = load_final_signal()
+                final_signal_df = pd.read_csv("today_all_signals.csv")
                 
                 bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
                 bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
                 
-                search_input = st.text_input("Search Bond by Name")
+                # Single selectbox without search input
+                selected_isin = st.selectbox(
+                    "Select Bond for AI Explanation",
+                    options=bond_options['ISIN'].tolist(),
+                    format_func=lambda isin: bond_labels.get(isin, isin),
+                    key="bond_selector"
+                )
                 
-                if search_input:
-                    filtered_bonds = bond_options[
-                        bond_options['SECURITY_NAME'].str.contains(search_input, case=False, na=False)
-                    ]
-                else:
-                    filtered_bonds = bond_options
+                selected_name = bond_labels[selected_isin]
+                st.write(f"Selected Bond: {selected_name} (ISIN: {selected_isin})")
                 
-                if not filtered_bonds.empty:
-                    selected_isin = st.selectbox(
-                        "Select Bond for AI Explanation",
-                        options=filtered_bonds['ISIN'].tolist(),
-                        format_func=lambda isin: bond_labels.get(isin, isin),
-                        key="bond_selector"
-                    )
-                    
-                    selected_name = bond_labels[selected_isin]
-                    st.write(f"Selected Bond: {selected_name} (ISIN: {selected_isin})")
-                    
-                    selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
-                    
-                    if st.button("Explain this bond"):
-                        diagnostics = format_bond_diagnostics(selected_bond_history)
-                        explanation = generate_ai_explanation(diagnostics)
-                        st.markdown(f"### AI Explanation for {selected_name}")
-                        st.write(explanation)
-                else:
-                    st.write("No bonds found matching your search.")
+                selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
+                
+                if st.button("Explain this bond"):
+                    diagnostics = format_bond_diagnostics(selected_bond_history)
+                    explanation = generate_ai_explanation(diagnostics)
+                    st.markdown(f"### AI Explanation for {selected_name}")
+                    st.write(explanation)
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
