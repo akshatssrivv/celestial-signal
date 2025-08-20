@@ -411,7 +411,7 @@ with tab1:
     if subtab == "Animated Curves":
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         if ns_df is not None and not ns_df.empty:
-            # Load issuer signals
+            # Load today's signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
     
             # Filter bonds for the selected country only
@@ -438,8 +438,8 @@ with tab1:
                 else:
                     return f"{bond_labels.get(isin, isin)} (N/A)"
     
-            # Search input for filtering
-            search_input = st.text_input(f"Search {country_option} Bonds by ISIN or Year", placeholder="e.g. BTPS 54")
+            # Search input for dynamic filtering
+            search_input = st.text_input(f"Search {country_option} Bonds by ISIN, Name, or Year", placeholder="e.g. BTPS 54")
     
             if search_input:
                 search_upper = search_input.upper()
@@ -455,7 +455,7 @@ with tab1:
             if st.button(f"Select All {country_option} Bonds"):
                 selected_animation_bonds = filtered_bonds['ISIN'].tolist()
             else:
-                # Multiselect with filtered options
+                # Single multiselect for choosing bonds
                 selected_animation_bonds = st.multiselect(
                     "Select Bonds to Display in Animation",
                     options=filtered_bonds['ISIN'].tolist(),
@@ -467,9 +467,9 @@ with tab1:
             if not selected_animation_bonds:
                 st.warning("Select at least one bond to display in the animation.")
             else:
-                # Filter ns_df to only the selected bonds
+                # Filter ns_df to only selected bonds
                 ns_df_filtered = ns_df[ns_df['ISIN'].isin(selected_animation_bonds)].copy()
-                
+    
                 # Merge signal info for highlighting
                 ns_df_filtered = ns_df_filtered.merge(
                     final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left'
@@ -482,7 +482,7 @@ with tab1:
                     highlight_isins=selected_animation_bonds
                 )
                 st.plotly_chart(fig, use_container_width=True)
-
+    
         else:
             st.warning("No Nelson-Siegel data available for the selected country.")
 
@@ -604,6 +604,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
