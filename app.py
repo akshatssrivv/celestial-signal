@@ -317,7 +317,7 @@ with tab2:
                             return 'N/A'
             return 'N/A'
         
-        display_df['MATURITY_DATE'] = display_df['SECURITY_NAME'].apply(extract_maturity)
+        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
         
         # Convert Top_Features strings to lists
         if 'Top_Features' in display_df.columns:
@@ -334,7 +334,7 @@ with tab2:
     
         # Prepare column config dynamically
         column_config = {}
-        for col in existing_cols + ['MATURITY_DATE']:
+        for col in existing_cols + ['Maturity']:
             if col in ['COMPOSITE_SCORE', 'Z_Residual_Score', 'Cluster_Score', 'Regression_Score',
                        'RESIDUAL_NS', 'Volatility_Score', 'Market_Stress_Score']:
                 column_config[col] = st.column_config.NumberColumn(col.replace('_', ' '), format='%.4f')
@@ -528,6 +528,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
