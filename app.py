@@ -414,22 +414,34 @@ with tab1:
             # Load issuer signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
     
-            # Merge NS maturity info for ordering
+            # Merge NS maturity info for ordering and safe lookup
             bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates()
-            ns_maturity = ns_df[['ISIN', 'Maturity']].drop_duplicates()
-            bond_options = bond_options.merge(ns_maturity, on='ISIN', how='left')
-            bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'])
+            
+            # Precompute a single maturity per ISIN from ns_df
+            isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
+            bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
+            bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
     
-            # Sort by maturity ascending
+            # Sort by maturity ascending, NaT goes last
             bond_options.sort_values('Maturity', inplace=True)
     
+            # Map for labels
             bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
     
-            # Multi-select bonds to show in animation, now ordered by maturity
+            # Safe label formatter
+            def format_bond_label(isin):
+                maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
+                if len(maturity) > 0 and pd.notnull(maturity[0]):
+                    maturity_str = pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')
+                    return f"{bond_labels.get(isin, isin)} ({maturity_str})"
+                else:
+                    return f"{bond_labels.get(isin, isin)} (N/A)"
+    
+            # Multi-select for bonds to highlight
             selected_animation_bonds = st.multiselect(
                 "Select Bonds to Display in Animation",
                 options=bond_options['ISIN'].tolist(),
-                format_func=lambda isin: f"{bond_labels.get(isin, isin)} ({ns_df.loc[ns_df['ISIN']==isin, 'Maturity'].iloc[0].strftime('%Y-%m-%d')})"
+                format_func=format_bond_label
             )
     
             if not selected_animation_bonds:
@@ -437,17 +449,22 @@ with tab1:
             else:
                 # Filter ns_df to only the selected bonds
                 ns_df_filtered = ns_df[ns_df['ISIN'].isin(selected_animation_bonds)].copy()
-                ns_df_filtered = ns_df_filtered.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+                
+                # Merge signal info for highlighting
+                ns_df_filtered = ns_df_filtered.merge(
+                    final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left'
+                )
     
+                # Plot the animation with only selected bonds
                 fig = plot_ns_animation(
                     ns_df_filtered,
                     issuer_label=selected_country,
                     highlight_isins=selected_animation_bonds
                 )
                 st.plotly_chart(fig, use_container_width=True)
+    
         else:
             st.warning("No Nelson-Siegel data available for the selected country.")
-
 
     elif subtab == "Single Day Curve":
         date_input = st.date_input("Select Date")
@@ -567,6 +584,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
