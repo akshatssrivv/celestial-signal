@@ -9,6 +9,8 @@ import os
 from nelson_siegel_fn import plot_ns_animation, nelson_siegel
 from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
 import ast
+import re
+from datetime import datetime
 
 
 # ------------------------------
@@ -282,8 +284,8 @@ with tab2:
     # Data table with sorting
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
 
+    
     if not filtered_df.empty:
-        # Format the dataframe for display
         # Desired columns
         cols_to_display = [
             'SECURITY_NAME', 'RESIDUAL_NS', 'SIGNAL',
@@ -295,12 +297,28 @@ with tab2:
         # Keep only columns that exist in the dataframe
         existing_cols = [col for col in cols_to_display if col in filtered_df.columns]
         
-        # Create display dataframe safely
         display_df = filtered_df[existing_cols].copy()
         
-        # Prepare column config dynamically
-        column_config = {}
-
+        # Extract maturity date from SECURITY_NAME
+        def extract_maturity(name):
+            if isinstance(name, str):
+                # Match MM/DD/YY or MM/DD/YYYY at the end of the string
+                match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', name)
+                if match:
+                    date_str = match.group(1)
+                    try:
+                        # Parse with two-digit year
+                        return datetime.strptime(date_str, '%m/%d/%y').date()
+                    except ValueError:
+                        try:
+                            # Parse with four-digit year if present
+                            return datetime.strptime(date_str, '%m/%d/%Y').date()
+                        except ValueError:
+                            return 'N/A'
+            return 'N/A'
+        
+        display_df['MATURITY_DATE'] = display_df['SECURITY_NAME'].apply(extract_maturity)
+        
         # Convert Top_Features strings to lists
         if 'Top_Features' in display_df.columns:
             display_df['Top_Features'] = display_df['Top_Features'].apply(
@@ -313,17 +331,16 @@ with tab2:
                 lambda x: ', '.join([f"{int(round(float(v)))}%" for v in x.replace('[','').replace(']','').split()]) 
                 if isinstance(x, str) else 'N/A'
             )
-
-        
+    
         # Prepare column config dynamically
         column_config = {}
-        for col in existing_cols:
+        for col in existing_cols + ['MATURITY_DATE']:
             if col in ['COMPOSITE_SCORE', 'Z_Residual_Score', 'Cluster_Score', 'Regression_Score',
                        'RESIDUAL_NS', 'Volatility_Score', 'Market_Stress_Score']:
                 column_config[col] = st.column_config.NumberColumn(col.replace('_', ' '), format='%.4f')
-            elif col in ['ISIN', 'SECURITY_NAME', 'SIGNAL', 'Date', 'Top_Features', 'Top_Feature_Effects_Pct']:
+            else:
                 column_config[col] = col.replace('_', ' ')
-        
+
         # Display table
         st.dataframe(display_df, column_config=column_config)
 
@@ -511,6 +528,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
