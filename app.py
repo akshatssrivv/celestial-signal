@@ -284,7 +284,6 @@ with tab2:
     # Data table with sorting
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
 
-    
     if not filtered_df.empty:
         # Desired columns
         cols_to_display = [
@@ -294,47 +293,48 @@ with tab2:
             'Top_Features', 'Top_Feature_Effects_Pct'
         ]
         
-        # Keep only columns that exist in the dataframe
         existing_cols = [col for col in cols_to_display if col in filtered_df.columns]
         
         display_df = filtered_df[existing_cols].copy()
         
-        # Extract maturity date from SECURITY_NAME
+        # Extract maturity date
         def extract_maturity(name):
             if isinstance(name, str):
-                # Match MM/DD/YY or MM/DD/YYYY at the end of the string
                 match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', name)
                 if match:
                     date_str = match.group(1)
                     try:
-                        # Parse with two-digit year
                         return datetime.strptime(date_str, '%m/%d/%y').date()
                     except ValueError:
                         try:
-                            # Parse with four-digit year if present
                             return datetime.strptime(date_str, '%m/%d/%Y').date()
                         except ValueError:
                             return 'N/A'
             return 'N/A'
         
-        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
+        # Add MATURITY_DATE column
+        display_df['MATURITY_DATE'] = display_df['SECURITY_NAME'].apply(extract_maturity)
         
-        # Convert Top_Features strings to lists
-        if 'Top_Features' in display_df.columns:
-            display_df['Top_Features'] = display_df['Top_Features'].apply(
-                lambda x: ', '.join(ast.literal_eval(x)) if isinstance(x, str) else 'N/A'
-            )
+        # Rearrange columns to have SECURITY_NAME first, then MATURITY_DATE
+        cols_order = ['SECURITY_NAME', 'MATURITY_DATE'] + [col for col in display_df.columns if col not in ['SECURITY_NAME', 'MATURITY_DATE']]
+        display_df = display_df[cols_order]
         
-        # Convert Top_Feature_Effects_Pct strings to lists
-        if 'Top_Feature_Effects_Pct' in display_df.columns:
-            display_df['Top_Feature_Effects_Pct'] = display_df['Top_Feature_Effects_Pct'].apply(
-                lambda x: ', '.join([f"{int(round(float(v)))}%" for v in x.replace('[','').replace(']','').split()]) 
-                if isinstance(x, str) else 'N/A'
-            )
-    
+        # Combine Top_Features + Top_Feature_Effects_Pct into one column
+        if 'Top_Features' in display_df.columns and 'Top_Feature_Effects_Pct' in display_df.columns:
+            def combine_features(feats, pct):
+                try:
+                    feats_list = ast.literal_eval(feats) if isinstance(feats, str) else []
+                    pct_list = [int(round(float(v))) for v in pct.replace('[','').replace(']','').split()] if isinstance(pct, str) else []
+                    combined = [f"{f} ({p}%)" for f, p in zip(feats_list, pct_list)]
+                    return ', '.join(combined) if combined else 'N/A'
+                except:
+                    return 'N/A'
+            display_df['Top_Features'] = display_df.apply(lambda row: combine_features(row['Top_Features'], row['Top_Feature_Effects_Pct']), axis=1)
+            display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
+        
         # Prepare column config dynamically
         column_config = {}
-        for col in existing_cols + ['Maturity']:
+        for col in display_df.columns:
             if col in ['COMPOSITE_SCORE', 'Z_Residual_Score', 'Cluster_Score', 'Regression_Score',
                        'RESIDUAL_NS', 'Volatility_Score', 'Market_Stress_Score']:
                 column_config[col] = st.column_config.NumberColumn(col.replace('_', ' '), format='%.4f')
@@ -528,6 +528,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
