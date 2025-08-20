@@ -438,9 +438,6 @@ with tab1:
                 else:
                     return f"{bond_labels.get(isin, isin)} (N/A)"
     
-            # Search input for filtering
-            search_input = st.text_input(f"Search {country_option} Bonds by ISIN, Name, or Year", placeholder="e.g. BTPS 54")
-    
             if search_input:
                 search_upper = search_input.upper()
                 filtered_bonds = bond_options[
@@ -604,64 +601,6 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
