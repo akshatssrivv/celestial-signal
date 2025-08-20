@@ -483,8 +483,8 @@ with tab1:
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-    else:
-        st.warning("No Nelson-Siegel data available for the selected country.")
+        else:
+            st.warning("No Nelson-Siegel data available for the selected country.")
 
     elif subtab == "Single Day Curve":
         date_input = st.date_input("Select Date")
@@ -604,6 +604,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
