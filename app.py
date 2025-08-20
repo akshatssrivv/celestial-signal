@@ -140,7 +140,8 @@ with tab2:
             'IT': '🇮🇹 Italy',
             'ES': '🇪🇸 Spain', 
             'FR': '🇫🇷 France',
-            'DE': '🇩🇪 Germany'
+            'DE': '🇩🇪 Germany',
+            'FI': '🇫🇮 Finland'
         }
         return country_map.get(isin[:2], '🌍 Unknown')
 
@@ -485,6 +486,7 @@ with tab1:
 
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
