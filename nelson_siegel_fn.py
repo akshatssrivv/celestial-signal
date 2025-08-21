@@ -20,7 +20,7 @@ def plot_ns_animation(
 ):
     highlight_isins = highlight_isins or []
 
-    # Color map for special bonds
+    # Map SIGNAL to colors
     signal_color_map = {
         'STRONG BUY': 'darkgreen',
         'MODERATE BUY': 'green',
@@ -28,10 +28,15 @@ def plot_ns_animation(
         'MODERATE SELL': 'orange'
     }
 
+    # Ensure dates exist
     dates = sorted(ns_df['Date'].unique())
     if not dates:
         print(f"[{issuer_label}] No available dates to animate.")
         return
+
+    # Determine fixed axis ranges
+    x_min, x_max = ns_df['YTM'].min(), ns_df['YTM'].max()
+    y_min, y_max = ns_df['Z_SPRD_VAL'].min(), ns_df['Z_SPRD_VAL'].max()
 
     fig = go.Figure()
 
@@ -39,29 +44,18 @@ def plot_ns_animation(
     def get_marker_style(row):
         signal = row.get('SIGNAL', None)
         isin = row['ISIN']
-        # Determine if bond is "special"
         if signal in signal_color_map:
             color = signal_color_map[signal]
-            size = 10 if isin not in highlight_isins else 12
+            size = 8 if isin in highlight_isins else 7
         else:
             color = 'black'
             size = 6
-        symbol = 'diamond' if abs(row['RESIDUAL_NS']) >= resid_threshold else 'circle'
+        symbol = 'circle' if abs(row['RESIDUAL_NS']) >= resid_threshold else 'circle'
         return color, size, symbol
 
-    # Initial frame
+    # INITIAL frame
     first_daily = ns_df[ns_df['Date'] == dates[0]]
     colors, sizes, symbols = zip(*first_daily.apply(get_marker_style, axis=1))
-
-    # Before adding traces
-    x_min, x_max = ns_df['YTM'].min(), ns_df['YTM'].max()
-    y_min, y_max = ns_df['Z_SPRD_VAL'].min(), ns_df['Z_SPRD_VAL'].max()
-    
-    fig.update_layout(
-        xaxis=dict(range=[x_min, x_max]),
-        yaxis=dict(range=[y_min, y_max]),
-        ...
-    )
 
     fig.add_trace(go.Scatter(
         x=first_daily['YTM'],
@@ -69,10 +63,7 @@ def plot_ns_animation(
         mode='markers',
         marker=dict(color=colors, size=sizes, symbol=symbols, line=dict(width=1, color="black")),
         text=first_daily['SECURITY_NAME'],
-        customdata=np.stack([
-            first_daily['RESIDUAL_NS'],
-            first_daily['SIGNAL']
-        ], axis=-1),
+        customdata=np.stack([first_daily['RESIDUAL_NS'], first_daily['SIGNAL']], axis=-1),
         hovertemplate=(
             "YTM: %{x:.2f} yrs<br>"
             "Z-Spread: %{y:.1f} bps<br>"
@@ -96,7 +87,7 @@ def plot_ns_animation(
     except Exception as e:
         print(f"[ERROR] Could not plot NS curve: {e}")
 
-    # Frames for animation
+    # Frames
     frames = []
     for d in dates:
         daily = ns_df[ns_df['Date'] == d]
@@ -112,10 +103,7 @@ def plot_ns_animation(
                         mode='markers',
                         marker=dict(color=colors, size=sizes, symbol=symbols, line=dict(width=1, color="black")),
                         text=daily['SECURITY_NAME'],
-                        customdata=np.stack([
-                            daily['RESIDUAL_NS'],
-                            daily['SIGNAL']
-                        ], axis=-1),
+                        customdata=np.stack([daily['RESIDUAL_NS'], daily['SIGNAL']], axis=-1),
                         hovertemplate=(
                             "YTM: %{x:.2f} yrs<br>"
                             "Z-Spread: %{y:.1f} bps<br>"
@@ -139,8 +127,10 @@ def plot_ns_animation(
 
     fig.frames = frames
 
-    # Layout + animation controls
+    # Layout with fixed axes
     fig.update_layout(
+        xaxis=dict(title="Years to Maturity", range=[x_min, x_max]),
+        yaxis=dict(title="Z-Spread (bps)", range=[y_min, y_max]),
         updatemenus=[{
             "type": "buttons",
             "x": 0.05, "y": 1.1,
@@ -162,8 +152,6 @@ def plot_ns_animation(
             "len": 0.9
         }],
         title=f"{issuer_label} Z-Spread Curve Animation with Nelson-Siegel Fit",
-        xaxis_title="Years to Maturity",
-        yaxis_title="Z-Spread (bps)",
         template=template,
         height=800,
         width=1200,
@@ -171,5 +159,4 @@ def plot_ns_animation(
     )
 
     return fig
-
 
