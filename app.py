@@ -455,7 +455,7 @@ with tab1:
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         with zipfile.ZipFile("ns_curves.zip", "r") as z:
             names = z.namelist()
-            eu_files = [n for n in names if "EU" in n or "eu" in n]
+            eu_files = [n for n in names if "SPGB" in n or "spgb" in n]
             print(eu_files)
 
         if ns_df is not None and not ns_df.empty:
@@ -713,6 +713,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
