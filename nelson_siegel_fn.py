@@ -16,17 +16,19 @@ def plot_ns_animation(
     resid_threshold=20,
     ytm_range=np.linspace(0.1, 50, 200),
     template="plotly_dark",
-    highlight_isins=None  # NEW: list of bonds to highlight
+    highlight_isins=None
 ):
     highlight_isins = highlight_isins or []
 
-    # Map SIGNAL to colors
+    # Color map (more intuitive for your manager)
     signal_color_map = {
-        'STRONG BUY': 'green',
-        'MODERATE BUY': 'lightgreen',
-        'STRONG SELL': 'red',
-        'MODERATE SELL': 'salmon',
-        None: 'black'  # default
+        'STRONG BUY': 'darkgreen',
+        'MODERATE BUY': 'green',
+        'WEAK BUY': 'lightgreen',
+        'STRONG SELL': 'darkred',
+        'MODERATE SELL': 'red',
+        'WEAK SELL': 'salmon',
+        None: 'black'
     }
 
     dates = sorted(ns_df['Date'].unique())
@@ -36,16 +38,16 @@ def plot_ns_animation(
 
     fig = go.Figure()
 
-    # Helper function for marker color/size
+    # Helper for style
     def get_marker_style(row):
         isin = row['ISIN']
         signal = row.get('SIGNAL', None)
         color = signal_color_map.get(signal, 'black')
-        size = 10 if isin in highlight_isins else 6
-        symbol = 'diamond' if row['RESIDUAL_NS'] >= resid_threshold else 'circle'
+        size = 12 if isin in highlight_isins else 7
+        symbol = 'diamond' if abs(row['RESIDUAL_NS']) >= resid_threshold else 'circle'
         return color, size, symbol
 
-    # INITIAL frame for first date
+    # Initial frame
     first_daily = ns_df[ns_df['Date'] == dates[0]]
     colors, sizes, symbols = zip(*first_daily.apply(get_marker_style, axis=1))
 
@@ -54,13 +56,22 @@ def plot_ns_animation(
         y=first_daily['Z_SPRD_VAL'],
         mode='markers',
         name='Bonds',
-        marker=dict(color=colors, size=sizes, symbol=symbols),
+        marker=dict(color=colors, size=sizes, symbol=symbols, line=dict(width=1, color="black")),
         text=first_daily['SECURITY_NAME'],
-        customdata=first_daily['RESIDUAL_NS'],
-        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>'
+        customdata=np.stack([
+            first_daily['RESIDUAL_NS'],
+            first_daily['SIGNAL']
+        ], axis=-1),
+        hovertemplate=(
+            "YTM: %{x:.2f} yrs<br>"
+            "Z-Spread: %{y:.1f} bps<br>"
+            "Residual: %{customdata[0]:.1f} bps<br>"
+            "Signal: %{customdata[1]}<br>"
+            "%{text}<extra></extra>"
+        )
     ))
 
-    # Add Nelson-Siegel fit
+    # Add NS curve
     try:
         ns_params = first_daily['NS_PARAMS'].iloc[0]
         fig.add_trace(go.Scatter(
@@ -73,7 +84,7 @@ def plot_ns_animation(
     except Exception as e:
         print(f"[ERROR] Could not plot NS curve: {e}")
 
-    # Create animation frames
+    # Animation frames
     frames = []
     for d in dates:
         daily = ns_df[ns_df['Date'] == d]
@@ -87,10 +98,19 @@ def plot_ns_animation(
                         x=daily['YTM'],
                         y=daily['Z_SPRD_VAL'],
                         mode='markers',
-                        marker=dict(color=colors, size=sizes, symbol=symbols),
+                        marker=dict(color=colors, size=sizes, symbol=symbols, line=dict(width=1, color="black")),
                         text=daily['SECURITY_NAME'],
-                        customdata=daily['RESIDUAL_NS'],
-                        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>',
+                        customdata=np.stack([
+                            daily['RESIDUAL_NS'],
+                            daily['SIGNAL']
+                        ], axis=-1),
+                        hovertemplate=(
+                            "YTM: %{x:.2f} yrs<br>"
+                            "Z-Spread: %{y:.1f} bps<br>"
+                            "Residual: %{customdata[0]:.1f} bps<br>"
+                            "Signal: %{customdata[1]}<br>"
+                            "%{text}<extra></extra>"
+                        ),
                         name='Bonds'
                     ),
                     go.Scatter(
@@ -107,7 +127,7 @@ def plot_ns_animation(
 
     fig.frames = frames
 
-    # Animation buttons & layout remain the same
+    # Layout with animation controls
     fig.update_layout(
         updatemenus=[{
             "type": "buttons",
@@ -139,3 +159,4 @@ def plot_ns_animation(
     )
 
     return fig
+
