@@ -484,10 +484,10 @@ with tab1:
             signal_color_map = {
                 'strong buy': 'darkgreen',
                 'moderate buy': 'green',
-                'weak buy': 'lightgreen',
+                'weak buy': 'black',
                 'strong sell': 'darkred',
                 'moderate sell': 'red',
-                'weak sell': 'lightcoral'
+                'weak sell': 'black'
             }
             ns_df['Signal_Color'] = ns_df['SIGNAL'].map(signal_color_map).fillna('black')
     
@@ -503,9 +503,9 @@ with tab1:
                         y=df_subset['Z_SPRD_VAL'],
                         mode='markers',
                         name=signal.title(),  # legend label = "Strong Buy", "Moderate Sell", etc.
-                        marker=dict(size=8 if signal is not None else 6,
+                        marker=dict(size=6,
                                     color=color,
-                                    symbol='diamond' if signal is not None else 'circle'),
+                                    symbol='circle'),
                         text=df_subset['SECURITY_NAME'],
                         customdata=np.stack((
                             df_subset['ISIN'],
@@ -582,6 +582,7 @@ with tab1:
     
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
