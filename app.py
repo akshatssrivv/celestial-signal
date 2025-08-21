@@ -341,9 +341,6 @@ with tab2:
     st.markdown("---")
 
 
-    
-
-
     # Data table with sorting
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
     
@@ -363,6 +360,9 @@ with tab2:
         # Rename Volatility_Score → Stability_Score
         if 'Volatility_Score' in display_df.columns:
             display_df.rename(columns={'Volatility_Score': 'Stability_Score'}, inplace=True)
+
+        if 'RESIDUAL_NS' in display_df.columns:
+            display_df.rename(columns={'RESIDUAL_NS': 'Residual'}, inplace=True)
     
         # Ensure numeric columns are numeric
         numeric_cols = ['RESIDUAL_NS', 'Z_Residual_Score', 'Stability_Score',
@@ -760,6 +760,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
