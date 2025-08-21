@@ -90,6 +90,28 @@ def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFra
         return pd.read_parquet(path)
     return None
 
+
+# Make the Streamlit page use the full width
+st.set_page_config(layout="wide")
+
+# Optional: remove padding/margin via CSS for the tabs
+st.markdown(
+    """
+    <style>
+    /* Remove padding/margin around main container */
+    .css-1d391kg {
+        padding-left: 0rem;
+        padding-right: 0rem;
+    }
+    /* Make tabs stretch full width */
+    .css-1v3fvcr {
+        width: 100%;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
 
 with tab2:
@@ -586,6 +608,7 @@ with tab1:
     
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
