@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 
 def nelson_siegel(t, beta0, beta1, beta2, tau):
     t = np.array(t)
@@ -10,61 +11,66 @@ def nelson_siegel(t, beta0, beta1, beta2, tau):
         return beta0 + beta1 * term1 + beta2 * term2
 
 def plot_ns_animation(ns_df, issuer_label, highlight_isins=None):
-    # Define color + size mapping for signals
-    signal_style_map = {
-        'strong buy':   {"color": "darkgreen", "size": 10},
-        'moderate buy': {"color": "lightgreen", "size": 9},
-        'strong sell':  {"color": "darkred", "size": 10},
-        'moderate sell':{"color": "orange", "size": 9},
-        'weak buy':     {"color": "black", "size": 6},
-        'weak sell':    {"color": "black", "size": 6},
-        'no action':    {"color": "black", "size": 6}
-    }
+    
+    # safety: ensure Date is string (frames require discrete names)
+    ns_df = ns_df.copy()
+    ns_df["Date"] = ns_df["Date"].astype(str)
 
-    # Apply mapping (fallback: black, small)
-    ns_df['Signal_Color'] = ns_df['SIGNAL'].map(
-        lambda s: signal_style_map.get(str(s).lower(), {"color": "black", "size": 6})["color"]
-    )
-    ns_df['Signal_Size'] = ns_df['SIGNAL'].map(
-        lambda s: signal_style_map.get(str(s).lower(), {"color": "black", "size": 6})["size"]
-    )
+    # color already mapped to ns_df["Signal_Color"] outside
+    frames = []
+    for date, df_subset in ns_df.groupby("Date"):
+        frames.append(go.Frame(
+            data=[
+                go.Scatter(
+                    x=df_subset["YTM"],
+                    y=df_subset["Z_SPRD_VAL"],
+                    mode="markers",
+                    marker=dict(
+                        size=10,
+                        color=df_subset["Signal_Color"],
+                        line=dict(width=1, color="black")
+                    ),
+                    text=df_subset["SECURITY_NAME"],
+                    customdata=np.stack((
+                        df_subset["ISIN"],
+                        df_subset["RESIDUAL_NS"]
+                    ), axis=-1),
+                    hovertemplate=(
+                        "<b>%{text}</b><br>"
+                        "ISIN: %{customdata[0]}<br>"
+                        "Years to Maturity: %{x:.2f}<br>"
+                        "Z-Spread: %{y:.1f}bps<br>"
+                        "Residual_NS: %{customdata[1]:.2f}<extra></extra>"
+                    )
+                )
+            ],
+            name=date
+        ))
 
-    fig = go.Figure()
-
-    # Scatter plot with animation frames (by Date)
-    fig.add_trace(go.Scatter(
-        x=ns_df['YTM'],
-        y=ns_df['Z_SPRD_VAL'],
-        mode='markers',
-        marker=dict(
-            size=ns_df['Signal_Size'],
-            color=ns_df['Signal_Color'],
-            opacity=0.8,
-            line=dict(width=0.5, color='white')
-        ),
-        text=ns_df['SECURITY_NAME'],
-        customdata=np.stack((
-            ns_df['ISIN'],
-            ns_df['Date'].astype(str),
-            ns_df.get('RESIDUAL_NS', np.zeros(len(ns_df)))
-        ), axis=-1),
-        hovertemplate=(
-            'Years to Maturity: %{x:.2f}<br>'
-            'Z-Spread: %{y:.1f}bps<br>'
-            'Residual: %{customdata[2]:.2f}bps<br>'
-            'Signal: %{marker.color}<br>'
-            '%{text}<extra></extra>'
-        ),
-        showlegend=False,
-        animation_frame=ns_df['Date'],
-    ))
-
-    fig.update_layout(
-        title=f"Nelson-Siegel Curve Animation — {issuer_label}",
-        xaxis_title="Years to Maturity",
-        yaxis_title="Z-Spread (bps)",
-        legend_title="Signal",
-        template="plotly_white"
+    # initial frame = first date
+    fig = go.Figure(
+        data=frames[0].data,
+        frames=frames,
+        layout=go.Layout(
+            title=f"{issuer_label} Bonds — Z-Spread vs YearsToMaturity",
+            xaxis=dict(title="Years to Maturity"),
+            yaxis=dict(title="Z-Spread (bps)"),
+            updatemenus=[{
+                "type": "buttons",
+                "showactive": False,
+                "buttons": [
+                    {"label": "Play", "method": "animate", "args": [None]},
+                    {"label": "Pause", "method": "animate", "args": [[None], {"mode": "immediate"}]}
+                ]
+            }],
+            sliders=[{
+                "steps": [
+                    {"args": [[f.name], {"mode": "immediate"}], "label": f.name, "method": "animate"}
+                    for f in frames
+                ],
+                "x": 0.1, "y": -0.1, "len": 0.9
+            }]
+        )
     )
 
     return fig
