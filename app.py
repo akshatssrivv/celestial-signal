@@ -740,8 +740,9 @@ with tab1:
                 
                 # Fill missing residuals with NS data if merged signal is NaN
                 residuals_df['RESIDUAL_NS_plot'] = residuals_df['RESIDUAL_NS_signal'].combine_first(residuals_df['RESIDUAL_NS_ns'])
-                residuals_df['RESIDUAL_VELOCITY_plot'] = residuals_df['RESIDUAL_VELOCITY']  # Only from signals
-                
+                residuals_df['RESIDUAL_VELOCITY_plot'] = residuals_df['RESIDUAL_VELOCITY'].combine_first(
+                    residuals_df.get('RESIDUAL_VELOCITY', pd.Series(np.nan, index=residuals_df.index))
+                )                
                 # Initialize figures
                 fig_residuals = go.Figure()
                 fig_velocity = go.Figure()
@@ -787,49 +788,6 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
