@@ -685,19 +685,29 @@ with tab1:
 
 
     elif subtab == "Residuals Analysis":
+        # Load full NS dataset
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
+        
         if ns_df is not None and not ns_df.empty:
+            # Load today's signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
+            
+            # Ensure dates are datetime
+            ns_df['Date'] = pd.to_datetime(ns_df['Date'])
+            final_signal_df['Date'] = pd.to_datetime(final_signal_df['Date'])
+            
+            # Filter bonds available in NS data
             country_isins = ns_df['ISIN'].unique()
             bond_options = final_signal_df[final_signal_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
-    
+            
+            # Map maturities from NS data
             isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
             bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
             bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
             bond_options.sort_values('Maturity', inplace=True)
-    
+            
+            # Labels for display
             bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
-    
             def format_bond_label(isin):
                 maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
                 if len(maturity) > 0 and pd.notnull(maturity[0]):
@@ -705,23 +715,33 @@ with tab1:
                     return f"{bond_labels.get(isin, isin)} ({maturity_str})"
                 else:
                     return f"{bond_labels.get(isin, isin)} (N/A)"
-    
+            
+            # Multiselect for bonds
             selected_bonds = st.multiselect(
                 "Select Bonds for Residual Analysis",
                 options=bond_options['ISIN'].tolist(),
                 format_func=format_bond_label,
                 default=[]
             )
-    
+            
             if not selected_bonds:
                 st.warning("Select at least one bond to display residuals.")
             else:
-                # Use all available data (no 2-year filter)
+                # Filter NS data for selected bonds
                 residuals_df = ns_df[ns_df['ISIN'].isin(selected_bonds)].copy()
-    
+                
+                # Merge RESIDUAL_NS and RESIDUAL_VELOCITY from today_all_signals
+                residuals_df = residuals_df.merge(
+                    final_signal_df[['ISIN', 'Date', 'RESIDUAL_NS', 'RESIDUAL_VELOCITY']],
+                    on=['ISIN', 'Date'],
+                    how='left'
+                )
+                
+                # Initialize figures
                 fig_residuals = go.Figure()
                 fig_velocity = go.Figure()
-    
+                
+                # Plot each bond
                 for isin in selected_bonds:
                     bond_data = residuals_df[residuals_df['ISIN'] == isin].sort_values('Date')
                     if not bond_data.empty:
@@ -741,7 +761,8 @@ with tab1:
                                 mode='lines+markers',
                                 name=bond_labels.get(isin, isin)
                             ))
-    
+                
+                # Update layouts
                 fig_residuals.update_layout(
                     title="Residuals Over Time",
                     xaxis_title="Date",
@@ -749,7 +770,7 @@ with tab1:
                     template="plotly_white",
                     height=500
                 )
-    
+                
                 fig_velocity.update_layout(
                     title="Residual Velocity Over Time",
                     xaxis_title="Date",
@@ -757,9 +778,11 @@ with tab1:
                     template="plotly_white",
                     height=500
                 )
-    
+                
+                # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
