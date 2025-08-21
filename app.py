@@ -380,32 +380,32 @@ with tab2:
         # Combine Top_Features + Top_Feature_Effects_Pct into one column
         if 'Top_Features' in display_df.columns and 'Top_Feature_Effects_Pct' in display_df.columns:
     
-        FEATURE_NAME_MAP = {
-            "Cpn": "Coupon",
-            "YAS_RISK": "DV01",
-            "AMT_OUTSTANDING": "Amount Outstanding",
-            "Issue_Age": "Issue Age",
-            "REL_SPRD_STD": "Liquidity",
-            "GREEN_BOND_LOAN_INDICATOR": "Green Bond"
-        }
-    
-        def combine_features(feats, pct):
-            try:
-                feats_list = ast.literal_eval(feats) if isinstance(feats, str) else []
-                # Map feature codes to readable names
-                feats_list = [FEATURE_NAME_MAP.get(f, f) for f in feats_list]
-    
-                pct_list = [int(round(float(v))) for v in pct.replace('[','').replace(']','').split()] if isinstance(pct, str) else []
-                combined = [f"{f} ({p}%)" for f, p in zip(feats_list, pct_list)]
-                return ', '.join(combined) if combined else 'N/A'
-            except:
-                return 'N/A'
-    
-        display_df['Top_Features'] = display_df.apply(
-            lambda row: combine_features(row['Top_Features'], row['Top_Feature_Effects_Pct']),
-            axis=1
-        )
-        display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
+            FEATURE_NAME_MAP = {
+                "Cpn": "Coupon",
+                "YAS_RISK": "DV01",
+                "AMT_OUTSTANDING": "Amount Outstanding",
+                "Issue_Age": "Issue Age",
+                "REL_SPRD_STD": "Liquidity",
+                "GREEN_BOND_LOAN_INDICATOR": "Green Bond"
+            }
+        
+            def combine_features(feats, pct):
+                try:
+                    feats_list = ast.literal_eval(feats) if isinstance(feats, str) else []
+                    # Map feature codes to readable names
+                    feats_list = [FEATURE_NAME_MAP.get(f, f) for f in feats_list]
+        
+                    pct_list = [int(round(float(v))) for v in pct.replace('[','').replace(']','').split()] if isinstance(pct, str) else []
+                    combined = [f"{f} ({p}%)" for f, p in zip(feats_list, pct_list)]
+                    return ', '.join(combined) if combined else 'N/A'
+                except:
+                    return 'N/A'
+        
+            display_df['Top_Features'] = display_df.apply(
+                lambda row: combine_features(row['Top_Features'], row['Top_Feature_Effects_Pct']),
+                axis=1
+            )
+            display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
 
         
         # Prepare column config dynamically
@@ -740,6 +740,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
