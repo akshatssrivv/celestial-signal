@@ -341,17 +341,7 @@ with tab2:
     st.markdown("---")
 
 
-    # Ensure RESIDUAL_NS exists and is float
-    if 'RESIDUAL_NS' in display_df.columns:
-        display_df['RESIDUAL_NS'] = pd.to_numeric(display_df['RESIDUAL_NS'], errors='coerce')
-        display_df['RESIDUAL_NS'] = display_df['RESIDUAL_NS'].fillna(0.0)  # or np.nan if you prefer
     
-    # Optional: also ensure all numeric columns are floats
-    numeric_cols = ['RESIDUAL_NS', 'Z_Residual_Score', 'Stability_Score',
-                    'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
-    for col in numeric_cols:
-        if col in display_df.columns:
-            display_df[col] = display_df[col].astype(float)
 
 
     # Data table with sorting
@@ -380,6 +370,19 @@ with tab2:
         for col in numeric_cols:
             if col in display_df.columns:
                 display_df[col] = pd.to_numeric(display_df[col], errors='coerce')
+
+
+        # Ensure RESIDUAL_NS exists and is float
+        if 'RESIDUAL_NS' in display_df.columns:
+            display_df['RESIDUAL_NS'] = pd.to_numeric(display_df['RESIDUAL_NS'], errors='coerce')
+            display_df['RESIDUAL_NS'] = display_df['RESIDUAL_NS'].fillna(0.0)  # or np.nan if you prefer
+        
+        # Optional: also ensure all numeric columns are floats
+        numeric_cols = ['RESIDUAL_NS', 'Z_Residual_Score', 'Stability_Score',
+                        'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
+        for col in numeric_cols:
+            if col in display_df.columns:
+                display_df[col] = display_df[col].astype(float)
     
         # Extract maturity date
         def extract_maturity(name):
@@ -759,6 +762,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
