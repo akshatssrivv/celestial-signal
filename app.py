@@ -483,26 +483,29 @@ with tab1:
             # Map signals to colors
             signal_color_map = {
                 'strong buy': 'darkgreen',
-                'moderate buy': 'green',
+                'moderate buy': 'lightgreen',
                 'weak buy': 'black',
                 'strong sell': 'darkred',
-                'moderate sell': 'red',
+                'moderate sell': 'orange',
                 'weak sell': 'black'
             }
             ns_df['Signal_Color'] = ns_df['SIGNAL'].map(signal_color_map).fillna('black')
     
             fig = go.Figure()
     
-            # Plot bonds by signal color
+            # Only include these in legend
+            legend_signals = ['strong buy', 'moderate buy', 'strong sell', 'moderate sell']
+            
+            # Plot bonds
             for signal, df_subset in ns_df.groupby('SIGNAL'):
                 if not df_subset.empty:
-                    color = df_subset['Signal_Color'].iloc[0]  # get the mapped color for this signal
+                    color = df_subset['Signal_Color'].iloc[0]
                     
                     fig.add_trace(go.Scatter(
                         x=df_subset['YearsToMaturity'],
                         y=df_subset['Z_SPRD_VAL'],
                         mode='markers',
-                        name=signal.title(),  # legend label = "Strong Buy", "Moderate Sell", etc.
+                        name=signal.title() if signal in legend_signals else None,  # hide weak/no action from legend
                         marker=dict(size=6,
                                     color=color,
                                     symbol='circle'),
@@ -517,7 +520,8 @@ with tab1:
                             'Z-Spread: %{y:.1f}bps<br>'
                             'Signal: ' + (signal.title() if signal else "None") + '<br>'
                             '%{text}<extra></extra>'
-                        )
+                        ),
+                        showlegend=(signal in legend_signals)  # ensures only selected signals appear in legend
                     ))
     
             # Add Nelson-Siegel fit line if available
@@ -582,6 +586,7 @@ with tab1:
     
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
