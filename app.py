@@ -612,81 +612,83 @@ with tab1:
 
 
     elif subtab == "Residuals Analysis":
-            # Load NS + residuals for last 2 years
-            ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
-            if ns_df is not None and not ns_df.empty:
-                final_signal_df = pd.read_csv("today_all_signals.csv")
-                country_isins = ns_df['ISIN'].unique()
-                bond_options = final_signal_df[final_signal_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
+        ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
+        if ns_df is not None and not ns_df.empty:
+            final_signal_df = pd.read_csv("today_all_signals.csv")
+            country_isins = ns_df['ISIN'].unique()
+            bond_options = final_signal_df[final_signal_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
     
-                isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
-                bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
-                bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
-                bond_options.sort_values('Maturity', inplace=True)
+            isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
+            bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
+            bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
+            bond_options.sort_values('Maturity', inplace=True)
     
-                bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
+            bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
     
-                def format_bond_label(isin):
-                    maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
-                    if len(maturity) > 0 and pd.notnull(maturity[0]):
-                        maturity_str = pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')
-                        return f"{bond_labels.get(isin, isin)} ({maturity_str})"
-                    else:
-                        return f"{bond_labels.get(isin, isin)} (N/A)"
-    
-                selected_bonds = st.multiselect(
-                    "Select Bonds for Residual Analysis",
-                    options=bond_options['ISIN'].tolist(),
-                    format_func=format_bond_label,
-                    default=[]
-                )
-    
-                if not selected_bonds:
-                    st.warning("Select at least one bond to display residuals.")
+            def format_bond_label(isin):
+                maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
+                if len(maturity) > 0 and pd.notnull(maturity[0]):
+                    maturity_str = pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')
+                    return f"{bond_labels.get(isin, isin)} ({maturity_str})"
                 else:
-                    # Filter last 2 years
-                    two_years_ago = pd.Timestamp.today() - pd.DateOffset(years=2)
-                    residuals_df = ns_df[ns_df['ISIN'].isin(selected_bonds) & (pd.to_datetime(ns_df['Date']) >= two_years_ago)].copy()
-
-                    st.write(residuals_df.columns)
-
-                    fig_residuals = go.Figure()
-                    fig_velocity = go.Figure()
+                    return f"{bond_labels.get(isin, isin)} (N/A)"
     
-                    for isin in selected_bonds:
-                        bond_data = residuals_df[residuals_df['ISIN'] == isin].sort_values('Date')
-                        if not bond_data.empty:
+            selected_bonds = st.multiselect(
+                "Select Bonds for Residual Analysis",
+                options=bond_options['ISIN'].tolist(),
+                format_func=format_bond_label,
+                default=[]
+            )
+    
+            if not selected_bonds:
+                st.warning("Select at least one bond to display residuals.")
+            else:
+                # Use all available data (no 2-year filter)
+                residuals_df = ns_df[ns_df['ISIN'].isin(selected_bonds)].copy()
+    
+                fig_residuals = go.Figure()
+                fig_velocity = go.Figure()
+    
+                for isin in selected_bonds:
+                    bond_data = residuals_df[residuals_df['ISIN'] == isin].sort_values('Date')
+                    if not bond_data.empty:
+                        # Residuals
+                        if 'RESIDUAL_NS' in bond_data.columns:
                             fig_residuals.add_trace(go.Scatter(
                                 x=bond_data['Date'],
                                 y=bond_data['RESIDUAL_NS'],
                                 mode='lines+markers',
                                 name=bond_labels.get(isin, isin)
                             ))
+                        # Velocity
+                        if 'RESIDUAL_NS_VELOCITY' in bond_data.columns:
                             fig_velocity.add_trace(go.Scatter(
                                 x=bond_data['Date'],
-                                y=bond_data['RESIDUAL_VELOCITY'],
+                                y=bond_data['RESIDUAL_NS_VELOCITY'],
                                 mode='lines+markers',
                                 name=bond_labels.get(isin, isin)
                             ))
     
-                    fig_residuals.update_layout(
-                        title="Residuals over Last 2 Years",
-                        xaxis_title="Date",
-                        yaxis_title="Residual (bps)",
-                        template="plotly_white",
-                        height=500
-                    )
+                fig_residuals.update_layout(
+                    title="Residuals Over Time",
+                    xaxis_title="Date",
+                    yaxis_title="Residual (bps)",
+                    template="plotly_white",
+                    height=500
+                )
     
-                    fig_velocity.update_layout(
-                        title="Residual NS Velocity over Last 2 Years",
-                        xaxis_title="Date",
-                        yaxis_title="Velocity (bps/day)",
-                        template="plotly_white",
-                        height=500
-                    )
+                fig_velocity.update_layout(
+                    title="Residual NS Velocity Over Time",
+                    xaxis_title="Date",
+                    yaxis_title="Velocity (bps/day)",
+                    template="plotly_white",
+                    height=500
+                )
     
-                    st.plotly_chart(fig_residuals, use_container_width=True)
-                    st.plotly_chart(fig_velocity, use_container_width=True)
+                st.plotly_chart(fig_residuals, use_container_width=True)
+                st.plotly_chart(fig_velocity, use_container_width=True)
+
+
 
 
 
