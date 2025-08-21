@@ -69,10 +69,7 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     Load all NS curves for a country.
     Passing zip_hash ensures cache invalidation when zip changes.
     """
-    folder = unzip_ns_curves()
-    if not os.path.exists(folder):
-        st.error(f"Data folder '{folder}' not found.")
-        return pd.DataFrame()
+    
 
     all_files = sorted([
         f for f in os.listdir(folder)
@@ -447,11 +444,9 @@ with tab1:
 
     selected_country = country_code_map[country_option]
 
-    # Ensure zip exists
-    zip_path = "ns_curves.zip"
-    if not os.path.exists(zip_path):
-        st.error("ns_curves.zip file not found. Upload the file.")
-        st.stop()
+    # Ensure Supabase zip exists locally
+    zip_path = download_from_supabase(SUPABASE_URL, "ns_curves.zip")
+
     selected_country = country_code_map[country_option]
 
 
@@ -714,6 +709,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
