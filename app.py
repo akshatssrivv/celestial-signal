@@ -496,7 +496,6 @@ with tab1:
             # Only include these in legend
             legend_signals = ['strong buy', 'moderate buy', 'strong sell', 'moderate sell']
             
-            # Plot bonds
             for signal, df_subset in ns_df.groupby('SIGNAL'):
                 if not df_subset.empty:
                     color = df_subset['Signal_Color'].iloc[0]
@@ -505,7 +504,7 @@ with tab1:
                         x=df_subset['YearsToMaturity'],
                         y=df_subset['Z_SPRD_VAL'],
                         mode='markers',
-                        name=signal.title() if signal in legend_signals else None,  # hide weak/no action from legend
+                        name=signal.title() if signal in legend_signals else None,
                         marker=dict(size=6,
                                     color=color,
                                     symbol='circle'),
@@ -518,10 +517,11 @@ with tab1:
                         hovertemplate=(
                             'Years to Maturity: %{x:.2f}<br>'
                             'Z-Spread: %{y:.1f}bps<br>'
+                            'Residual vs Curve: %{customdata[2]:.2f}<br>'
                             'Signal: ' + (signal.title() if signal else "None") + '<br>'
                             '%{text}<extra></extra>'
                         ),
-                        showlegend=(signal in legend_signals)  # ensures only selected signals appear in legend
+                        showlegend=(signal in legend_signals)
                     ))
     
             # Add Nelson-Siegel fit line if available
@@ -586,6 +586,7 @@ with tab1:
     
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
