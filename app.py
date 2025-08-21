@@ -348,6 +348,8 @@ with tab2:
         ]
         
         existing_cols = [col for col in cols_to_display if col in filtered_df.columns]
+        st.write("Columns in filtered_df:", filtered_df.columns.tolist())
+
         
         display_df = filtered_df[existing_cols].copy()
 
@@ -740,6 +742,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
