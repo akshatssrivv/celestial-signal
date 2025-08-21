@@ -647,7 +647,9 @@ with tab1:
                     # Filter last 2 years
                     two_years_ago = pd.Timestamp.today() - pd.DateOffset(years=2)
                     residuals_df = ns_df[ns_df['ISIN'].isin(selected_bonds) & (pd.to_datetime(ns_df['Date']) >= two_years_ago)].copy()
-    
+
+                    st.write(residuals_df.columns)
+
                     fig_residuals = go.Figure()
                     fig_velocity = go.Figure()
     
@@ -685,6 +687,7 @@ with tab1:
     
                     st.plotly_chart(fig_residuals, use_container_width=True)
                     st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
