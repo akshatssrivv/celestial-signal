@@ -88,13 +88,20 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
 
     if dfs:
         ns_df = pd.concat(dfs, ignore_index=True)
+
         if "Date" in ns_df.columns:
             ns_df["Date"] = pd.to_datetime(ns_df["Date"])
             ns_df.sort_values("Date", inplace=True)
-        return ns_df
-    print("Unique country codes in NS DF:", ns_df['Country'].unique())
 
+        if "Country" in ns_df.columns:
+            print("Unique country codes in NS DF:", ns_df['Country'].unique())
+
+        return ns_df
+
+    # If no files loaded, safely return empty DF
+    st.warning(f"No parquet files found for country code '{country_code}' in folder '{folder}'.")
     return pd.DataFrame()
+
 
 
 def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFrame | None:
@@ -715,6 +722,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
