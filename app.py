@@ -687,7 +687,9 @@ with tab1:
     elif subtab == "Residuals Analysis":
         # Load full NS dataset
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
-        
+
+        ns_df['RESIDUAL_VELOCITY'] = ns_df.groupby('ISIN')['RESIDUAL_NS'].transform(lambda x: x.diff())
+
         if ns_df is not None and not ns_df.empty:
             # Ensure Date is datetime
             ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
@@ -769,6 +771,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
