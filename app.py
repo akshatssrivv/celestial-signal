@@ -58,6 +58,12 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force
 
     return folder
 
+with zipfile.ZipFile("ns_curves.zip", "r") as z:
+    names = z.namelist()
+    eu_files = [n for n in names if "EU" in n.upper()]
+    print("EU-related files in ZIP:", eu_files)
+
+
 @st.cache_data
 def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     """Load all NS curves for a country. Cache invalidates if ZIP changes."""
@@ -86,6 +92,7 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
             ns_df["Date"] = pd.to_datetime(ns_df["Date"])
             ns_df.sort_values("Date", inplace=True)
         return ns_df
+    print("Unique country codes in NS DF:", ns_df['Country'].unique())
 
     return pd.DataFrame()
 
@@ -453,11 +460,6 @@ with tab1:
 
     if subtab == "Animated Curves":
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
-        with zipfile.ZipFile("ns_curves.zip", "r") as z:
-            names = z.namelist()
-            eu_files = [n for n in names if "SPGB" in n or "spgb" in n]
-            print(eu_files)
-
         if ns_df is not None and not ns_df.empty:
             final_signal_df = pd.read_csv("today_all_signals.csv")
             country_isins = ns_df['ISIN'].unique()
@@ -713,6 +715,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
