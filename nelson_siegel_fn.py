@@ -11,12 +11,27 @@ def nelson_siegel(t, beta0, beta1, beta2, tau):
         return beta0 + beta1 * term1 + beta2 * term2
 
 def plot_ns_animation(ns_df, issuer_label, highlight_isins=None):
-    
-    # safety: ensure Date is string (frames require discrete names)
     ns_df = ns_df.copy()
     ns_df["Date"] = ns_df["Date"].astype(str)
 
-    # color already mapped to ns_df["Signal_Color"] outside
+    # Define color map (adjust as you like)
+    signal_colors = {
+        "Strong Buy": "green",
+        "Moderate Buy": "lime",
+        "Weak Buy": "lightgreen",
+        "Strong Sell": "red",
+        "Moderate Sell": "orangered",
+        "Weak Sell": "salmon",
+        "No Action": "grey"
+    }
+
+    # fallback if column doesn't exist
+    if "Signal" not in ns_df.columns:
+        ns_df["Signal"] = "No Action"
+
+    # Map signal → color
+    ns_df["Color"] = ns_df["SIGNAL"].map(signal_colors).fillna("black")
+
     frames = []
     for date, df_subset in ns_df.groupby("Date"):
         frames.append(go.Frame(
@@ -26,8 +41,8 @@ def plot_ns_animation(ns_df, issuer_label, highlight_isins=None):
                     y=df_subset["Z_SPRD_VAL"],
                     mode="markers",
                     marker=dict(
-                        size=10,
-                        color=df_subset["Signal_Color"],
+                        size=12,
+                        color=df_subset["Color"],
                         line=dict(width=1, color="black")
                     ),
                     text=df_subset["SECURITY_NAME"],
@@ -47,7 +62,6 @@ def plot_ns_animation(ns_df, issuer_label, highlight_isins=None):
             name=date
         ))
 
-    # initial frame = first date
     fig = go.Figure(
         data=frames[0].data,
         frames=frames,
