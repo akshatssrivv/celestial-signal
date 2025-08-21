@@ -340,6 +340,20 @@ with tab2:
 
     st.markdown("---")
 
+
+    # Ensure RESIDUAL_NS exists and is float
+    if 'RESIDUAL_NS' in display_df.columns:
+        display_df['RESIDUAL_NS'] = pd.to_numeric(display_df['RESIDUAL_NS'], errors='coerce')
+        display_df['RESIDUAL_NS'] = display_df['RESIDUAL_NS'].fillna(0.0)  # or np.nan if you prefer
+    
+    # Optional: also ensure all numeric columns are floats
+    numeric_cols = ['RESIDUAL_NS', 'Z_Residual_Score', 'Stability_Score',
+                    'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
+    for col in numeric_cols:
+        if col in display_df.columns:
+            display_df[col] = display_df[col].astype(float)
+
+
     # Data table with sorting
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
     
@@ -416,16 +430,18 @@ with tab2:
         # Prepare column config
         column_config = {}
         for col in display_df.columns:
-            if col in numeric_cols:
+            if col in numeric_cols and pd.api.types.is_numeric_dtype(display_df[col]):
                 column_config[col] = st.column_config.NumberColumn(col.replace('_', ' '), format='%.4f')
             else:
                 column_config[col] = col.replace('_', ' ')
+
     
         # Display the table
         st.dataframe(display_df, column_config=column_config)
+        st.write(display_df.dtypes)
+        st.write(display_df.head())
 
 
-    
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
     
@@ -743,6 +759,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
