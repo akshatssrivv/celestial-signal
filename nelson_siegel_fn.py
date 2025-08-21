@@ -9,132 +9,62 @@ def nelson_siegel(t, beta0, beta1, beta2, tau):
         term2 = term1 - np.exp(-t / tau)
         return beta0 + beta1 * term1 + beta2 * term2
 
-def plot_ns_animation(
-    ns_df,
-    issuer_label="Issuer",
-    resid_threshold=20,
-    ytm_range=np.linspace(0.1, 50, 200),
-    template="plotly_dark",
-    highlight_isins=None  # NEW: list of bonds to highlight
-):
-    highlight_isins = highlight_isins or []
-
-    # Map SIGNAL to colors
-    signal_color_map = {
-        'STRONG BUY': 'green',
-        'MODERATE BUY': 'lightgreen',
-        'STRONG SELL': 'red',
-        'MODERATE SELL': 'salmon',
-        None: 'black'  # default
+def plot_ns_animation(ns_df, issuer_label, highlight_isins=None):
+    # Define color + size mapping for signals
+    signal_style_map = {
+        'strong buy':   {"color": "darkgreen", "size": 10},
+        'moderate buy': {"color": "lightgreen", "size": 9},
+        'strong sell':  {"color": "darkred", "size": 10},
+        'moderate sell':{"color": "orange", "size": 9},
+        'weak buy':     {"color": "black", "size": 6},
+        'weak sell':    {"color": "black", "size": 6},
+        'no action':    {"color": "black", "size": 6}
     }
 
-    dates = sorted(ns_df['Date'].unique())
-    if not dates:
-        print(f"[{issuer_label}] No available dates to animate.")
-        return
+    # Apply mapping (fallback: black, small)
+    ns_df['Signal_Color'] = ns_df['SIGNAL'].map(
+        lambda s: signal_style_map.get(str(s).lower(), {"color": "black", "size": 6})["color"]
+    )
+    ns_df['Signal_Size'] = ns_df['SIGNAL'].map(
+        lambda s: signal_style_map.get(str(s).lower(), {"color": "black", "size": 6})["size"]
+    )
 
     fig = go.Figure()
 
-    # Helper function for marker color/size
-    def get_marker_style(row):
-        isin = row['ISIN']
-        signal = row.get('SIGNAL', None)
-        color = signal_color_map.get(signal, 'black')
-        size = 10 if isin in highlight_isins else 6
-        symbol = 'diamond' if row['RESIDUAL_NS'] >= resid_threshold else 'circle'
-        return color, size, symbol
-
-    # INITIAL frame for first date
-    first_daily = ns_df[ns_df['Date'] == dates[0]]
-    colors, sizes, symbols = zip(*first_daily.apply(get_marker_style, axis=1))
-
+    # Scatter plot with animation frames (by Date)
     fig.add_trace(go.Scatter(
-        x=first_daily['YTM'],
-        y=first_daily['Z_SPRD_VAL'],
+        x=ns_df['YearsToMaturity'],
+        y=ns_df['Z_SPRD_VAL'],
         mode='markers',
-        name='Bonds',
-        marker=dict(color=colors, size=sizes, symbol=symbols),
-        text=first_daily['SECURITY_NAME'],
-        customdata=first_daily['RESIDUAL_NS'],
-        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>'
+        marker=dict(
+            size=ns_df['Signal_Size'],
+            color=ns_df['Signal_Color'],
+            opacity=0.8,
+            line=dict(width=0.5, color='white')
+        ),
+        text=ns_df['SECURITY_NAME'],
+        customdata=np.stack((
+            ns_df['ISIN'],
+            ns_df['Date'].astype(str),
+            ns_df.get('RESIDUAL_NS', np.zeros(len(ns_df)))
+        ), axis=-1),
+        hovertemplate=(
+            'Years to Maturity: %{x:.2f}<br>'
+            'Z-Spread: %{y:.1f}bps<br>'
+            'Residual vs Curve: %{customdata[2]:.2f}<br>'
+            'Signal: %{marker.color}<br>'
+            '%{text}<extra></extra>'
+        ),
+        showlegend=False,
+        animation_frame=ns_df['Date'],
     ))
 
-    # Add Nelson-Siegel fit
-    try:
-        ns_params = first_daily['NS_PARAMS'].iloc[0]
-        fig.add_trace(go.Scatter(
-            x=ytm_range,
-            y=nelson_siegel(ytm_range, *ns_params),
-            mode='lines',
-            name='Nelson-Siegel Fit',
-            line=dict(color='deepskyblue', width=3)
-        ))
-    except Exception as e:
-        print(f"[ERROR] Could not plot NS curve: {e}")
-
-    # Create animation frames
-    frames = []
-    for d in dates:
-        daily = ns_df[ns_df['Date'] == d]
-        colors, sizes, symbols = zip(*daily.apply(get_marker_style, axis=1))
-        try:
-            fit_curve = nelson_siegel(ytm_range, *daily['NS_PARAMS'].iloc[0])
-            frames.append(go.Frame(
-                name=str(d.date()),
-                data=[
-                    go.Scatter(
-                        x=daily['YTM'],
-                        y=daily['Z_SPRD_VAL'],
-                        mode='markers',
-                        marker=dict(color=colors, size=sizes, symbol=symbols),
-                        text=daily['SECURITY_NAME'],
-                        customdata=daily['RESIDUAL_NS'],
-                        hovertemplate='YTM: %{x:.2f}<br>Z: %{y:.1f}bps<br>Residual: %{customdata:.1f}<br>%{text}<extra></extra>',
-                        name='Bonds'
-                    ),
-                    go.Scatter(
-                        x=ytm_range,
-                        y=fit_curve,
-                        mode='lines',
-                        line=dict(color='deepskyblue', width=3),
-                        name='Nelson-Siegel Fit'
-                    )
-                ]
-            ))
-        except Exception as e:
-            print(f"[ERROR] Error creating frame for {d}: {e}")
-
-    fig.frames = frames
-
-    # Animation buttons & layout remain the same
     fig.update_layout(
-        updatemenus=[{
-            "type": "buttons",
-            "x": 0.05, "y": 1.1,
-            "direction": "right",
-            "buttons": [
-                {"label": "▶️ Play", "method": "animate", "args": [None, {"frame": {"duration": 500, "redraw": True}, "fromcurrent": True, "mode": "immediate"}]},
-                {"label": "⏸️ Pause", "method": "animate", "args": [[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate"}]}
-            ],
-            "showactive": False
-        }],
-        sliders=[{
-            "steps": [dict(
-                method="animate",
-                args=[[str(d.date())], {"frame": {"duration": 0, "redraw": True}, "mode": "immediate"}],
-                label=str(d.date())
-            ) for d in dates],
-            "transition": {"duration": 0},
-            "x": 0.05,
-            "len": 0.9
-        }],
-        title=f"{issuer_label} Z-Spread Curve Animation with Nelson-Siegel Fit",
+        title=f"Nelson-Siegel Curve Animation — {issuer_label}",
         xaxis_title="Years to Maturity",
         yaxis_title="Z-Spread (bps)",
-        template=template,
-        height=800,
-        width=1200,
-        showlegend=True
+        legend_title="Signal",
+        template="plotly_white"
     )
 
     return fig
