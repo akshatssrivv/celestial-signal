@@ -20,15 +20,12 @@ def plot_ns_animation(
 ):
     highlight_isins = highlight_isins or []
 
-    # Color map (more intuitive for your manager)
+    # Color map for special bonds
     signal_color_map = {
         'STRONG BUY': 'darkgreen',
         'MODERATE BUY': 'green',
-        'WEAK BUY': 'lightgreen',
         'STRONG SELL': 'darkred',
-        'MODERATE SELL': 'red',
-        'WEAK SELL': 'salmon',
-        None: 'black'
+        'MODERATE SELL': 'orange'
     }
 
     dates = sorted(ns_df['Date'].unique())
@@ -38,12 +35,17 @@ def plot_ns_animation(
 
     fig = go.Figure()
 
-    # Helper for style
+    # Helper for marker style
     def get_marker_style(row):
-        isin = row['ISIN']
         signal = row.get('SIGNAL', None)
-        color = signal_color_map.get(signal, 'black')
-        size = 12 if isin in highlight_isins else 7
+        isin = row['ISIN']
+        # Determine if bond is "special"
+        if signal in signal_color_map:
+            color = signal_color_map[signal]
+            size = 10 if isin not in highlight_isins else 12
+        else:
+            color = 'black'
+            size = 6
         symbol = 'diamond' if abs(row['RESIDUAL_NS']) >= resid_threshold else 'circle'
         return color, size, symbol
 
@@ -55,7 +57,6 @@ def plot_ns_animation(
         x=first_daily['YTM'],
         y=first_daily['Z_SPRD_VAL'],
         mode='markers',
-        name='Bonds',
         marker=dict(color=colors, size=sizes, symbol=symbols, line=dict(width=1, color="black")),
         text=first_daily['SECURITY_NAME'],
         customdata=np.stack([
@@ -68,23 +69,24 @@ def plot_ns_animation(
             "Residual: %{customdata[0]:.1f} bps<br>"
             "Signal: %{customdata[1]}<br>"
             "%{text}<extra></extra>"
-        )
+        ),
+        name="Bonds"
     ))
 
-    # Add NS curve
+    # NS curve
     try:
         ns_params = first_daily['NS_PARAMS'].iloc[0]
         fig.add_trace(go.Scatter(
             x=ytm_range,
             y=nelson_siegel(ytm_range, *ns_params),
             mode='lines',
-            name='Nelson-Siegel Fit',
-            line=dict(color='deepskyblue', width=3)
+            line=dict(color='deepskyblue', width=3),
+            name='Nelson-Siegel Fit'
         ))
     except Exception as e:
         print(f"[ERROR] Could not plot NS curve: {e}")
 
-    # Animation frames
+    # Frames for animation
     frames = []
     for d in dates:
         daily = ns_df[ns_df['Date'] == d]
@@ -111,7 +113,7 @@ def plot_ns_animation(
                             "Signal: %{customdata[1]}<br>"
                             "%{text}<extra></extra>"
                         ),
-                        name='Bonds'
+                        name="Bonds"
                     ),
                     go.Scatter(
                         x=ytm_range,
@@ -127,7 +129,7 @@ def plot_ns_animation(
 
     fig.frames = frames
 
-    # Layout with animation controls
+    # Layout + animation controls
     fig.update_layout(
         updatemenus=[{
             "type": "buttons",
@@ -159,4 +161,5 @@ def plot_ns_animation(
     )
 
     return fig
+
 
