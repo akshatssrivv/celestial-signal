@@ -460,8 +460,13 @@ with tab2:
                 st.cache_data.clear()
                 st.rerun()
 
-    else:
-        st.warning("No bonds match your filters")
+        if st.session_state.show_animated_curves:
+            st.write("### Animated Curves View Here")
+            if st.button("Go Back to Residual Analysis"):
+                st.session_state.show_animated_curves = False
+        
+            else:
+                st.warning("No bonds match your filters")
 
 with tab1:
     st.set_page_config(
@@ -771,6 +776,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
