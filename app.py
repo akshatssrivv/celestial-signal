@@ -17,42 +17,37 @@ import requests
 # Utility functions
 # ------------------------------
 
-SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves.zip"
+SUPABASE_URL = "https://your-project.supabase.co/storage/v1/object/public/your-bucket/ns_curves.zip"
 LOCAL_ZIP = "ns_curves.zip"
-
-def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP) -> str:
-    """
-    Download ns_curves.zip from Supabase if not already present.
-    Returns local file path.
-    """
-    if not os.path.exists(output):
-        with st.spinner("Downloading NS curves data..."):
-            r = requests.get(url)
-            r.raise_for_status()
-            with open(output, "wb") as f:
-                f.write(r.content)
-    return output
-
+LOCAL_FOLDER = "ns_curves"
 
 def file_hash(filepath: str) -> str:
     """Compute MD5 hash of a file"""
     hasher = hashlib.md5()
     with open(filepath, "rb") as f:
-        hasher.update(f.read())
+        for chunk in iter(lambda: f.read(8192), b""):
+            hasher.update(chunk)
     return hasher.hexdigest()
 
+def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP) -> str:
+    """Download ns_curves.zip from Supabase if not already present."""
+    if not os.path.exists(output):
+        with st.spinner("Downloading NS curves data from Supabase..."):
+            with requests.get(url, stream=True) as r:
+                r.raise_for_status()
+                with open(output, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
+    return output
 
-def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = "ns_curves", force: bool = False) -> str:
-    """
-    Unzip NS curves into folder. Returns folder path.
-    Downloads from Supabase if not already present.
-    """
+def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> str:
+    """Unzip NS curves into folder. Downloads from Supabase if missing."""
     zip_path = download_from_supabase(SUPABASE_URL, zip_path)
 
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
-    if force or prev_hash != zip_hash:
+    if force or prev_hash != zip_hash or not os.path.exists(folder):
         if os.path.exists(folder):
             shutil.rmtree(folder)
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
@@ -61,15 +56,13 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = "ns_curves", force:
 
     return folder
 
-
-
 @st.cache_data
 def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
-    """
-    Load all NS curves for a country.
-    Passing zip_hash ensures cache invalidation when zip changes.
-    """
-    
+    """Load all NS curves for a country. Cache invalidates if ZIP changes."""
+    folder = unzip_ns_curves()
+    if not os.path.exists(folder):
+        st.error(f"Data folder '{folder}' not found after unzip.")
+        return pd.DataFrame()
 
     all_files = sorted([
         f for f in os.listdir(folder)
@@ -93,19 +86,6 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
         return ns_df
 
     return pd.DataFrame()
-
-
-@st.cache_data
-def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFrame | None:
-    """
-    Load NS curve for a single day.
-    Passing zip_hash ensures cache invalidation when zip changes.
-    """
-    folder = unzip_ns_curves()
-    path = os.path.join(folder, f"{country_code}_{date_str}.parquet")
-    if os.path.exists(path):
-        return pd.read_parquet(path)
-    return None
 
 
 # Make page use full width
@@ -444,8 +424,9 @@ with tab1:
 
     selected_country = country_code_map[country_option]
 
-    # Ensure Supabase zip exists locally
-    zip_path = download_from_supabase(SUPABASE_URL, "ns_curves.zip")
+    # Ensure local zip exists (download from Supabase if missing)
+    zip_path = download_from_supabase()
+    zip_hash = file_hash(zip_path)
 
     selected_country = country_code_map[country_option]
 
@@ -709,6 +690,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
