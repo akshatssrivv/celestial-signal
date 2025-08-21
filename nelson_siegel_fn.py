@@ -37,7 +37,11 @@ def plot_ns_animation(
     # Determine fixed axis ranges
     x_min, x_max = ns_df['YTM'].min(), ns_df['YTM'].max()
     y_min, y_max = ns_df['Z_SPRD_VAL'].min(), ns_df['Z_SPRD_VAL'].max()
-
+    
+    # Add a small buffer to avoid points being on the edge
+    x_pad = (x_max - x_min) * 0.05
+    y_pad = (y_max - y_min) * 0.05
+    
     fig = go.Figure()
 
     # Helper for marker style
@@ -127,10 +131,9 @@ def plot_ns_animation(
 
     fig.frames = frames
 
-    # Layout with fixed axes
     fig.update_layout(
-        xaxis=dict(title="Years to Maturity", range=[x_min, x_max]),
-        yaxis=dict(title="Z-Spread (bps)", range=[y_min, y_max]),
+        xaxis=dict(title="Years to Maturity", range=[x_min - x_pad, x_max + x_pad]),
+        yaxis=dict(title="Z-Spread (bps)", range=[y_min - y_pad, y_max + y_pad]),
         updatemenus=[{
             "type": "buttons",
             "x": 0.05, "y": 1.1,
