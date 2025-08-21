@@ -58,11 +58,6 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force
 
     return folder
 
-with zipfile.ZipFile("ns_curves.zip", "r") as z:
-    names = z.namelist()
-    eu_files = [n for n in names if "EU" in n.upper()]
-    print("EU-related files in ZIP:", eu_files)
-
 
 @st.cache_data
 def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
@@ -769,6 +764,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
