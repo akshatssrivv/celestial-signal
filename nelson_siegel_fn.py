@@ -33,7 +33,7 @@ def plot_ns_animation(ns_df, issuer_label, highlight_isins=None):
 
     # Scatter plot with animation frames (by Date)
     fig.add_trace(go.Scatter(
-        x=ns_df['YearsToMaturity'],
+        x=ns_df['YTM'],
         y=ns_df['Z_SPRD_VAL'],
         mode='markers',
         marker=dict(
@@ -51,7 +51,7 @@ def plot_ns_animation(ns_df, issuer_label, highlight_isins=None):
         hovertemplate=(
             'Years to Maturity: %{x:.2f}<br>'
             'Z-Spread: %{y:.1f}bps<br>'
-            'Residual vs Curve: %{customdata[2]:.2f}<br>'
+            'Residual: %{customdata[2]:.2f}bps<br>'
             'Signal: %{marker.color}<br>'
             '%{text}<extra></extra>'
         ),
