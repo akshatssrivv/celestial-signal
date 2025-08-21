@@ -19,7 +19,7 @@ import zipfile
 # Utility functions
 # ------------------------------
 
-SUPABASE_URL = "https://your-project.supabase.co/storage/v1/object/public/your-bucket/ns_curves.zip"
+SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves.zip"
 LOCAL_ZIP = "ns_curves.zip"
 LOCAL_FOLDER = "ns_curves"
 
@@ -689,16 +689,12 @@ with tab1:
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         
         if ns_df is not None and not ns_df.empty:
-            # Load today's signals
-            final_signal_df = pd.read_csv("today_all_signals.csv")
-            
-            # Normalize dates to avoid merge mismatches
+            # Ensure Date is datetime
             ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
-            final_signal_df['Date'] = pd.to_datetime(final_signal_df['Date']).dt.normalize()
             
             # Filter bonds available in NS data
             country_isins = ns_df['ISIN'].unique()
-            bond_options = final_signal_df[final_signal_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
+            bond_options = ns_df[ns_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
             
             # Map maturities from NS data
             isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
@@ -730,19 +726,6 @@ with tab1:
                 # Filter NS data for selected bonds
                 residuals_df = ns_df[ns_df['ISIN'].isin(selected_bonds)].copy()
                 
-                # Merge RESIDUAL_NS and RESIDUAL_VELOCITY from today_all_signals
-                residuals_df = residuals_df.merge(
-                    final_signal_df[['ISIN', 'Date', 'RESIDUAL_NS', 'RESIDUAL_VELOCITY']],
-                    on=['ISIN', 'Date'],
-                    how='left',
-                    suffixes=('_ns', '_signal')
-                )
-                
-                # Fill missing residuals with NS data if merged signal is NaN
-                residuals_df['RESIDUAL_NS_plot'] = residuals_df['RESIDUAL_NS_signal'].combine_first(residuals_df['RESIDUAL_NS_ns'])
-                residuals_df['RESIDUAL_VELOCITY_plot'] = residuals_df['RESIDUAL_VELOCITY'].combine_first(
-                    residuals_df.get('RESIDUAL_VELOCITY', pd.Series(np.nan, index=residuals_df.index))
-                )                
                 # Initialize figures
                 fig_residuals = go.Figure()
                 fig_velocity = go.Figure()
@@ -752,21 +735,19 @@ with tab1:
                     bond_data = residuals_df[residuals_df['ISIN'] == isin].sort_values('Date')
                     if not bond_data.empty:
                         # Residuals
-                        if 'RESIDUAL_NS_plot' in bond_data.columns:
-                            fig_residuals.add_trace(go.Scatter(
-                                x=bond_data['Date'],
-                                y=bond_data['RESIDUAL_NS_plot'],
-                                mode='lines+markers',
-                                name=bond_labels.get(isin, isin)
-                            ))
+                        fig_residuals.add_trace(go.Scatter(
+                            x=bond_data['Date'],
+                            y=bond_data['RESIDUAL_NS'],
+                            mode='lines+markers',
+                            name=bond_labels.get(isin, isin)
+                        ))
                         # Velocity
-                        if 'RESIDUAL_VELOCITY_plot' in bond_data.columns:
-                            fig_velocity.add_trace(go.Scatter(
-                                x=bond_data['Date'],
-                                y=bond_data['RESIDUAL_VELOCITY_plot'],
-                                mode='lines+markers',
-                                name=bond_labels.get(isin, isin)
-                            ))
+                        fig_velocity.add_trace(go.Scatter(
+                            x=bond_data['Date'],
+                            y=bond_data['RESIDUAL_VELOCITY'],
+                            mode='lines+markers',
+                            name=bond_labels.get(isin, isin)
+                        ))
                 
                 # Update layouts
                 fig_residuals.update_layout(
@@ -788,6 +769,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
