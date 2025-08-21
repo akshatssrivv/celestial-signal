@@ -11,11 +11,28 @@ from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
 import ast
 import re
 from datetime import datetime
-
+import requests
 
 # ------------------------------
 # Utility functions
 # ------------------------------
+
+SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves.zip"
+LOCAL_ZIP = "ns_curves.zip"
+
+def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP) -> str:
+    """
+    Download ns_curves.zip from Supabase if not already present.
+    Returns local file path.
+    """
+    if not os.path.exists(output):
+        with st.spinner("Downloading NS curves data..."):
+            r = requests.get(url)
+            r.raise_for_status()
+            with open(output, "wb") as f:
+                f.write(r.content)
+    return output
+
 
 def file_hash(filepath: str) -> str:
     """Compute MD5 hash of a file"""
@@ -25,11 +42,13 @@ def file_hash(filepath: str) -> str:
     return hasher.hexdigest()
 
 
-def unzip_ns_curves(zip_path: str = "ns_curves.zip", folder: str = "ns_curves", force: bool = False) -> str:
+def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = "ns_curves", force: bool = False) -> str:
     """
     Unzip NS curves into folder. Returns folder path.
-    Re-extracts only if zip has changed or force=True.
+    Downloads from Supabase if not already present.
     """
+    zip_path = download_from_supabase(SUPABASE_URL, zip_path)
+
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
@@ -41,6 +60,7 @@ def unzip_ns_curves(zip_path: str = "ns_curves.zip", folder: str = "ns_curves", 
         st.session_state["ns_zip_hash"] = zip_hash
 
     return folder
+
 
 
 @st.cache_data
@@ -165,11 +185,15 @@ with tab2:
         """Extract country from ISIN code"""
         country_map = {
             'IT': '🇮🇹 Italy',
-            'ES': '🇪🇸 Spain', 
+            'ES': '🇪🇸 Spain',
             'FR': '🇫🇷 France',
             'DE': '🇩🇪 Germany',
-            'FI': '🇫🇮 Finland'
+            'FI': '🇫🇮 Finland',
+            'EU': '🇪🇺 EU',
+            'AT': '🇦🇹 Austria',
+            'NL': '🇳🇱 Netherlands'
         }
+        
         return country_map.get(isin[:2], '🌍 Unknown')
 
     # Load data
@@ -407,7 +431,7 @@ with tab1:
 
     country_option = st.selectbox(
         "Select Country",
-        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮']
+        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱']
     )
 
     country_code_map = {
@@ -415,7 +439,10 @@ with tab1:
         'Spain 🇪🇸': 'SPGB',
         'France 🇫🇷': 'FRTR',
         'Germany 🇩🇪': 'BUNDS',
-        'Finland 🇫🇮': 'RFGB'
+        'Finland 🇫🇮': 'RFGB',
+        'EU 🇪🇺': 'EUBOND',
+        'Austria 🇦🇹': 'RAGB',
+        'Netherlands 🇳🇱': 'NETHER'
     }
 
     selected_country = country_code_map[country_option]
@@ -687,6 +714,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
