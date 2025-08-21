@@ -494,23 +494,30 @@ with tab1:
             fig = go.Figure()
     
             # Plot bonds by signal color
-            for color, df_subset in ns_df.groupby('Signal_Color'):
+            for signal, df_subset in ns_df.groupby('SIGNAL'):
                 if not df_subset.empty:
+                    color = df_subset['Signal_Color'].iloc[0]  # get the mapped color for this signal
+                    
                     fig.add_trace(go.Scatter(
                         x=df_subset['YearsToMaturity'],
                         y=df_subset['Z_SPRD_VAL'],
                         mode='markers',
-                        name=f"{color.capitalize()} Bonds",
-                        marker=dict(size=8 if color != 'black' else 6,
+                        name=signal.title(),  # legend label = "Strong Buy", "Moderate Sell", etc.
+                        marker=dict(size=8 if signal is not None else 6,
                                     color=color,
-                                    symbol='diamond' if color != 'black' else 'circle'),
+                                    symbol='diamond' if signal is not None else 'circle'),
                         text=df_subset['SECURITY_NAME'],
                         customdata=np.stack((
                             df_subset['ISIN'],
                             df_subset['Date'].astype(str),
                             df_subset.get('RESIDUAL_NS', np.zeros(len(df_subset)))
                         ), axis=-1),
-                        hovertemplate='Years to Maturity: %{x:.2f}<br>Z-Spread: %{y:.1f}bps<br>%{text}<extra></extra>'
+                        hovertemplate=(
+                            'Years to Maturity: %{x:.2f}<br>'
+                            'Z-Spread: %{y:.1f}bps<br>'
+                            'Signal: ' + (signal.title() if signal else "None") + '<br>'
+                            '%{text}<extra></extra>'
+                        )
                     ))
     
             # Add Nelson-Siegel fit line if available
@@ -575,6 +582,7 @@ with tab1:
     
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
