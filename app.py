@@ -734,7 +734,7 @@ with tab1:
                                 name=bond_labels.get(isin, isin)
                             ))
                         # Velocity
-                        if 'RESIDUAL_NS_VELOCITY' in bond_data.columns:
+                        if 'RESIDUAL_VELOCITY' in bond_data.columns:
                             fig_velocity.add_trace(go.Scatter(
                                 x=bond_data['Date'],
                                 y=bond_data['RESIDUAL_VELOCITY'],
@@ -760,6 +760,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
