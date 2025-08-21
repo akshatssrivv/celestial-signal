@@ -89,6 +89,12 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     if dfs:
         ns_df = pd.concat(dfs, ignore_index=True)
 
+        # Ensure residuals column exists
+        if 'RESIDUAL' in ns_df.columns:
+            ns_df.rename(columns={'RESIDUAL': 'RESIDUAL_NS'}, inplace=True)
+        if 'RESIDUAL_NS' not in ns_df.columns:
+            ns_df['RESIDUAL_NS'] = np.nan
+
         if "Date" in ns_df.columns:
             ns_df["Date"] = pd.to_datetime(ns_df["Date"])
             ns_df.sort_values("Date", inplace=True)
@@ -98,7 +104,6 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
 
         return ns_df
 
-    # If no files loaded, safely return empty DF
     st.warning(f"No parquet files found for country code '{country_code}' in folder '{folder}'.")
     return pd.DataFrame()
 
@@ -742,6 +747,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
