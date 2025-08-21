@@ -517,7 +517,7 @@ with tab1:
                         hovertemplate=(
                             'Years to Maturity: %{x:.2f}<br>'
                             'Z-Spread: %{y:.1f}bps<br>'
-                            'Residual vs Curve: %{customdata[2]:.2f}<br>'
+                            'Residual: %{customdata[2]:.2f}<br> bps'
                             'Signal: ' + (signal.title() if signal else "None") + '<br>'
                             '%{text}<extra></extra>'
                         ),
@@ -586,6 +586,7 @@ with tab1:
     
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
