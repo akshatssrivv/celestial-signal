@@ -342,7 +342,7 @@ with tab2:
 
     # Data table with sorting
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
-
+    
     if not filtered_df.empty:
         # Desired columns
         cols_to_display = [
@@ -352,82 +352,80 @@ with tab2:
             'Top_Features', 'Top_Feature_Effects_Pct'
         ]
         
+        # Keep only columns that exist in the DataFrame
         existing_cols = [col for col in cols_to_display if col in filtered_df.columns]
-        st.write("Columns in filtered_df:", filtered_df.columns.tolist())
-
-        
         display_df = filtered_df[existing_cols].copy()
-
+    
+        # Rename Volatility_Score → Stability_Score
         if 'Volatility_Score' in display_df.columns:
             display_df.rename(columns={'Volatility_Score': 'Stability_Score'}, inplace=True)
-
-        
+    
+        # Ensure numeric columns are numeric
+        numeric_cols = ['RESIDUAL_NS', 'Z_Residual_Score', 'Stability_Score',
+                        'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
+        for col in numeric_cols:
+            if col in display_df.columns:
+                display_df[col] = pd.to_numeric(display_df[col], errors='coerce')
+    
         # Extract maturity date
         def extract_maturity(name):
             if isinstance(name, str):
                 match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', name)
                 if match:
                     date_str = match.group(1)
-                    try:
-                        return datetime.strptime(date_str, '%m/%d/%y').date()
-                    except ValueError:
+                    for fmt in ("%m/%d/%y", "%m/%d/%Y"):
                         try:
-                            return datetime.strptime(date_str, '%m/%d/%Y').date()
+                            return datetime.strptime(date_str, fmt).date()
                         except ValueError:
-                            return 'N/A'
+                            continue
             return 'N/A'
-        
-        # Add MATURITY_DATE column
-        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
-        
-        # Rearrange columns to have SECURITY_NAME first, then MATURITY_DATE
-        cols_order = ['SECURITY_NAME', 'Maturity'] + [col for col in display_df.columns if col not in ['SECURITY_NAME', 'Maturity']]
-        display_df = display_df[cols_order]
-        
-        # Combine Top_Features + Top_Feature_Effects_Pct into one column
-        if 'Top_Features' in display_df.columns and 'Top_Feature_Effects_Pct' in display_df.columns:
     
-            FEATURE_NAME_MAP = {
-                "Cpn": "Coupon",
-                "YAS_RISK": "DV01",
-                "AMT_OUTSTANDING": "Amount Outstanding",
-                "Issue_Age": "Issue Age",
-                "REL_SPRD_STD": "Liquidity",
-                "GREEN_BOND_LOAN_INDICATOR": "Green Bond"
-            }
-        
+        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
+    
+        # Rearrange columns: SECURITY_NAME, Maturity first
+        cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
+        display_df = display_df[cols_order]
+    
+        # Combine Top_Features + Top_Feature_Effects_Pct and rename features
+        FEATURE_NAME_MAP = {
+            "Cpn": "Coupon",
+            "YAS_RISK": "DV01",
+            "AMT_OUTSTANDING": "Amount Outstanding",
+            "Issue_Age": "Issue Age",
+            "REL_SPRD_STD": "Liquidity",
+            "GREEN_BOND_LOAN_INDICATOR": "Green Bond"
+        }
+    
+        if 'Top_Features' in display_df.columns and 'Top_Feature_Effects_Pct' in display_df.columns:
             def combine_features(feats, pct):
                 try:
                     feats_list = ast.literal_eval(feats) if isinstance(feats, str) else []
-                    # Map feature codes to readable names
                     feats_list = [FEATURE_NAME_MAP.get(f, f) for f in feats_list]
-        
                     pct_list = [int(round(float(v))) for v in pct.replace('[','').replace(']','').split()] if isinstance(pct, str) else []
                     combined = [f"{f} ({p}%)" for f, p in zip(feats_list, pct_list)]
                     return ', '.join(combined) if combined else 'N/A'
                 except:
                     return 'N/A'
-        
+    
             display_df['Top_Features'] = display_df.apply(
                 lambda row: combine_features(row['Top_Features'], row['Top_Feature_Effects_Pct']),
                 axis=1
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
-
-        
-        # Prepare column config dynamically
+    
+        # Prepare column config
         column_config = {}
         for col in display_df.columns:
-            if col in ['COMPOSITE_SCORE', 'Z_Residual_Score', 'Cluster_Score', 'Regression_Score',
-                       'RESIDUAL_NS', 'Volatility_Score', 'Market_Stress_Score']:
+            if col in numeric_cols:
                 column_config[col] = st.column_config.NumberColumn(col.replace('_', ' '), format='%.4f')
-                column_config['Stability_Score'] = st.column_config.NumberColumn('Stability Score', format='%.4f')
-
             else:
                 column_config[col] = col.replace('_', ' ')
-
-        # Display table
+    
+        # Display the table
         st.dataframe(display_df, column_config=column_config)
+    else:
+        st.warning("No bonds found for the selected filters.")
+
 
     
         # Download button
@@ -747,6 +745,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
