@@ -53,6 +53,16 @@ def plot_ns_animation(
     first_daily = ns_df[ns_df['Date'] == dates[0]]
     colors, sizes, symbols = zip(*first_daily.apply(get_marker_style, axis=1))
 
+    # Before adding traces
+    x_min, x_max = ns_df['YTM'].min(), ns_df['YTM'].max()
+    y_min, y_max = ns_df['Z_SPRD_VAL'].min(), ns_df['Z_SPRD_VAL'].max()
+    
+    fig.update_layout(
+        xaxis=dict(range=[x_min, x_max]),
+        yaxis=dict(range=[y_min, y_max]),
+        ...
+    )
+
     fig.add_trace(go.Scatter(
         x=first_daily['YTM'],
         y=first_daily['Z_SPRD_VAL'],
