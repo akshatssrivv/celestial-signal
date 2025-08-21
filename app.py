@@ -144,6 +144,23 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+
+main_tabs = ["Nelson-Siegel Curves", "Signal Dashboard"]
+if 'current_tab' not in st.session_state:
+    st.session_state.current_tab = "Nelson-Siegel Curves"
+
+# Buttons at the bottom of content to navigate
+if st.session_state.current_tab == "Nelson-Siegel Curves":
+    st.write("Animated curves here")
+    if st.button("Go to Signal Dashboard"):
+        st.session_state.current_tab = "Signal Dashboard"
+elif st.session_state.current_tab == "Signal Dashboard":
+    st.write("Residual plots here")
+    if st.button("Go to Nelson-Siegel Curves"):
+        st.session_state.current_tab = "Nelson-Siegel Curves"
+
+
+
 tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
 
 
@@ -460,14 +477,6 @@ with tab2:
                 st.cache_data.clear()
                 st.rerun()
 
-        if st.session_state.show_animated_curves:
-            st.write("### Animated Curves View Here")
-            if st.button("Go Back to Residual Analysis"):
-                st.session_state.show_animated_curves = False
-        
-            else:
-                st.warning("No bonds match your filters")
-
 with tab1:
     st.set_page_config(
         page_title="The Curves",
@@ -776,6 +785,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
