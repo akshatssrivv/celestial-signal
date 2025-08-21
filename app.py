@@ -423,8 +423,6 @@ with tab2:
     
         # Display the table
         st.dataframe(display_df, column_config=column_config)
-    else:
-        st.warning("No bonds found for the selected filters.")
 
 
     
@@ -745,6 +743,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
