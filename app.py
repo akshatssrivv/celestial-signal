@@ -664,7 +664,7 @@ with tab1:
                         if 'RESIDUAL_NS_VELOCITY' in bond_data.columns:
                             fig_velocity.add_trace(go.Scatter(
                                 x=bond_data['Date'],
-                                y=bond_data['RESIDUAL_NS_VELOCITY'],
+                                y=bond_data['RESIDUAL_VELOCITY'],
                                 mode='lines+markers',
                                 name=bond_labels.get(isin, isin)
                             ))
@@ -678,7 +678,7 @@ with tab1:
                 )
     
                 fig_velocity.update_layout(
-                    title="Residual NS Velocity Over Time",
+                    title="Residual Velocity Over Time",
                     xaxis_title="Date",
                     yaxis_title="Velocity (bps/day)",
                     template="plotly_white",
@@ -687,6 +687,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
