@@ -12,6 +12,8 @@ import ast
 import re
 from datetime import datetime
 import requests
+import zipfile
+
 
 # ------------------------------
 # Utility functions
@@ -451,6 +453,11 @@ with tab1:
 
     if subtab == "Animated Curves":
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
+        with zipfile.ZipFile("ns_curves.zip", "r") as z:
+            names = z.namelist()
+            eu_files = [n for n in names if "EU" in n or "eu" in n]
+            print(eu_files)
+
         if ns_df is not None and not ns_df.empty:
             final_signal_df = pd.read_csv("today_all_signals.csv")
             country_isins = ns_df['ISIN'].unique()
@@ -470,6 +477,7 @@ with tab1:
                     return f"{bond_labels.get(isin, isin)} ({maturity_str})"
                 else:
                     return f"{bond_labels.get(isin, isin)} (N/A)"
+
     
             # Multiselect directly with all bonds (no search box)
             selected_animation_bonds = st.multiselect(
@@ -705,6 +713,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
