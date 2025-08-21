@@ -448,7 +448,7 @@ with tab1:
         'France 🇫🇷': 'FRTR',
         'Germany 🇩🇪': 'BUNDS',
         'Finland 🇫🇮': 'RFGB',
-        'EU 🇪🇺': 'EUBOND',
+        'EU 🇪🇺': 'EU',
         'Austria 🇦🇹': 'RAGB',
         'Netherlands 🇳🇱': 'NETHER'
     }
@@ -722,6 +722,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
