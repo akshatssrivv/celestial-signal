@@ -88,6 +88,21 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFrame | None:
+    """
+    Load NS curve for a single day from the full dataset.
+    Passing zip_hash ensures cache invalidation when ns_curves.zip changes.
+    """
+    df = load_full_ns_df(country_code, zip_hash=zip_hash)
+
+    if df is not None and not df.empty:
+        df = df[df["Date"] == date_str]
+        if not df.empty:
+            return df
+    
+    return None
+
+
 # Make page use full width
 st.set_page_config(layout="wide")
 
@@ -690,6 +705,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
