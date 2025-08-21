@@ -183,7 +183,7 @@ with tab2:
     def load_data():
         """Load data from CSV with caching"""
         try:
-            csv_url = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/issuer_signals.csv"
+            csv_url = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves.zip"
             df = pd.read_csv(csv_url)
             return df
         except Exception as e:
@@ -762,6 +762,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
