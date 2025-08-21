@@ -482,12 +482,12 @@ with tab1:
             
             # Map signals to colors
             signal_color_map = {
-                'strong buy': 'red',
-                'strong sell': 'red',
-                'weak buy': 'orange',
-                'weak sell': 'orange',
-                'moderate buy': 'yellow',
-                'moderate sell': 'yellow'
+                'strong buy': 'darkgreen',
+                'moderate buy': 'green',
+                'weak buy': 'lightgreen',
+                'strong sell': 'darkred',
+                'moderate sell': 'red',
+                'weak sell': 'lightcoral'
             }
             ns_df['Signal_Color'] = ns_df['SIGNAL'].map(signal_color_map).fillna('black')
     
@@ -575,6 +575,7 @@ with tab1:
     
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
 
 
 
