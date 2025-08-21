@@ -441,8 +441,6 @@ with tab2:
     
         # Display the table
         st.dataframe(display_df, column_config=column_config)
-        st.write(display_df.dtypes)
-        st.write(display_df.head())
 
 
         # Download button
@@ -762,6 +760,7 @@ with tab1:
     
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
