@@ -517,58 +517,8 @@ with tab1:
 
     # Compute zip hash for cache invalidation
     zip_hash = file_hash(zip_path)
-
-    if subtab == "Animated Curves":
-        ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
-        if ns_df is not None and not ns_df.empty:
-            final_signal_df = pd.read_csv("today_all_signals.csv")
-            country_isins = ns_df['ISIN'].unique()
-            bond_options = final_signal_df[final_signal_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
     
-            isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
-            bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
-            bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
-            bond_options.sort_values('Maturity', inplace=True)
-    
-            bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
-    
-            def format_bond_label(isin):
-                maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
-                if len(maturity) > 0 and pd.notnull(maturity[0]):
-                    maturity_str = pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')
-                    return f"{bond_labels.get(isin, isin)} ({maturity_str})"
-                else:
-                    return f"{bond_labels.get(isin, isin)} (N/A)"
-
-    
-            # Multiselect directly with all bonds (no search box)
-            selected_animation_bonds = st.multiselect(
-                "Select Bonds to Display in Animation",
-                options=bond_options['ISIN'].tolist(),
-                format_func=format_bond_label,
-                default=[],
-                key="animation_bond_selector"
-            )
-    
-            if st.button(f"Select All {country_option} Bonds"):
-                selected_animation_bonds = bond_options['ISIN'].tolist()
-    
-            if not selected_animation_bonds:
-                st.warning("Select at least one bond to display in the animation.")
-            else:
-                ns_df_filtered = ns_df[ns_df['ISIN'].isin(selected_animation_bonds)].copy()
-                ns_df_filtered = ns_df_filtered.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
-    
-                fig = plot_ns_animation(
-                    ns_df_filtered,
-                    issuer_label=selected_country,
-                    highlight_isins=selected_animation_bonds
-                )
-                st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No Nelson-Siegel data available for the selected country.")
-
-    elif subtab == "Single Day Curve":
+    if subtab == "Single Day Curve":
         date_input = st.date_input("Select Date")
         date_str = date_input.strftime("%Y-%m-%d")
     
@@ -698,6 +648,57 @@ with tab1:
         else:
             st.warning("No Nelson-Siegel data available for this date.")
 
+    elif subtab == "Animated Curves":
+        ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
+        if ns_df is not None and not ns_df.empty:
+            final_signal_df = pd.read_csv("today_all_signals.csv")
+            country_isins = ns_df['ISIN'].unique()
+            bond_options = final_signal_df[final_signal_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
+    
+            isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
+            bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
+            bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
+            bond_options.sort_values('Maturity', inplace=True)
+    
+            bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
+    
+            def format_bond_label(isin):
+                maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
+                if len(maturity) > 0 and pd.notnull(maturity[0]):
+                    maturity_str = pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')
+                    return f"{bond_labels.get(isin, isin)} ({maturity_str})"
+                else:
+                    return f"{bond_labels.get(isin, isin)} (N/A)"
+
+    
+            # Multiselect directly with all bonds (no search box)
+            selected_animation_bonds = st.multiselect(
+                "Select Bonds to Display in Animation",
+                options=bond_options['ISIN'].tolist(),
+                format_func=format_bond_label,
+                default=[],
+                key="animation_bond_selector"
+            )
+    
+            if st.button(f"Select All {country_option} Bonds"):
+                selected_animation_bonds = bond_options['ISIN'].tolist()
+    
+            if not selected_animation_bonds:
+                st.warning("Select at least one bond to display in the animation.")
+            else:
+                ns_df_filtered = ns_df[ns_df['ISIN'].isin(selected_animation_bonds)].copy()
+                ns_df_filtered = ns_df_filtered.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+    
+                fig = plot_ns_animation(
+                    ns_df_filtered,
+                    issuer_label=selected_country,
+                    highlight_isins=selected_animation_bonds
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No Nelson-Siegel data available for the selected country.")
+
+
 
     elif subtab == "Residuals Analysis":
         # Load full NS dataset
@@ -786,6 +787,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
