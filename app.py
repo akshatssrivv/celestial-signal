@@ -16,7 +16,7 @@ import zipfile
 
 
 SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves2208.zip"
-LOCAL_ZIP = "ns_curves.zip"
+LOCAL_ZIP = "ns_curves_20250822.zip"
 LOCAL_FOLDER = "ns_curves"
 
 def file_hash(filepath: str) -> str:
@@ -60,7 +60,8 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force
 @st.cache_data
 def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     """Load all NS curves for a country. Cache invalidates if ZIP changes."""
-    folder, zip_hash = unzip_ns_curves()
+    folder, zip_hash = unzip_ns_curves(zip_path=LOCAL_ZIP, force=True)
+
     if not os.path.exists(folder):
         st.error(f"Data folder '{folder}' not found after unzip.")
         return pd.DataFrame()
@@ -789,6 +790,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
