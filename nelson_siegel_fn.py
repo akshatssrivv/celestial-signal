@@ -136,10 +136,10 @@ def plot_ns_animation(
         yaxis=dict(title="Z-Spread (bps)", range=[y_min - y_pad, y_max + y_pad]),
         updatemenus=[{
             "type": "buttons",
-            "x": 0.05, "y": 1.1,
+            "x": 0.05, "y": 1.03,
             "direction": "right",
             "buttons": [
-                {"label": "▶️ Play", "method": "animate", "args": [None, {"frame": {"duration": 500, "redraw": True}, "fromcurrent": True, "mode": "immediate"}]},
+                {"label": "▶️ Play", "method": "animate", "args": [None, {"frame": {"duration": 150, "redraw": True}, "fromcurrent": True, "mode": "immediate"}]},
                 {"label": "⏸️ Pause", "method": "animate", "args": [[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate"}]}
             ],
             "showactive": False
