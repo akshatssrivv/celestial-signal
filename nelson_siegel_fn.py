@@ -139,7 +139,7 @@ def plot_ns_animation(
             "x": 0.05, "y": 1.1,
             "direction": "right",
             "buttons": [
-                {"label": "▶️ Play", "method": "animate", "args": [None, {"frame": {"duration": 500, "redraw": True}, "fromcurrent": True, "mode": "immediate"}]},
+                {"label": "▶️ Play", "method": "animate", "args": [None, {"frame": {"duration": 150, "redraw": True}, "fromcurrent": True, "mode": "immediate"}]},
                 {"label": "⏸️ Pause", "method": "animate", "args": [[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate"}]}
             ],
             "showactive": False
