@@ -15,10 +15,6 @@ import requests
 import zipfile
 
 
-# ------------------------------
-# Utility functions
-# ------------------------------
-
 SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves.zip"
 LOCAL_ZIP = "ns_curves.zip"
 LOCAL_FOLDER = "ns_curves"
@@ -791,6 +787,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
