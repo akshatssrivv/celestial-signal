@@ -427,17 +427,39 @@ with tab2:
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
     
         # Prepare column config
+        # Define tooltips for metrics (good vs bad in ≤2 lines)
+        HELP_TEXTS = {
+            "Residual": "Closer to 0 = fair value. Large absolute value = potential mispricing.",
+            "Z_Residual_Score": "Z-score of residual. |Z| > 2 may indicate mispricing.",
+            "Stability_Score": "Inverse volatility. Higher = more stable pricing. Lower = riskier.",
+            "Market_Stress_Score": "Market stress factor. High = bond more exposed to stress.",
+            "Cluster_Score": "Deviation from peer cluster. Higher = more unusual vs peers.",
+            "Regression_Score": "Model-explained mispricing. Higher = stronger signal.",
+            "COMPOSITE_SCORE": "Overall mispricing score. Higher absolute = stronger trade signal.",
+            "Top_Features": "Most important drivers of mispricing. % shows relative impact."
+        }
+        
+        # Build column config with hover help
         column_config = {}
         for col in display_df.columns:
+            label = col.replace('_', ' ')
             if col in numeric_cols and pd.api.types.is_numeric_dtype(display_df[col]):
-                column_config[col] = st.column_config.NumberColumn(col.replace('_', ' '), format='%.4f')
+                column_config[col] = st.column_config.NumberColumn(
+                    label,
+                    format='%.4f',
+                    help=HELP_TEXTS.get(col, None)  # add hover tooltip
+                )
             else:
-                column_config[col] = col.replace('_', ' ')
+                column_config[col] = st.column_config.TextColumn(
+                    label,
+                    help=HELP_TEXTS.get(col, None)  # add hover tooltip
+                )
 
-    
-        # Display the table
+        # Show table with tooltips
         st.dataframe(display_df, column_config=column_config)
 
+
+    
 
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
@@ -764,6 +786,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
