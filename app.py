@@ -429,13 +429,13 @@ with tab2:
         # Prepare column config
         # Define tooltips for metrics (good vs bad in ≤2 lines)
         HELP_TEXTS = {
-            "Residual": "Closer to 0 = fair value. Large absolute value = potential mispricing.",
-            "Z_Residual_Score": "Z-score of residual. |Z| > 2 may indicate mispricing.",
+            "Residual": "Residual mispricing (bps off curve)",
+            "Z_Residual_Score": "Z-score of residual. |Z| > 1.5 may indicate opportunities.",
             "Stability_Score": "Inverse volatility. Higher = more stable pricing. Lower = riskier.",
             "Market_Stress_Score": "Market stress factor. High = bond more exposed to stress.",
-            "Cluster_Score": "Deviation from peer cluster. Higher = more unusual vs peers.",
-            "Regression_Score": "Model-explained mispricing. Higher = stronger signal.",
-            "COMPOSITE_SCORE": "Overall mispricing score. Higher absolute = stronger trade signal.",
+            "Cluster_Score": "Deviation from peer cluster (bps). Absolute > 1.5, likely to mean-revert",
+            "Regression_Score": "Model-explained mispricing. Absolute > 1.5, strong signal; likely to mean-revert.",
+            "COMPOSITE_SCORE": "Overall mispricing score. Absolute > 1.5 = stronger trade signal.",
             "Top_Features": "Most important drivers of mispricing. % shows relative impact."
         }
         
@@ -786,6 +786,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
