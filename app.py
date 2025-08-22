@@ -487,7 +487,7 @@ with tab1:
     # Choose subtab inside Tab 1
     subtab = st.radio(
         "Select View",
-        ("Animated Curves", "Single Day Curve", "Residuals Analysis")
+        ("Single Day Curve", "Animated Curves", "Residuals Analysis")
     )
 
     country_option = st.selectbox(
@@ -787,6 +787,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
