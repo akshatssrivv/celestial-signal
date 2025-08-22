@@ -27,9 +27,10 @@ def file_hash(filepath: str) -> str:
             hasher.update(chunk)
     return hasher.hexdigest()
 
-def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP) -> str:
-    """Download ns_curves.zip from Supabase if not already present."""
-    if not os.path.exists(output):
+
+def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP, force: bool = False) -> str:
+    """Download ns_curves.zip from Supabase, optionally forcing refresh."""
+    if force or not os.path.exists(output):
         with st.spinner("Downloading NS curves data from Supabase..."):
             with requests.get(url, stream=True) as r:
                 r.raise_for_status()
@@ -38,10 +39,10 @@ def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP) -> 
                         f.write(chunk)
     return output
 
-def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> str:
-    """Unzip NS curves into folder. Downloads from Supabase if missing."""
-    zip_path = download_from_supabase(SUPABASE_URL, zip_path)
 
+def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
+    """Unzip NS curves and return (folder, zip_hash)."""
+    zip_path = download_from_supabase(SUPABASE_URL, zip_path, force=force)
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
@@ -52,13 +53,14 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force
             zip_ref.extractall(folder)
         st.session_state["ns_zip_hash"] = zip_hash
 
-    return folder
+    return folder, zip_hash
+
 
 
 @st.cache_data
 def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     """Load all NS curves for a country. Cache invalidates if ZIP changes."""
-    folder = unzip_ns_curves()
+    folder, zip_hash = unzip_ns_curves()
     if not os.path.exists(folder):
         st.error(f"Data folder '{folder}' not found after unzip.")
         return pd.DataFrame()
@@ -787,6 +789,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
