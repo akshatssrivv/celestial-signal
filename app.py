@@ -453,6 +453,7 @@ with tab2:
         # Show table with tooltips
         st.dataframe(display_df, column_config=column_config)
 
+
     
 
         # Download button
@@ -785,6 +786,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
