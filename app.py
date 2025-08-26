@@ -335,13 +335,10 @@ with tab2:
 
     st.markdown("---")
 
-
-
-    # --- Example filtered_df is already defined ---
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
     
     if not filtered_df.empty:
-        # Desired columns
+        # Columns to display
         cols_to_display = [
             'SECURITY_NAME', 'RESIDUAL_NS', 'SIGNAL',
             'Z_Residual_Score', 'Volatility_Score', 'Market_Stress_Score',
@@ -354,21 +351,19 @@ with tab2:
         display_df = filtered_df[existing_cols].copy()
         
         # Rename columns
-        if 'Volatility_Score' in display_df.columns:
-            display_df.rename(columns={'Volatility_Score': 'Stability_Score'}, inplace=True)
-        if 'RESIDUAL_NS' in display_df.columns:
-            display_df.rename(columns={'RESIDUAL_NS': 'Residual'}, inplace=True)
+        display_df.rename(columns={
+            'RESIDUAL_NS': 'Residual',
+            'Volatility_Score': 'Stability_Score'
+        }, inplace=True)
         
-        # Numeric columns
+        # Round numeric columns
         numeric_cols = ['Residual', 'Z_Residual_Score', 'Stability_Score',
                         'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
-        
-        # Convert to numeric & round
         for col in numeric_cols:
             if col in display_df.columns:
                 display_df[col] = pd.to_numeric(display_df[col], errors='coerce').round(2)
         
-        # --- Fix Maturity ---
+        # Fix Maturity
         def format_maturity(val):
             try:
                 # Timestamp in ms
@@ -386,10 +381,10 @@ with tab2:
                 return "N/A"
             except:
                 return "N/A"
-    
+        
         display_df['Maturity'] = display_df['SECURITY_NAME'].apply(format_maturity)
         
-        # Rearrange columns: SECURITY_NAME, Maturity first
+        # Reorder columns
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
         display_df = display_df[cols_order]
         
@@ -420,7 +415,7 @@ with tab2:
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
         
-        # Tooltips
+        # Column config for tooltips + formatting
         HELP_TEXTS = {
             "Residual": "Residual mispricing (bps off curve)",
             "Z_Residual_Score": "Z-score of residual. |Z| > 1.5 may indicate opportunities.",
@@ -432,25 +427,17 @@ with tab2:
             "Top_Features": "Most important drivers of mispricing. % shows relative impact."
         }
         
-        # Column config
         column_config = {}
         for col in display_df.columns:
             label = col.replace('_', ' ')
             if col in numeric_cols and pd.api.types.is_numeric_dtype(display_df[col]):
-                column_config[col] = st.column_config.NumberColumn(
-                    label,
-                    format="%.2f",
-                    help=HELP_TEXTS.get(col, None)
-                )
+                column_config[col] = st.column_config.NumberColumn(label, format="%.2f", help=HELP_TEXTS.get(col))
             else:
-                column_config[col] = st.column_config.TextColumn(
-                    label,
-                    help=HELP_TEXTS.get(col, None)
-                )
+                column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
         
-        # Show table
-        st.dataframe(display_df, column_config=column_config)
-    
+    # Show the table
+    st.dataframe(display_df, column_config=column_config)
+
             
 
         # Download button
@@ -783,6 +770,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
