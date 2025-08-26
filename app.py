@@ -335,7 +335,6 @@ with tab2:
 
     st.markdown("---")
 
-
     # Data table with sorting
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
     
@@ -359,35 +358,28 @@ with tab2:
         if 'RESIDUAL_NS' in display_df.columns:
             display_df.rename(columns={'RESIDUAL_NS': 'Residual'}, inplace=True)
     
-        # Ensure numeric columns are numeric
+        # Numeric columns
         numeric_cols = ['Residual', 'Z_Residual_Score', 'Stability_Score',
                         'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
+    
+        # Convert to numeric & round to 4dp
         for col in numeric_cols:
             if col in display_df.columns:
-                display_df[col] = pd.to_numeric(display_df[col], errors='coerce')
+                display_df[col] = pd.to_numeric(display_df[col], errors='coerce').round(4)
     
-        # Round numeric cols to 4dp
-        for col in numeric_cols:
-            if col in display_df.columns:
-                display_df[col] = display_df[col].round(4)
-    
-        # Extract maturity date
+        # Extract maturity date as clean string
         def extract_maturity(name):
             if isinstance(name, str):
                 match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', name)
                 if match:
-                    date_str = match.group(1)
                     for fmt in ("%m/%d/%y", "%m/%d/%Y"):
                         try:
-                            return datetime.strptime(date_str, fmt).strftime("%d-%b-%Y")
+                            return datetime.strptime(match.group(1), fmt).strftime("%d-%b-%Y")
                         except ValueError:
                             continue
             return "N/A"
         
-        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
-    
-        # Force Maturity to string (avoid timestamp conversion)
-        display_df['Maturity'] = display_df['Maturity'].astype(str)
+        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity).astype(str)
     
         # Rearrange columns: SECURITY_NAME, Maturity first
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
@@ -420,7 +412,7 @@ with tab2:
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
     
-        # Prepare column config
+        # Tooltips
         HELP_TEXTS = {
             "Residual": "Residual mispricing (bps off curve)",
             "Z_Residual_Score": "Z-score of residual. |Z| > 1.5 may indicate opportunities.",
@@ -432,14 +424,14 @@ with tab2:
             "Top_Features": "Most important drivers of mispricing. % shows relative impact."
         }
         
-        # Build column config with hover help
+        # Column config
         column_config = {}
         for col in display_df.columns:
             label = col.replace('_', ' ')
             if col in numeric_cols and pd.api.types.is_numeric_dtype(display_df[col]):
                 column_config[col] = st.column_config.NumberColumn(
                     label,
-                    format='%.4f',
+                    format="%.4f",
                     help=HELP_TEXTS.get(col, None)
                 )
             else:
@@ -448,11 +440,11 @@ with tab2:
                     help=HELP_TEXTS.get(col, None)
                 )
     
-        # Show table with tooltips
+        # Show table
         st.dataframe(display_df, column_config=column_config)
-
-
     
+    
+        
 
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
@@ -784,6 +776,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
