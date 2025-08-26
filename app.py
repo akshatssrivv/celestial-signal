@@ -379,17 +379,15 @@ with tab2:
                     date_str = match.group(1)
                     for fmt in ("%m/%d/%y", "%m/%d/%Y"):
                         try:
-                            return datetime.strptime(date_str, fmt)  # return datetime, not .date()
+                            return datetime.strptime(date_str, fmt).strftime("%d-%b-%Y")
                         except ValueError:
                             continue
-            return None
+            return "N/A"
         
         display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
     
-        # Format maturity as clean string
-        if 'Maturity' in display_df.columns:
-            display_df['Maturity'] = pd.to_datetime(display_df['Maturity'], errors='coerce')
-            display_df['Maturity'] = display_df['Maturity'].dt.strftime("%d-%b-%Y").fillna("N/A")
+        # Force Maturity to string (avoid timestamp conversion)
+        display_df['Maturity'] = display_df['Maturity'].astype(str)
     
         # Rearrange columns: SECURITY_NAME, Maturity first
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
@@ -786,6 +784,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
