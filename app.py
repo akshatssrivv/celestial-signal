@@ -117,7 +117,7 @@ def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFra
     
     return None
 
-
+;;;;;llllll
 # Make page use full width
 st.set_page_config(layout="wide")
 
@@ -770,6 +770,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
