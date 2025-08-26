@@ -355,29 +355,21 @@ with tab2:
         # Rename Volatility_Score → Stability_Score
         if 'Volatility_Score' in display_df.columns:
             display_df.rename(columns={'Volatility_Score': 'Stability_Score'}, inplace=True)
-
+    
         if 'RESIDUAL_NS' in display_df.columns:
             display_df.rename(columns={'RESIDUAL_NS': 'Residual'}, inplace=True)
     
         # Ensure numeric columns are numeric
-        numeric_cols = ['RESIDUAL_NS', 'Z_Residual_Score', 'Stability_Score',
+        numeric_cols = ['Residual', 'Z_Residual_Score', 'Stability_Score',
                         'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
         for col in numeric_cols:
             if col in display_df.columns:
                 display_df[col] = pd.to_numeric(display_df[col], errors='coerce')
-
-
-        # Ensure RESIDUAL_NS exists and is float
-        if 'RESIDUAL_NS' in display_df.columns:
-            display_df['RESIDUAL_NS'] = pd.to_numeric(display_df['RESIDUAL_NS'], errors='coerce')
-            display_df['RESIDUAL_NS'] = display_df['RESIDUAL_NS'].fillna(0.0)  # or np.nan if you prefer
-        
-        # Optional: also ensure all numeric columns are floats
-        numeric_cols = ['RESIDUAL_NS', 'Z_Residual_Score', 'Stability_Score',
-                        'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
+    
+        # Round numeric cols to 4dp
         for col in numeric_cols:
             if col in display_df.columns:
-                display_df[col] = display_df[col].astype(float)
+                display_df[col] = display_df[col].round(4)
     
         # Extract maturity date
         def extract_maturity(name):
@@ -387,12 +379,17 @@ with tab2:
                     date_str = match.group(1)
                     for fmt in ("%m/%d/%y", "%m/%d/%Y"):
                         try:
-                            return datetime.strptime(date_str, fmt).date()
+                            return datetime.strptime(date_str, fmt)  # return datetime, not .date()
                         except ValueError:
                             continue
-            return 'N/A'
-    
+            return None
+        
         display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
+    
+        # Format maturity as clean string
+        if 'Maturity' in display_df.columns:
+            display_df['Maturity'] = pd.to_datetime(display_df['Maturity'], errors='coerce')
+            display_df['Maturity'] = display_df['Maturity'].dt.strftime("%d-%b-%Y").fillna("N/A")
     
         # Rearrange columns: SECURITY_NAME, Maturity first
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
@@ -426,7 +423,6 @@ with tab2:
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
     
         # Prepare column config
-        # Define tooltips for metrics (good vs bad in ≤2 lines)
         HELP_TEXTS = {
             "Residual": "Residual mispricing (bps off curve)",
             "Z_Residual_Score": "Z-score of residual. |Z| > 1.5 may indicate opportunities.",
@@ -446,17 +442,16 @@ with tab2:
                 column_config[col] = st.column_config.NumberColumn(
                     label,
                     format='%.4f',
-                    help=HELP_TEXTS.get(col, None)  # add hover tooltip
+                    help=HELP_TEXTS.get(col, None)
                 )
             else:
                 column_config[col] = st.column_config.TextColumn(
                     label,
-                    help=HELP_TEXTS.get(col, None)  # add hover tooltip
+                    help=HELP_TEXTS.get(col, None)
                 )
-
+    
         # Show table with tooltips
         st.dataframe(display_df, column_config=column_config)
-
 
     
 
@@ -790,6 +785,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
