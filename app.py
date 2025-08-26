@@ -363,7 +363,7 @@ with tab2:
             if col in display_df.columns:
                 display_df[col] = pd.to_numeric(display_df[col], errors='coerce').round(2)
         
-        # Fix Maturity
+        '''# Fix Maturity
         def format_maturity(val):
             try:
                 # Timestamp in ms
@@ -386,7 +386,7 @@ with tab2:
         
         # Reorder columns
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
-        display_df = display_df[cols_order]
+        display_df = display_df[cols_order]'''
         
         # Combine Top_Features + Top_Feature_Effects_Pct
         FEATURE_NAME_MAP = {
@@ -770,6 +770,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
