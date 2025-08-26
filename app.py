@@ -335,7 +335,7 @@ with tab2:
 
     st.markdown("---")
 
-    # Data table with sorting
+        # Data table with sorting
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
     
     if not filtered_df.empty:
@@ -367,7 +367,7 @@ with tab2:
             if col in display_df.columns:
                 display_df[col] = pd.to_numeric(display_df[col], errors='coerce').round(4)
     
-        # Extract maturity date as clean string
+        # --- Extract maturity date as clean string ---
         def extract_maturity(name):
             if isinstance(name, str):
                 match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', name)
@@ -379,7 +379,7 @@ with tab2:
                             continue
             return "N/A"
         
-        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity).astype(str)
+        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
     
         # Rearrange columns: SECURITY_NAME, Maturity first
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
@@ -442,7 +442,7 @@ with tab2:
     
         # Show table
         st.dataframe(display_df, column_config=column_config)
-    
+
     
         
 
@@ -776,6 +776,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
