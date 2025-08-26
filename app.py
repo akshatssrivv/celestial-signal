@@ -13,7 +13,7 @@ import re
 from datetime import datetime
 import requests
 import zipfile
-
+'''
 
 SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves2208.zip"
 LOCAL_ZIP = "ns_curves_20250822.zip"
@@ -205,7 +205,7 @@ with tab2:
         return country_map.get(isin[:2], '🌍 Unknown')
 
     # Load data
-    df = load_data()
+    df = load_data()'''
 
     if df.empty:
         st.error("No data available")
@@ -770,6 +770,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
