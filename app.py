@@ -360,16 +360,18 @@ with tab2:
         numeric_cols = ['Residual', 'Z_Residual_Score', 'Stability_Score',
                         'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
         for col in numeric_cols:
-            if col in display_df.columns:
+            if col in display_df.columns and col != 'Residual':
                 display_df[col] = pd.to_numeric(display_df[col], errors='coerce').round(2)
+        
+        # Convert Residual to string with 'bps'
+        if 'Residual' in display_df.columns:
+            display_df['Residual'] = display_df['Residual'].apply(lambda x: f"{x:.2f} bps" if pd.notnull(x) else "N/A")
         
         # Fix Maturity
         def format_maturity(val):
             try:
-                # Timestamp in ms
                 if pd.notnull(val) and isinstance(val, (int, float)) and val > 1e10:
                     return pd.to_datetime(val, unit='ms').strftime("%d-%b-%Y")
-                # Fallback: extract from string
                 if isinstance(val, str):
                     match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', val)
                     if match:
@@ -430,13 +432,14 @@ with tab2:
         column_config = {}
         for col in display_df.columns:
             label = col.replace('_', ' ')
-            if col in numeric_cols and pd.api.types.is_numeric_dtype(display_df[col]):
+            if col in numeric_cols and col != 'Residual' and pd.api.types.is_numeric_dtype(display_df[col]):
                 column_config[col] = st.column_config.NumberColumn(label, format="%.2f", help=HELP_TEXTS.get(col))
             else:
                 column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
         
         # Show the table
         st.dataframe(display_df, column_config=column_config)
+
 
             
 
@@ -770,6 +773,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
