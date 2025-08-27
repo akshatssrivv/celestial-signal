@@ -350,11 +350,27 @@ with tab2:
         # Keep only existing columns
         existing_cols = [col for col in cols_to_display if col in filtered_df.columns]
         display_df = filtered_df[existing_cols].copy()
+
+        # Define signal strength order (weakest -> strongest)
+        signal_order = [
+            "NO ACTION",
+            "WEAK BUY", "WEAK SELL",
+            "MODERATE BUY", "MODERATE SELL",
+            "STRONG BUY", "STRONG SELL"
+        ]
+        
+        if "SIGNAL" in display_df.columns:
+            display_df["SIGNAL"] = pd.Categorical(
+                display_df["SIGNAL"],
+                categories=signal_order,
+                ordered=True
+            )
     
         # Rename columns
         display_df.rename(columns={
             'RESIDUAL_NS': 'Residual',
-            'Volatility_Score': 'Stability_Score'
+            'Volatility_Score': 'Stability_Score',
+            'SIGNAL': 'Signal'
         }, inplace=True)
     
         # Convert numeric columns
@@ -893,6 +909,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
