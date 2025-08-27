@@ -712,8 +712,9 @@ with tab1:
             'Netherlands 🇳🇱': 'NETHER',
             'Belgium 🇧🇪': 'BGB'
         }
-    
+        
         countries = st.multiselect("Select Countries", options=list(country_code_map.keys()))
+        
         if countries:
             all_dates = {}
             for c in countries:
@@ -726,8 +727,17 @@ with tab1:
             selected_dates = {}
             for c in countries:
                 if len(all_dates[c]) > 0:
-                    selected_dates[c] = st.multiselect(f"Select Dates for {c}", options=all_dates[c], default=all_dates[c][-1])
-            
+                    # Default to the most recent date
+                    default_date = all_dates[c].max()
+                    # Calendar input restricted to available range
+                    chosen_date = st.date_input(
+                        f"Select Date for {c}",
+                        value=default_date,
+                        min_value=all_dates[c].min(),
+                        max_value=all_dates[c].max()
+                    )
+                    selected_dates[c] = [chosen_date]  # keep as list for loop
+    
             fig = go.Figure()
             for c in countries:
                 for d in selected_dates.get(c, []):
@@ -739,7 +749,11 @@ with tab1:
                             ns_params = ast.literal_eval(ns_params_raw)
                         else:
                             ns_params = ns_params_raw
-                        maturities = np.linspace(ns_df_curve['YTM'].min(), ns_df_curve['YTM'].max(), 100)
+    
+                        # Cap maturities at 30 years
+                        max_maturity = min(30, ns_df_curve['YTM'].max())
+                        maturities = np.linspace(0, max_maturity, 100)
+    
                         ns_values = nelson_siegel(maturities, *ns_params)
                         fig.add_trace(go.Scatter(
                             x=maturities,
@@ -747,19 +761,19 @@ with tab1:
                             mode='lines',
                             name=f"{c} - {d.strftime('%Y-%m-%d')}"
                         ))
-                        
+    
             fig.update_layout(
                 title="Nelson-Siegel Curves Comparison",
                 xaxis_title="Years to Maturity",
                 yaxis_title="Z-Spread (bps)",
                 template="plotly_white",
-                height=900,   # taller figure
+                height=900,
                 width=1200,
                 xaxis=dict(range=[0, 30])
             )
-
             st.plotly_chart(fig, use_container_width=True)
 
+    
     
 
     elif subtab == "Residuals Analysis":
@@ -869,6 +883,9 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
+
+
 
 
 
