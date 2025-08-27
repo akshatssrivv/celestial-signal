@@ -451,8 +451,6 @@ with tab2:
         # Show the table
         st.dataframe(display_df, column_config=column_config)
         
-            
-
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
     
@@ -756,7 +754,7 @@ with tab1:
             fig = go.Figure()
             for c in countries:
                 for d in selected_dates.get(c, []):
-                    ns_df_curve = load_ns_curve(country_code_map[c], d.strftime("%Y-%m-%d"), zip_hash=zip_hash)
+                    ns_df_curve = load_ns_curve(country_code_map[c], d, zip_hash=zip_hash)
                     if ns_df_curve is not None and 'NS_PARAMS' in ns_df_curve.columns:
                         ns_params_raw = ns_df_curve['NS_PARAMS'].iloc[0]
                         if isinstance(ns_params_raw, str):
@@ -764,19 +762,18 @@ with tab1:
                             ns_params = ast.literal_eval(ns_params_raw)
                         else:
                             ns_params = ns_params_raw
-    
-                        # Cap maturities at 30 years
+            
                         max_maturity = min(30, ns_df_curve['YTM'].max())
                         maturities = np.linspace(0, max_maturity, 100)
-    
                         ns_values = nelson_siegel(maturities, *ns_params)
                         fig.add_trace(go.Scatter(
                             x=maturities,
                             y=ns_values,
                             mode='lines',
-                            name=f"{c} - {d.strftime('%Y-%m-%d')}"
+                            name=f"{c} - {d}"
                         ))
-    
+            
+                
             fig.update_layout(
                 title="Nelson-Siegel Curves Comparison",
                 xaxis_title="Years to Maturity",
@@ -897,6 +894,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
