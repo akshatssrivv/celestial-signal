@@ -740,17 +740,18 @@ with tab1:
             selected_dates = {}
             for c in countries:
                 if len(all_dates[c]) > 0:
-                    st.markdown(f"**Select Dates for {c}**")
-                    selected_dates[c] = []
-                    # Loop over all available dates so user can pick multiple
-                    for i, date_option in enumerate(sorted(all_dates[c], reverse=True)):
-                        include_date = st.checkbox(
-                            date_option.strftime("%Y-%m-%d"), 
-                            value=(i == 0),  # default: most recent date checked
-                            key=f"{c}_{i}"
-                        )
-                        if include_date:
-                            selected_dates[c].append(date_option)
+                    # Default to the most recent date
+                    default_date = all_dates[c].max()
+                    # Calendar input restricted to available range
+                    chosen_date = st.date_input(
+                        f"Select Date for {c}",
+                        value=default_date,
+                        min_value=all_dates[c].min(),
+                        max_value=all_dates[c].max()
+                    )
+                    selected_dates[c] = [chosen_date]  # keep as list for loop
+
+       
     
             fig = go.Figure()
             for c in countries:
@@ -896,6 +897,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
