@@ -730,6 +730,8 @@ with tab1:
         
         if countries:
             all_dates = {}
+            selected_dates = {}  # store list of dates per country
+            
             for c in countries:
                 ns_df_country = load_full_ns_df(country_code_map[c], zip_hash=zip_hash)
                 if ns_df_country is not None and not ns_df_country.empty:
@@ -737,20 +739,28 @@ with tab1:
                 else:
                     all_dates[c] = []
     
-            selected_dates = {}
+                selected_dates[c] = []  # initialize empty list for added dates
+    
+            # Loop over countries to pick dates
             for c in countries:
                 if len(all_dates[c]) > 0:
-                    # Default to the most recent date
-                    default_date = all_dates[c].max()
-                    # Calendar input restricted to available range
-                    chosen_date = st.date_input(
-                        f"Select Date for {c}",
-                        value=default_date,
+                    st.write(f"Select dates for {c}:")
+                    new_date = st.date_input(
+                        f"Pick a date for {c}",
+                        value=all_dates[c].max(),
                         min_value=all_dates[c].min(),
-                        max_value=all_dates[c].max()
+                        max_value=all_dates[c].max(),
+                        key=f"date_input_{c}"
                     )
-                    selected_dates[c] = [chosen_date]  # keep as list for loop
+                    if st.button(f"Add date for {c}"):
+                        if new_date not in selected_dates[c]:
+                            selected_dates[c].append(new_date)
+                    
+                    # Show currently selected dates
+                    if selected_dates[c]:
+                        st.write("Currently selected dates:", [d.strftime("%Y-%m-%d") for d in selected_dates[c]])
     
+            # Plot the curves
             fig = go.Figure()
             for c in countries:
                 for d in selected_dates.get(c, []):
@@ -763,10 +773,8 @@ with tab1:
                         else:
                             ns_params = ns_params_raw
     
-                        # Cap maturities at 30 years
                         max_maturity = min(30, ns_df_curve['YTM'].max())
                         maturities = np.linspace(0, max_maturity, 100)
-    
                         ns_values = nelson_siegel(maturities, *ns_params)
                         fig.add_trace(go.Scatter(
                             x=maturities,
@@ -785,6 +793,7 @@ with tab1:
                 xaxis=dict(range=[0, 30])
             )
             st.plotly_chart(fig, use_container_width=True)
+    
 
     
     
@@ -896,6 +905,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
