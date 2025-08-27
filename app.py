@@ -751,7 +751,7 @@ with tab1:
                             ns_params = ns_params_raw
     
                         # Cap maturities at 30 years
-                        max_maturity = min(30, ns_df_curve['YearsToMaturity'].max())
+                        max_maturity = min(30, ns_df_curve['YTM'].max())
                         maturities = np.linspace(0, max_maturity, 100)
     
                         ns_values = nelson_siegel(maturities, *ns_params)
@@ -767,7 +767,7 @@ with tab1:
                 xaxis_title="Years to Maturity",
                 yaxis_title="Z-Spread (bps)",
                 template="plotly_white",
-                height=700,
+                height=900,
                 width=1200,
                 xaxis=dict(range=[0, 30])
             )
@@ -883,6 +883,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
