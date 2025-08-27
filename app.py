@@ -469,36 +469,32 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves")
     )
 
-    country_option = st.selectbox(
-        "Select Country",
-        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
-    )
-
-    country_code_map = {
-        'Italy 🇮🇹': 'BTPS',
-        'Spain 🇪🇸': 'SPGB',
-        'France 🇫🇷': 'FRTR',
-        'Germany 🇩🇪': 'BUNDS',
-        'Finland 🇫🇮': 'RFGB',
-        'EU 🇪🇺': 'EU',
-        'Austria 🇦🇹': 'RAGB',
-        'Netherlands 🇳🇱': 'NETHER',
-        'Belgium 🇧🇪': 'BGB'
-    }
-
-    selected_country = country_code_map[country_option]
-
     # Ensure local zip exists (download from Supabase if missing)
     zip_path = download_from_supabase()
     zip_hash = file_hash(zip_path)
 
-    selected_country = country_code_map[country_option]
-
-
-    # Compute zip hash for cache invalidation
-    zip_hash = file_hash(zip_path)
     
     if subtab == "Single Day Curve":
+
+        country_option = st.selectbox(
+            "Select Country",
+            options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+        )
+    
+        country_code_map = {
+            'Italy 🇮🇹': 'BTPS',
+            'Spain 🇪🇸': 'SPGB',
+            'France 🇫🇷': 'FRTR',
+            'Germany 🇩🇪': 'BUNDS',
+            'Finland 🇫🇮': 'RFGB',
+            'EU 🇪🇺': 'EU',
+            'Austria 🇦🇹': 'RAGB',
+            'Netherlands 🇳🇱': 'NETHER',
+            'Belgium 🇧🇪': 'BGB'
+        }
+    
+        selected_country = country_code_map[country_option]
+        
         final_signal_df = pd.read_csv("today_all_signals.csv")
         available_dates = pd.to_datetime(final_signal_df['Date'].unique())
         default_date = available_dates.max()  # most recent date
@@ -633,6 +629,26 @@ with tab1:
             st.warning("No Nelson-Siegel data available for this date.")
 
     elif subtab == "Animated Curves":
+
+        country_option = st.selectbox(
+            "Select Country",
+            options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+        )
+    
+        country_code_map = {
+            'Italy 🇮🇹': 'BTPS',
+            'Spain 🇪🇸': 'SPGB',
+            'France 🇫🇷': 'FRTR',
+            'Germany 🇩🇪': 'BUNDS',
+            'Finland 🇫🇮': 'RFGB',
+            'EU 🇪🇺': 'EU',
+            'Austria 🇦🇹': 'RAGB',
+            'Netherlands 🇳🇱': 'NETHER',
+            'Belgium 🇧🇪': 'BGB'
+        }
+    
+        selected_country = country_code_map[country_option]
+        
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         if ns_df is not None and not ns_df.empty:
             final_signal_df = pd.read_csv("today_all_signals.csv")
@@ -684,6 +700,7 @@ with tab1:
 
 
     elif subtab == "Compare NS Curves":
+    
         countries = st.multiselect("Select Countries", options=list(country_code_map.keys()))
         if countries:
             all_dates = {}
@@ -718,11 +735,41 @@ with tab1:
                             mode='lines',
                             name=f"{c} - {d.strftime('%Y-%m-%d')}"
                         ))
-            fig.update_layout(title="Nelson-Siegel Curves Comparison", xaxis_title="Years to Maturity", yaxis_title="Z-Spread (bps)")
+                        
+            fig.update_layout(
+                title="Nelson-Siegel Curves Comparison",
+                xaxis_title="Years to Maturity",
+                yaxis_title="Z-Spread (bps)",
+                template="plotly_white",
+                height=700,   # taller figure
+                width=1200,   # optional, wider if needed
+            )
+
             st.plotly_chart(fig, use_container_width=True)
 
+    
 
     elif subtab == "Residuals Analysis":
+
+        country_option = st.selectbox(
+            "Select Country",
+            options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+        )
+    
+        country_code_map = {
+            'Italy 🇮🇹': 'BTPS',
+            'Spain 🇪🇸': 'SPGB',
+            'France 🇫🇷': 'FRTR',
+            'Germany 🇩🇪': 'BUNDS',
+            'Finland 🇫🇮': 'RFGB',
+            'EU 🇪🇺': 'EU',
+            'Austria 🇦🇹': 'RAGB',
+            'Netherlands 🇳🇱': 'NETHER',
+            'Belgium 🇧🇪': 'BGB'
+        }
+    
+        selected_country = country_code_map[country_option]
+        
         # Load full NS dataset
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
 
@@ -809,6 +856,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
