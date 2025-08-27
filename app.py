@@ -710,7 +710,7 @@ with tab1:
                             ns_params = ast.literal_eval(ns_params_raw)
                         else:
                             ns_params = ns_params_raw
-                        maturities = np.linspace(ns_df_curve['YearsToMaturity'].min(), ns_df_curve['YearsToMaturity'].max(), 100)
+                        maturities = np.linspace(ns_df_curve['YTM'].min(), ns_df_curve['YTM'].max(), 100)
                         ns_values = nelson_siegel(maturities, *ns_params)
                         fig.add_trace(go.Scatter(
                             x=maturities,
@@ -809,6 +809,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
