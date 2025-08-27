@@ -1,4 +1,4 @@
-'''import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -13,7 +13,7 @@ import re
 from datetime import datetime
 import requests
 import zipfile
-'''
+
 
 SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves2208.zip"
 LOCAL_ZIP = "ns_curves_20250822.zip"
@@ -117,7 +117,7 @@ def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFra
     
     return None
 
-;;;;;llllll
+
 # Make page use full width
 st.set_page_config(layout="wide")
 
@@ -205,7 +205,7 @@ with tab2:
         return country_map.get(isin[:2], '🌍 Unknown')
 
     # Load data
-    df = load_data()'''
+    df = load_data()
 
     if df.empty:
         st.error("No data available")
@@ -363,7 +363,7 @@ with tab2:
             if col in display_df.columns:
                 display_df[col] = pd.to_numeric(display_df[col], errors='coerce').round(2)
         
-        '''# Fix Maturity
+        # Fix Maturity
         def format_maturity(val):
             try:
                 # Timestamp in ms
@@ -386,7 +386,7 @@ with tab2:
         
         # Reorder columns
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
-        display_df = display_df[cols_order]'''
+        display_df = display_df[cols_order]
         
         # Combine Top_Features + Top_Feature_Effects_Pct
         FEATURE_NAME_MAP = {
@@ -773,7 +773,6 @@ with tab1:
 
 
 
-'''
 
 
 
