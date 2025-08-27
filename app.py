@@ -385,6 +385,9 @@ with tab2:
                 return "N/A"
         
         display_df['Maturity'] = display_df['SECURITY_NAME'].apply(format_maturity)
+        display_df['Maturity_raw'] = display_df['Maturity'].copy()  # keep datetime for sorting
+        display_df['Maturity'] = display_df['Maturity_raw'].dt.strftime("%d-%b-%Y")  # display format
+
         
         # Reorder columns
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
@@ -433,7 +436,9 @@ with tab2:
         for col in display_df.columns:
             label = col.replace('_', ' ')
             if col in numeric_cols and col != 'Residual' and pd.api.types.is_numeric_dtype(display_df[col]):
-                column_config[col] = st.column_config.NumberColumn(label, format="%.2f", help=HELP_TEXTS.get(col))
+                column_config['Residual'] = st.column_config.NumberColumn(
+                    "Residual", format="%.2f bps", help=HELP_TEXTS.get("Residual")
+                )
             else:
                 column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
         
@@ -773,6 +778,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
