@@ -431,7 +431,7 @@ with tab2:
         for col in display_df.columns:
             label = col.replace('_', ' ')
             if col in numeric_cols and pd.api.types.is_numeric_dtype(display_df[col]):
-                column_config[col] = st.column_config.NumberColumn(label, format="%.2f", help=HELP_TEXTS.get(col))
+                column_config[col] = st.column_config.NumberColumn(label, format="%.4f", help=HELP_TEXTS.get(col))
             else:
                 column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
     
@@ -883,6 +883,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
