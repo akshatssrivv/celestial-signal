@@ -758,11 +758,23 @@ with tab1:
                     if st.button(f"Add date for {c}"):
                         if new_date not in st.session_state.selected_dates[c]:
                             st.session_state.selected_dates[c].append(new_date)
-                    
-                    # Show currently selected dates
+
                     if st.session_state.selected_dates[c]:
-                        st.write("Currently selected dates:", 
-                                 [d.strftime("%Y-%m-%d") for d in st.session_state.selected_dates[c]])
+                        st.write("Currently selected dates:")
+                        cols = st.columns(len(st.session_state.selected_dates[c]))
+                        for i, d in enumerate(st.session_state.selected_dates[c]):
+                            cols[i].markdown(f"""
+                                <div style="
+                                    background-color:#e0f3ff;
+                                    padding:5px 10px;
+                                    border-radius:5px;
+                                    text-align:center;
+                                    font-weight:bold;
+                                ">
+                                    {d.strftime('%Y-%m-%d')}
+                                </div>
+                            """, unsafe_allow_html=True)
+                   
     
             # Plot the curves
             fig = go.Figure()
@@ -908,6 +920,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
