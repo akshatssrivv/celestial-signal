@@ -730,8 +730,10 @@ with tab1:
         
         if countries:
             all_dates = {}
-            selected_dates = {}  # store list of dates per country
-            
+            # Initialize session state for selected_dates if not already
+            if 'selected_dates' not in st.session_state:
+                st.session_state.selected_dates = {c: [] for c in countries}
+    
             for c in countries:
                 ns_df_country = load_full_ns_df(country_code_map[c], zip_hash=zip_hash)
                 if ns_df_country is not None and not ns_df_country.empty:
@@ -739,7 +741,8 @@ with tab1:
                 else:
                     all_dates[c] = []
     
-                selected_dates[c] = []  # initialize empty list for added dates
+                if c not in st.session_state.selected_dates:
+                    st.session_state.selected_dates[c] = []
     
             # Loop over countries to pick dates
             for c in countries:
@@ -753,17 +756,18 @@ with tab1:
                         key=f"date_input_{c}"
                     )
                     if st.button(f"Add date for {c}"):
-                        if new_date not in selected_dates[c]:
-                            selected_dates[c].append(new_date)
+                        if new_date not in st.session_state.selected_dates[c]:
+                            st.session_state.selected_dates[c].append(new_date)
                     
                     # Show currently selected dates
-                    if selected_dates[c]:
-                        st.write("Currently selected dates:", [d.strftime("%Y-%m-%d") for d in selected_dates[c]])
+                    if st.session_state.selected_dates[c]:
+                        st.write("Currently selected dates:", 
+                                 [d.strftime("%Y-%m-%d") for d in st.session_state.selected_dates[c]])
     
             # Plot the curves
             fig = go.Figure()
             for c in countries:
-                for d in selected_dates.get(c, []):
+                for d in st.session_state.selected_dates.get(c, []):
                     ns_df_curve = load_ns_curve(country_code_map[c], d.strftime("%Y-%m-%d"), zip_hash=zip_hash)
                     if ns_df_curve is not None and 'NS_PARAMS' in ns_df_curve.columns:
                         ns_params_raw = ns_df_curve['NS_PARAMS'].iloc[0]
@@ -794,9 +798,8 @@ with tab1:
             )
             st.plotly_chart(fig, use_container_width=True)
     
-
-    
-    
+        
+        
 
     elif subtab == "Residuals Analysis":
 
@@ -905,6 +908,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
