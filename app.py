@@ -1,6 +1,3 @@
-st.write("THIS IS NEW CODE VERSION 999")
-
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -18,6 +15,8 @@ import requests
 import zipfile
 
 
+SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves2708.zip"
+LOCAL_ZIP = "ns_curves_20250827.zip"
 LOCAL_FOLDER = "ns_curves"
 
 def file_hash(filepath: str) -> str:
@@ -772,6 +771,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
