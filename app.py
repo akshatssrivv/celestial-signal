@@ -712,54 +712,67 @@ with tab1:
             'Netherlands 🇳🇱': 'NETHER',
             'Belgium 🇧🇪': 'BGB'
         }
+        countries = st.multiselect(
+            "Select Countries",
+            options=list(country_code_map.keys()),
+            default=["Italy 🇮🇹"]
+        )
     
-        countries = st.multiselect("Select Countries", options=list(country_code_map.keys()))
-        if countries:
-            all_dates = {}
-            for c in countries:
-                ns_df_country = load_full_ns_df(country_code_map[c], zip_hash=zip_hash)
-                if ns_df_country is not None and not ns_df_country.empty:
-                    all_dates[c] = pd.to_datetime(ns_df_country['Date'].unique())
-                else:
-                    all_dates[c] = []
-    
-            selected_dates = {}
-            for c in countries:
-                if len(all_dates[c]) > 0:
-                    selected_dates[c] = st.multiselect(f"Select Dates for {c}", options=all_dates[c], default=all_dates[c][-1])
+        selected_dates = {}
+        for c in countries:
+            # Load signals for available dates
+            final_signal_df = pd.read_csv("today_all_signals.csv")
+            available_dates = pd.to_datetime(final_signal_df['Date'].unique())
+            if len(available_dates) == 0:
+                continue
             
-            fig = go.Figure()
-            for c in countries:
-                for d in selected_dates.get(c, []):
-                    ns_df_curve = load_ns_curve(country_code_map[c], d.strftime("%Y-%m-%d"), zip_hash=zip_hash)
-                    if ns_df_curve is not None and 'NS_PARAMS' in ns_df_curve.columns:
-                        ns_params_raw = ns_df_curve['NS_PARAMS'].iloc[0]
-                        if isinstance(ns_params_raw, str):
-                            import ast
-                            ns_params = ast.literal_eval(ns_params_raw)
-                        else:
-                            ns_params = ns_params_raw
-                        maturities = np.linspace(ns_df_curve['YTM'].min(), ns_df_curve['YTM'].max(), 100)
-                        ns_values = nelson_siegel(maturities, *ns_params)
-                        fig.add_trace(go.Scatter(
-                            x=maturities,
-                            y=ns_values,
-                            mode='lines',
-                            name=f"{c} - {d.strftime('%Y-%m-%d')}"
-                        ))
-                        
-            fig.update_layout(
-                title="Nelson-Siegel Curves Comparison",
-                xaxis_title="Years to Maturity",
-                yaxis_title="Z-Spread (bps)",
-                template="plotly_white",
-                height=900,   # taller figure
-                width=1200,
-                xaxis=dict(range=[0, 30])
+            default_date = available_dates.max()
+            
+            # Use st.date_input for each country
+            chosen_date = st.date_input(
+                f"Select Date for {c}",
+                value=default_date,
+                min_value=available_dates.min(),
+                max_value=available_dates.max()
             )
-
-            st.plotly_chart(fig, use_container_width=True)
-
+            
+            selected_dates[c] = [chosen_date]  # wrap in list for loop consistency
+    
+        fig = go.Figure()
+        for c in countries:
+            for d in selected_dates.get(c, []):
+                ns_df_curve = load_ns_curve(country_code_map[c], d.strftime("%Y-%m-%d"), zip_hash=zip_hash)
+                if ns_df_curve is not None and 'NS_PARAMS' in ns_df_curve.columns:
+                    ns_params_raw = ns_df_curve['NS_PARAMS'].iloc[0]
+                    if isinstance(ns_params_raw, str):
+                        import ast
+                        ns_params = ast.literal_eval(ns_params_raw)
+                    else:
+                        ns_params = ns_params_raw
+    
+                    # Cap maturities at 30 years
+                    max_maturity = min(30, ns_df_curve['YTM'].max())
+                    maturities = np.linspace(0, max_maturity, 100)
+    
+                    ns_values = nelson_siegel(maturities, *ns_params)
+                    fig.add_trace(go.Scatter(
+                        x=maturities,
+                        y=ns_values,
+                        mode='lines',
+                        name=f"{c} - {d.strftime('%Y-%m-%d')}"
+                    ))
+    
+        fig.update_layout(
+            title="Nelson-Siegel Curves Comparison",
+            xaxis_title="Years to Maturity",
+            yaxis_title="Z-Spread (bps)",
+            template="plotly_white",
+            height=900,
+            width=1200,
+            xaxis=dict(range=[0, 30])
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
     
 
     elif subtab == "Residuals Analysis":
@@ -869,6 +882,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
