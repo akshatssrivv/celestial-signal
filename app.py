@@ -759,22 +759,27 @@ with tab1:
                         if new_date not in st.session_state.selected_dates[c]:
                             st.session_state.selected_dates[c].append(new_date)
 
+                    # Display currently selected dates with remove buttons
                     if st.session_state.selected_dates[c]:
                         st.write("Currently selected dates:")
                         cols = st.columns(len(st.session_state.selected_dates[c]))
                         for i, d in enumerate(st.session_state.selected_dates[c]):
-                            cols[i].markdown(f"""
-                                <div style="
-                                    background-color:#e0f3ff;
-                                    padding:5px 10px;
-                                    border-radius:5px;
-                                    text-align:center;
-                                    font-weight:bold;
-                                ">
-                                    {d.strftime('%Y-%m-%d')}
-                                </div>
-                            """, unsafe_allow_html=True)
-                   
+                            with cols[i]:
+                                st.markdown(f"""
+                                    <div style="
+                                        background-color:#e0f3ff;
+                                        padding:5px 10px;
+                                        border-radius:5px;
+                                        text-align:center;
+                                        font-weight:bold;
+                                        margin-bottom: 2px;
+                                    ">
+                                        {d.strftime('%Y-%m-%d')}
+                                    </div>
+                                """, unsafe_allow_html=True)
+                                if st.button("❌", key=f"remove_{c}_{i}"):
+                                    st.session_state.selected_dates[c].pop(i)
+                                    st.experimental_rerun()
     
             # Plot the curves
             fig = go.Figure()
@@ -920,6 +925,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
