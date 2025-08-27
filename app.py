@@ -735,7 +735,7 @@ with tab1:
                 if ns_df_country is not None and not ns_df_country.empty:
                     # Convert to datetime and sort descending
                     dates = pd.to_datetime(ns_df_country['Date'].unique())
-                    dates = dates.sort_values(ascending=False)
+                    dates = pd.Series(dates).sort_values(ascending=False)
                     all_dates[c] = dates
                 else:
                     all_dates[c] = []
@@ -751,6 +751,7 @@ with tab1:
                         options=formatted_dates,
                         default=formatted_dates[0]  # latest date as default
                     )
+
 
             fig = go.Figure()
             for c in countries:
@@ -896,6 +897,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
