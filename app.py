@@ -431,21 +431,7 @@ with tab2:
             "Top_Features": "Most important drivers of mispricing. % shows relative impact."
         }
 
-        signal_order = [
-            "NO ACTION",
-            "WEAK BUY", "WEAK SELL",
-            "MODERATE BUY", "MODERATE SELL",
-            "STRONG BUY", "STRONG SELL"
-        ]
-        
-        if "Signal" in display_df.columns:
-            display_df["Signal"] = pd.Categorical(
-                display_df["Signal"],
-                categories=signal_order,
-                ordered=True
-            )
 
-        
         column_config = {}
         for col in display_df.columns:
             label = col.replace('_', ' ')
@@ -460,6 +446,20 @@ with tab2:
                     )
             else:
                 column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
+
+        signal_order = [
+            "NO ACTION",
+            "WEAK BUY", "WEAK SELL",
+            "MODERATE BUY", "MODERATE SELL",
+            "STRONG BUY", "STRONG SELL"
+        ]
+        
+        if "Signal" in display_df.columns:
+            display_df["Signal"] = pd.Categorical(
+                display_df["Signal"],
+                categories=signal_order,
+                ordered=True
+            )
     
         # Show the table
         st.dataframe(display_df, column_config=column_config)
@@ -909,6 +909,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
