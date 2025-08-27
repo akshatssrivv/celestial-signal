@@ -733,14 +733,24 @@ with tab1:
             for c in countries:
                 ns_df_country = load_full_ns_df(country_code_map[c], zip_hash=zip_hash)
                 if ns_df_country is not None and not ns_df_country.empty:
-                    all_dates[c] = pd.to_datetime(ns_df_country['Date'].unique())
+                    # Convert to datetime and sort descending
+                    dates = pd.to_datetime(ns_df_country['Date'].unique())
+                    dates = dates.sort_values(ascending=False)
+                    all_dates[c] = dates
                 else:
                     all_dates[c] = []
-    
+        
             selected_dates = {}
             for c in countries:
                 if len(all_dates[c]) > 0:
-                    selected_dates[c] = st.multiselect(f"Select Dates for {c}", options=all_dates[c], default=all_dates[c][-1])
+                    # Format dates to remove time
+                    formatted_dates = [d.strftime("%Y-%m-%d") for d in all_dates[c]]
+                    # Use multiselect with formatted dates
+                    selected_dates[c] = st.multiselect(
+                        f"Select Dates for {c}",
+                        options=formatted_dates,
+                        default=formatted_dates[0]  # latest date as default
+                    )
 
             fig = go.Figure()
             for c in countries:
@@ -886,6 +896,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
