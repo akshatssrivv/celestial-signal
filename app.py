@@ -199,7 +199,7 @@ with tab2:
             'FI': '🇫🇮 Finland',
             'EU': '🇪🇺 EU',
             'AT': '🇦🇹 Austria',
-            'NL': '🇳🇱 Netherlands'
+            'BE': '🇧🇪 Belgium'
         }
         
         return country_map.get(isin[:2], '🌍 Unknown')
@@ -376,10 +376,10 @@ with tab2:
                             continue
             return pd.NaT
     
-        display_df['Maturity_sort'] = display_df['SECURITY_NAME'].apply(extract_maturity_dt)
+        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity_dt)
     
         # Create display column (optional format, still sortable)
-        display_df['Maturity'] = display_df['Maturity_sort'].dt.strftime("%Y-%m-%d")
+        display_df['Maturity'] = display_df['Maturity'].dt.strftime("%Y-%m-%d")
         display_df['Maturity'] = display_df['Maturity'].fillna("N/A")
     
         # Reorder columns
@@ -470,7 +470,7 @@ with tab1:
 
     country_option = st.selectbox(
         "Select Country",
-        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱']
+        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
     )
 
     country_code_map = {
@@ -481,7 +481,8 @@ with tab1:
         'Finland 🇫🇮': 'RFGB',
         'EU 🇪🇺': 'EU',
         'Austria 🇦🇹': 'RAGB',
-        'Netherlands 🇳🇱': 'NETHER'
+        'Netherlands 🇳🇱': 'NETHER',
+        'Belgium 🇧🇪': 'BGB'
     }
 
     selected_country = country_code_map[country_option]
@@ -769,6 +770,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
