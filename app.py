@@ -18,12 +18,6 @@ import requests
 import zipfile
 
 
-# ------------------------------
-# Utility functions
-# ------------------------------
-
-SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves2208.zip"
-LOCAL_ZIP = "ns_curves.zip"
 LOCAL_FOLDER = "ns_curves"
 
 def file_hash(filepath: str) -> str:
@@ -34,9 +28,10 @@ def file_hash(filepath: str) -> str:
             hasher.update(chunk)
     return hasher.hexdigest()
 
-def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP) -> str:
-    """Download ns_curves.zip from Supabase if not already present."""
-    if not os.path.exists(output):
+
+def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP, force: bool = False) -> str:
+    """Download ns_curves.zip from Supabase, optionally forcing refresh."""
+    if force or not os.path.exists(output):
         with st.spinner("Downloading NS curves data from Supabase..."):
             with requests.get(url, stream=True) as r:
                 r.raise_for_status()
@@ -45,10 +40,10 @@ def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP) -> 
                         f.write(chunk)
     return output
 
-def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> str:
-    """Unzip NS curves into folder. Downloads from Supabase if missing."""
-    zip_path = download_from_supabase(SUPABASE_URL, zip_path)
 
+def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
+    """Unzip NS curves and return (folder, zip_hash)."""
+    zip_path = download_from_supabase(SUPABASE_URL, zip_path, force=force)
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
@@ -59,13 +54,15 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force
             zip_ref.extractall(folder)
         st.session_state["ns_zip_hash"] = zip_hash
 
-    return folder
+    return folder, zip_hash
+
 
 
 @st.cache_data
 def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     """Load all NS curves for a country. Cache invalidates if ZIP changes."""
-    folder = unzip_ns_curves()
+    folder, zip_hash = unzip_ns_curves(zip_path=LOCAL_ZIP, force=True)
+
     if not os.path.exists(folder):
         st.error(f"Data folder '{folder}' not found after unzip.")
         return pd.DataFrame()
@@ -182,7 +179,7 @@ with tab2:
     def load_data():
         """Load data from CSV with caching"""
         try:
-            csv_url = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves.zip"
+            csv_url = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/issuer_signals.csv"
             df = pd.read_csv(csv_url)
             return df
         except Exception as e:
@@ -203,7 +200,8 @@ with tab2:
             'FI': '🇫🇮 Finland',
             'EU': '🇪🇺 EU',
             'AT': '🇦🇹 Austria',
-            'NL': '🇳🇱 Netherlands'
+            'NL': '🇳🇱 Netherlands',
+            'BE': '🇧🇪 Belgium'
         }
         
         return country_map.get(isin[:2], '🌍 Unknown')
@@ -339,70 +337,58 @@ with tab2:
 
     st.markdown("---")
 
-
-    # Data table with sorting
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
-    
+
     if not filtered_df.empty:
-        # Desired columns
+        # Columns to display
         cols_to_display = [
             'SECURITY_NAME', 'RESIDUAL_NS', 'SIGNAL',
             'Z_Residual_Score', 'Volatility_Score', 'Market_Stress_Score',
             'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE',
             'Top_Features', 'Top_Feature_Effects_Pct'
         ]
-        
-        # Keep only columns that exist in the DataFrame
+    
+        # Keep only existing columns
         existing_cols = [col for col in cols_to_display if col in filtered_df.columns]
         display_df = filtered_df[existing_cols].copy()
     
-        # Rename Volatility_Score → Stability_Score
-        if 'Volatility_Score' in display_df.columns:
-            display_df.rename(columns={'Volatility_Score': 'Stability_Score'}, inplace=True)
-
-        if 'RESIDUAL_NS' in display_df.columns:
-            display_df.rename(columns={'RESIDUAL_NS': 'Residual'}, inplace=True)
+        # Rename columns
+        display_df.rename(columns={
+            'RESIDUAL_NS': 'Residual',
+            'Volatility_Score': 'Stability_Score'
+        }, inplace=True)
     
-        # Ensure numeric columns are numeric
-        numeric_cols = ['RESIDUAL_NS', 'Z_Residual_Score', 'Stability_Score',
+        # Convert numeric columns
+        numeric_cols = ['Residual', 'Z_Residual_Score', 'Stability_Score',
                         'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
         for col in numeric_cols:
             if col in display_df.columns:
                 display_df[col] = pd.to_numeric(display_df[col], errors='coerce')
-
-
-        # Ensure RESIDUAL_NS exists and is float
-        if 'RESIDUAL_NS' in display_df.columns:
-            display_df['RESIDUAL_NS'] = pd.to_numeric(display_df['RESIDUAL_NS'], errors='coerce')
-            display_df['RESIDUAL_NS'] = display_df['RESIDUAL_NS'].fillna(0.0)  # or np.nan if you prefer
-        
-        # Optional: also ensure all numeric columns are floats
-        numeric_cols = ['RESIDUAL_NS', 'Z_Residual_Score', 'Stability_Score',
-                        'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
-        for col in numeric_cols:
-            if col in display_df.columns:
-                display_df[col] = display_df[col].astype(float)
     
-        # Extract maturity date
-        def extract_maturity(name):
+        # Extract maturity as datetime for sorting
+        def extract_maturity_dt(name):
             if isinstance(name, str):
                 match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', name)
                 if match:
                     date_str = match.group(1)
                     for fmt in ("%m/%d/%y", "%m/%d/%Y"):
                         try:
-                            return datetime.strptime(date_str, fmt).date()
+                            return datetime.strptime(date_str, fmt)
                         except ValueError:
                             continue
-            return 'N/A'
+            return pd.NaT
     
-        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity)
+        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity_dt)
     
-        # Rearrange columns: SECURITY_NAME, Maturity first
+        # Create display column (optional format, still sortable)
+        display_df['Maturity'] = display_df['Maturity'].dt.strftime("%Y-%m-%d")
+        display_df['Maturity'] = display_df['Maturity'].fillna("N/A")
+    
+        # Reorder columns
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
         display_df = display_df[cols_order]
     
-        # Combine Top_Features + Top_Feature_Effects_Pct and rename features
+        # Combine Top_Features + Top_Feature_Effects_Pct
         FEATURE_NAME_MAP = {
             "Cpn": "Coupon",
             "YAS_RISK": "DV01",
@@ -428,9 +414,9 @@ with tab2:
                 axis=1
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
-    
-        # Prepare column config
-        # Define tooltips for metrics (good vs bad in ≤2 lines)
+
+        
+        # Column config for tooltips + formatting
         HELP_TEXTS = {
             "Residual": "Residual mispricing (bps off curve)",
             "Z_Residual_Score": "Z-score of residual. |Z| > 1.5 may indicate opportunities.",
@@ -442,27 +428,18 @@ with tab2:
             "Top_Features": "Most important drivers of mispricing. % shows relative impact."
         }
         
-        # Build column config with hover help
         column_config = {}
         for col in display_df.columns:
             label = col.replace('_', ' ')
             if col in numeric_cols and pd.api.types.is_numeric_dtype(display_df[col]):
-                column_config[col] = st.column_config.NumberColumn(
-                    label,
-                    format='%.4f',
-                    help=HELP_TEXTS.get(col, None)  # add hover tooltip
-                )
+                column_config[col] = st.column_config.NumberColumn(label, format="%.2f", help=HELP_TEXTS.get(col))
             else:
-                column_config[col] = st.column_config.TextColumn(
-                    label,
-                    help=HELP_TEXTS.get(col, None)  # add hover tooltip
-                )
-
-        # Show table with tooltips
-        st.dataframe(display_df, column_config=column_config)
-
-
+                column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
     
+        # Show the table
+        st.dataframe(display_df, column_config=column_config)
+        
+            
 
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
@@ -495,7 +472,7 @@ with tab1:
 
     country_option = st.selectbox(
         "Select Country",
-        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱']
+        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
     )
 
     country_code_map = {
@@ -506,7 +483,8 @@ with tab1:
         'Finland 🇫🇮': 'RFGB',
         'EU 🇪🇺': 'EU',
         'Austria 🇦🇹': 'RAGB',
-        'Netherlands 🇳🇱': 'NETHER'
+        'Netherlands 🇳🇱': 'NETHER',
+        'Belgium 🇧🇪': 'BGB'
     }
 
     selected_country = country_code_map[country_option]
@@ -794,20 +772,6 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
