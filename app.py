@@ -15,7 +15,7 @@ import requests
 import zipfile
 
 
-SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves2208.zip"
+SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves.zip"
 LOCAL_ZIP = "ns_curves_20250822.zip"
 LOCAL_FOLDER = "ns_curves"
 
@@ -367,26 +367,23 @@ with tab2:
         if 'Residual' in display_df.columns:
             display_df['Residual'] = display_df['Residual'].apply(lambda x: f"{x:.2f} bps" if pd.notnull(x) else "N/A")
         
-        # Fix Maturity
-        def format_maturity(val):
-            try:
-                if pd.notnull(val) and isinstance(val, (int, float)) and val > 1e10:
-                    return pd.to_datetime(val, unit='ms').strftime("%d-%b-%Y")
-                if isinstance(val, str):
-                    match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', val)
-                    if match:
-                        for fmt in ("%m/%d/%y", "%m/%d/%Y"):
-                            try:
-                                return datetime.strptime(match.group(1), fmt).strftime("%d-%b-%Y")
-                            except:
-                                continue
-                return "N/A"
-            except:
-                return "N/A"
+        def extract_maturity_dt(name):
+            if isinstance(name, str):
+                match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', name)
+                if match:
+                    date_str = match.group(1)
+                    for fmt in ("%m/%d/%y", "%m/%d/%Y"):
+                        try:
+                            return datetime.strptime(date_str, fmt)
+                        except ValueError:
+                            continue
+            return pd.NaT  # Use pandas missing datetime
         
-        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(format_maturity)
-        display_df['Maturity_raw'] = display_df['Maturity'].copy()  # keep datetime for sorting
-        display_df['Maturity'] = display_df['Maturity_raw'].dt.strftime("%d-%b-%Y")  # display format
+        display_df['Maturity_sort'] = display_df['SECURITY_NAME'].apply(extract_maturity_dt)
+        
+        # Create display column
+        display_df['Maturity'] = display_df['Maturity_sort'].dt.strftime("%d-%b-%Y")
+        display_df['Maturity'] = display_df['Maturity'].fillna("N/A")
 
         
         # Reorder columns
@@ -778,6 +775,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
