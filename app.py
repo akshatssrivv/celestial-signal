@@ -435,8 +435,8 @@ with tab2:
             else:
                 column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
         
-    # Show the table
-    st.dataframe(display_df, column_config=column_config)
+        # Show the table
+        st.dataframe(display_df, column_config=column_config)
 
             
 
@@ -770,6 +770,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
