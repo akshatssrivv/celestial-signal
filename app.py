@@ -740,19 +740,8 @@ with tab1:
             selected_dates = {}
             for c in countries:
                 if len(all_dates[c]) > 0:
-                    # Default to the most recent date
-                    default_date = all_dates[c].max()
-                    # Calendar input restricted to available range
-                    chosen_date = st.date_input(
-                        f"Select Date for {c}",
-                        value=default_date,
-                        min_value=all_dates[c].min(),
-                        max_value=all_dates[c].max()
-                    )
-                    selected_dates[c] = [chosen_date]  # keep as list for loop
+                    selected_dates[c] = st.multiselect(f"Select Dates for {c}", options=all_dates[c], default=all_dates[c][-1])
 
-       
-    
             fig = go.Figure()
             for c in countries:
                 for d in selected_dates.get(c, []):
@@ -897,6 +886,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
