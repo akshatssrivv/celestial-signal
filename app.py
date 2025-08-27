@@ -725,15 +725,11 @@ with tab1:
             'Netherlands 🇳🇱': 'NETHER',
             'Belgium 🇧🇪': 'BGB'
         }
-        
+    
         countries = st.multiselect("Select Countries", options=list(country_code_map.keys()))
-        
+    
         if countries:
             all_dates = {}
-            # Initialize session state for selected_dates if not already
-            if 'selected_dates' not in st.session_state:
-                st.session_state.selected_dates = {c: [] for c in countries}
-    
             for c in countries:
                 ns_df_country = load_full_ns_df(country_code_map[c], zip_hash=zip_hash)
                 if ns_df_country is not None and not ns_df_country.empty:
@@ -741,51 +737,24 @@ with tab1:
                 else:
                     all_dates[c] = []
     
-                if c not in st.session_state.selected_dates:
-                    st.session_state.selected_dates[c] = []
-    
-            # Loop over countries to pick dates
+            selected_dates = {}
             for c in countries:
                 if len(all_dates[c]) > 0:
-                    st.write(f"Select dates for {c}:")
-                    new_date = st.date_input(
-                        f"Pick a date for {c}",
-                        value=all_dates[c].max(),
-                        min_value=all_dates[c].min(),
-                        max_value=all_dates[c].max(),
-                        key=f"date_input_{c}"
-                    )
-                    if st.button(f"Add date for {c}"):
-                        if new_date not in st.session_state.selected_dates[c]:
-                            st.session_state.selected_dates[c].append(new_date)
-
-                    # Display currently selected dates with remove buttons
-                    if st.session_state.selected_dates[c]:
-                        st.write("Currently selected dates:")
-                        cols = st.columns(len(st.session_state.selected_dates[c]))
-                        for i, d in enumerate(st.session_state.selected_dates[c]):
-                            with cols[i]:
-                                st.markdown(f"""
-                                    <div style="
-                                        background-color:#e0f3ff;
-                                        padding:5px 10px;
-                                        border-radius:5px;
-                                        text-align:center;
-                                        font-weight:bold;
-                                        margin-bottom: 2px;
-                                    ">
-                                        {d.strftime('%Y-%m-%d')}
-                                    </div>
-                                """, unsafe_allow_html=True)
-                                if st.button("❌", key=f"remove_{c}_{i}"):
-                                    st.session_state.selected_dates[c].pop(i)
-                                    st.experimental_rerun()
-                                    
+                    st.markdown(f"**Select Dates for {c}**")
+                    selected_dates[c] = []
+                    # Loop over all available dates so user can pick multiple
+                    for i, date_option in enumerate(sorted(all_dates[c], reverse=True)):
+                        include_date = st.checkbox(
+                            date_option.strftime("%Y-%m-%d"), 
+                            value=(i == 0),  # default: most recent date checked
+                            key=f"{c}_{i}"
+                        )
+                        if include_date:
+                            selected_dates[c].append(date_option)
     
-            # Plot the curves
             fig = go.Figure()
             for c in countries:
-                for d in st.session_state.selected_dates.get(c, []):
+                for d in selected_dates.get(c, []):
                     ns_df_curve = load_ns_curve(country_code_map[c], d.strftime("%Y-%m-%d"), zip_hash=zip_hash)
                     if ns_df_curve is not None and 'NS_PARAMS' in ns_df_curve.columns:
                         ns_params_raw = ns_df_curve['NS_PARAMS'].iloc[0]
@@ -795,8 +764,10 @@ with tab1:
                         else:
                             ns_params = ns_params_raw
     
+                        # Cap maturities at 30 years
                         max_maturity = min(30, ns_df_curve['YTM'].max())
                         maturities = np.linspace(0, max_maturity, 100)
+    
                         ns_values = nelson_siegel(maturities, *ns_params)
                         fig.add_trace(go.Scatter(
                             x=maturities,
@@ -815,7 +786,6 @@ with tab1:
                 xaxis=dict(range=[0, 30])
             )
             st.plotly_chart(fig, use_container_width=True)
-    
         
         
 
@@ -926,6 +896,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
