@@ -336,7 +336,7 @@ with tab2:
     st.markdown("---")
 
     st.subheader(f"Bond Data ({len(filtered_df)} bonds)")
-    
+
     if not filtered_df.empty:
         # Columns to display
         cols_to_display = [
@@ -345,28 +345,25 @@ with tab2:
             'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE',
             'Top_Features', 'Top_Feature_Effects_Pct'
         ]
-        
+    
         # Keep only existing columns
         existing_cols = [col for col in cols_to_display if col in filtered_df.columns]
         display_df = filtered_df[existing_cols].copy()
-        
+    
         # Rename columns
         display_df.rename(columns={
             'RESIDUAL_NS': 'Residual',
             'Volatility_Score': 'Stability_Score'
         }, inplace=True)
-        
-        # Round numeric columns
+    
+        # Convert numeric columns
         numeric_cols = ['Residual', 'Z_Residual_Score', 'Stability_Score',
                         'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
         for col in numeric_cols:
-            if col in display_df.columns and col != 'Residual':
-                display_df[col] = pd.to_numeric(display_df[col], errors='coerce').round(2)
-        
-        # Convert Residual to string with 'bps'
-        if 'Residual' in display_df.columns:
-            display_df['Residual'] = display_df['Residual'].apply(lambda x: f"{x:.2f} bps" if pd.notnull(x) else "N/A")
-        
+            if col in display_df.columns:
+                display_df[col] = pd.to_numeric(display_df[col], errors='coerce')
+    
+        # Extract maturity as datetime for sorting
         def extract_maturity_dt(name):
             if isinstance(name, str):
                 match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', name)
@@ -377,19 +374,18 @@ with tab2:
                             return datetime.strptime(date_str, fmt)
                         except ValueError:
                             continue
-            return pd.NaT  # Use pandas missing datetime
-        
+            return pd.NaT
+    
         display_df['Maturity_sort'] = display_df['SECURITY_NAME'].apply(extract_maturity_dt)
-        
-        # Create display column
-        display_df['Maturity'] = display_df['Maturity_sort'].dt.strftime("%d-%b-%Y")
+    
+        # Create display column (optional format, still sortable)
+        display_df['Maturity'] = display_df['Maturity_sort'].dt.strftime("%Y-%m-%d")
         display_df['Maturity'] = display_df['Maturity'].fillna("N/A")
-
-        
+    
         # Reorder columns
         cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
         display_df = display_df[cols_order]
-        
+    
         # Combine Top_Features + Top_Feature_Effects_Pct
         FEATURE_NAME_MAP = {
             "Cpn": "Coupon",
@@ -399,7 +395,7 @@ with tab2:
             "REL_SPRD_STD": "Liquidity",
             "GREEN_BOND_LOAN_INDICATOR": "Green Bond"
         }
-        
+    
         if 'Top_Features' in display_df.columns and 'Top_Feature_Effects_Pct' in display_df.columns:
             def combine_features(feats, pct):
                 try:
@@ -416,6 +412,7 @@ with tab2:
                 axis=1
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
+
         
         # Column config for tooltips + formatting
         HELP_TEXTS = {
@@ -432,17 +429,14 @@ with tab2:
         column_config = {}
         for col in display_df.columns:
             label = col.replace('_', ' ')
-            if col in numeric_cols and col != 'Residual' and pd.api.types.is_numeric_dtype(display_df[col]):
-                column_config['Residual'] = st.column_config.NumberColumn(
-                    "Residual", format="%.2f bps", help=HELP_TEXTS.get("Residual")
-                )
+            if col in numeric_cols and pd.api.types.is_numeric_dtype(display_df[col]):
+                column_config[col] = st.column_config.NumberColumn(label, format="%.2f", help=HELP_TEXTS.get(col))
             else:
                 column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
-        
+    
         # Show the table
         st.dataframe(display_df, column_config=column_config)
-
-
+        
             
 
         # Download button
@@ -775,6 +769,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
