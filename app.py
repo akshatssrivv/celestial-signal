@@ -780,6 +780,7 @@ with tab1:
                                 if st.button("❌", key=f"remove_{c}_{i}"):
                                     st.session_state.selected_dates[c].pop(i)
                                     st.experimental_rerun()
+                                    
     
             # Plot the curves
             fig = go.Figure()
@@ -925,6 +926,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
