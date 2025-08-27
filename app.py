@@ -753,8 +753,9 @@ with tab1:
                 xaxis_title="Years to Maturity",
                 yaxis_title="Z-Spread (bps)",
                 template="plotly_white",
-                height=700,   # taller figure
-                width=1200,   # optional, wider if needed
+                height=900,   # taller figure
+                width=1200,
+                xaxis=dict(range=[0, 30])
             )
 
             st.plotly_chart(fig, use_container_width=True)
@@ -868,6 +869,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
