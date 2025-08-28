@@ -490,7 +490,6 @@ with tab1:
 
     LOCAL_ZIP = "ns_curves_20250828.zip"
     B2_BUCKET_FILE = "ns_curves2808.zip"
-    
     try:
         zip_path = download_from_b2(
             file_key=B2_BUCKET_FILE,  # B2 bucket file name
@@ -507,157 +506,150 @@ with tab1:
         st.error(f"Failed to download or hash NS curves zip: {e}")
         zip_path = None
         zip_hash = None
-
     
-        country_code_map = {
-            'Italy 🇮🇹': 'BTPS',
-            'Spain 🇪🇸': 'SPGB',
-            'France 🇫🇷': 'FRTR',
-            'Germany 🇩🇪': 'BUNDS',
-            'Finland 🇫🇮': 'RFGB',
-            'EU 🇪🇺': 'EU',
-            'Austria 🇦🇹': 'RAGB',
-            'Netherlands 🇳🇱': 'NETHER',
-            'Belgium 🇧🇪': 'BGB'
-        }
     
-        selected_country = country_code_map[country_option]
-        
+    country_code_map = {
+        'Italy 🇮🇹': 'BTPS',
+        'Spain 🇪🇸': 'SPGB',
+        'France 🇫🇷': 'FRTR',
+        'Germany 🇩🇪': 'BUNDS',
+        'Finland 🇫🇮': 'RFGB',
+        'EU 🇪🇺': 'EU',
+        'Austria 🇦🇹': 'RAGB',
+        'Netherlands 🇳🇱': 'NETHER',
+        'Belgium 🇧🇪': 'BGB'
+    }
+    
+    selected_country = country_code_map[country_option]
+    
+    final_signal_df = pd.read_csv("today_all_signals.csv")
+    available_dates = pd.to_datetime(final_signal_df['Date'].unique())
+    default_date = available_dates.max()  # most recent date
+    
+    date_input = st.date_input("Select Date", value=default_date)
+    date_str = date_input.strftime("%Y-%m-%d")
+    
+    ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
+    
+    if ns_df is not None and not ns_df.empty:
+        ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
+        curve_date = pd.to_datetime(date_input)
+        ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
+    
+        # Load signals
         final_signal_df = pd.read_csv("today_all_signals.csv")
-        available_dates = pd.to_datetime(final_signal_df['Date'].unique())
-        default_date = available_dates.max()  # most recent date
-        
-        date_input = st.date_input("Select Date", value=default_date)
-        date_str = date_input.strftime("%Y-%m-%d")
-        
-        ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
+        ns_df = ns_df.merge(
+            final_signal_df[['ISIN', 'SIGNAL']],
+            on='ISIN',
+            how='left'
+        )
     
-        if ns_df is not None and not ns_df.empty:
-            ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
-            curve_date = pd.to_datetime(date_input)
-            ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
+        # Normalize SIGNAL column
+        ns_df['SIGNAL'] = ns_df['SIGNAL'].str.strip().str.lower()
     
-            # Load signals
-            final_signal_df = pd.read_csv("today_all_signals.csv")
-            # Merge signals into ns_df
-            ns_df = ns_df.merge(
-                final_signal_df[['ISIN', 'SIGNAL']],
-                on='ISIN',
-                how='left'
-            )
-            
-            # Normalize SIGNAL column
-            ns_df['SIGNAL'] = ns_df['SIGNAL'].str.strip().str.lower()
-            
-            # Map signals to colors
-            signal_color_map = {
-                'strong buy': 'green',
-                'moderate buy': 'lightgreen',
-                'weak buy': 'black',
-                'strong sell': 'red',
-                'moderate sell': 'orange',
-                'weak sell': 'black'
-            }
-            ns_df['Signal_Color'] = ns_df['SIGNAL'].map(signal_color_map).fillna('black')
+        # Map signals to colors
+        signal_color_map = {
+            'strong buy': 'green',
+            'moderate buy': 'lightgreen',
+            'weak buy': 'black',
+            'strong sell': 'red',
+            'moderate sell': 'orange',
+            'weak sell': 'black'
+        }
+        ns_df['Signal_Color'] = ns_df['SIGNAL'].map(signal_color_map).fillna('black')
     
-            fig = go.Figure()
+        fig = go.Figure()
+        legend_signals = ['strong buy', 'moderate buy', 'strong sell', 'moderate sell']
     
-            # Only include these in legend
-            legend_signals = ['strong buy', 'moderate buy', 'strong sell', 'moderate sell']
-            
-            for signal, df_subset in ns_df.groupby('SIGNAL'):
-                if not df_subset.empty:
-                    color = df_subset['Signal_Color'].iloc[0]
-                    
-                    fig.add_trace(go.Scatter(
-                        x=df_subset['YearsToMaturity'],
-                        y=df_subset['Z_SPRD_VAL'],
-                        mode='markers',
-                        name=signal.title() if signal in legend_signals else None,
-                        marker=dict(size=6,
-                                    color=color,
-                                    symbol='circle'),
-                        text=df_subset['SECURITY_NAME'],
-                        customdata=np.stack((
-                            df_subset['ISIN'],
-                            df_subset['Date'].astype(str),
-                            df_subset.get('RESIDUAL_NS', np.zeros(len(df_subset)))
-                        ), axis=-1),
-                        hovertemplate=(
-                            'Years to Maturity: %{x:.2f}<br>'
-                            'Z-Spread: %{y:.1f}bps<br>'
-                            'Residual: %{customdata[2]:.2f}bps<br>'
-                            'Signal: ' + (signal.title() if signal else "None") + '<br>'
-                            '%{text}<extra></extra>'
-                        ),
-                        showlegend=(signal in legend_signals)
-                    ))
+        for signal, df_subset in ns_df.groupby('SIGNAL'):
+            if not df_subset.empty:
+                color = df_subset['Signal_Color'].iloc[0]
+                fig.add_trace(go.Scatter(
+                    x=df_subset['YearsToMaturity'],
+                    y=df_subset['Z_SPRD_VAL'],
+                    mode='markers',
+                    name=signal.title() if signal in legend_signals else None,
+                    marker=dict(size=6, color=color, symbol='circle'),
+                    text=df_subset['SECURITY_NAME'],
+                    customdata=np.stack((
+                        df_subset['ISIN'],
+                        df_subset['Date'].astype(str),
+                        df_subset.get('RESIDUAL_NS', np.zeros(len(df_subset)))
+                    ), axis=-1),
+                    hovertemplate=(
+                        'Years to Maturity: %{x:.2f}<br>'
+                        'Z-Spread: %{y:.1f}bps<br>'
+                        'Residual: %{customdata[2]:.2f}bps<br>'
+                        'Signal: ' + (signal.title() if signal else "None") + '<br>'
+                        '%{text}<extra></extra>'
+                    ),
+                    showlegend=(signal in legend_signals)
+                ))
     
-            # Add Nelson-Siegel fit line if available
-            if 'NS_PARAMS' in ns_df.columns:
-                try:
-                    ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
-                    if isinstance(ns_params_raw, str):
-                        import ast
-                        ns_params = ast.literal_eval(ns_params_raw)
-                    else:
-                        ns_params = ns_params_raw
+        # Nelson-Siegel fit
+        if 'NS_PARAMS' in ns_df.columns:
+            try:
+                ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
+                if isinstance(ns_params_raw, str):
+                    import ast
+                    ns_params = ast.literal_eval(ns_params_raw)
+                else:
+                    ns_params = ns_params_raw
     
-                    maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
-                    ns_curve = nelson_siegel(maturity_range, *ns_params)
+                maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
+                ns_curve = nelson_siegel(maturity_range, *ns_params)
     
-                    fig.add_trace(go.Scatter(
-                        x=maturity_range,
-                        y=ns_curve,
-                        mode='lines',
-                        name='Nelson-Siegel Fit',
-                        line=dict(color='deepskyblue', width=3)
-                    ))
-                except Exception as e:
-                    st.error(f"Error plotting Nelson-Siegel curve: {e}")
+                fig.add_trace(go.Scatter(
+                    x=maturity_range,
+                    y=ns_curve,
+                    mode='lines',
+                    name='Nelson-Siegel Fit',
+                    line=dict(color='deepskyblue', width=3)
+                ))
+            except Exception as e:
+                st.error(f"Error plotting Nelson-Siegel curve: {e}")
     
-            fig.update_layout(
-                title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
-                xaxis_title="Years to Maturity",
-                yaxis_title="Z-Spread (bps)",
-                height=700,
-                showlegend=True,
-                template="plotly_white"
+        fig.update_layout(
+            title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
+            xaxis_title="Years to Maturity",
+            yaxis_title="Z-Spread (bps)",
+            height=700,
+            showlegend=True,
+            template="plotly_white"
+        )
+    
+        col1, col2 = st.columns([3, 2])
+        with col1:
+            st.plotly_chart(fig, use_container_width=True)
+    
+        # AI explanation panel
+        with col2:
+            bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
+            bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
+    
+            selected_isin = st.selectbox(
+                "Select Bond for AI Explanation",
+                options=bond_options['ISIN'].tolist(),
+                format_func=lambda isin: bond_labels.get(isin, isin),
+                key="bond_selector"
             )
     
-            col1, col2 = st.columns([3, 2])
-            with col1:
-                st.plotly_chart(fig, use_container_width=True)
+            selected_name = bond_labels[selected_isin]
+            st.write(f"Selected Bond: {selected_name} (ISIN: {selected_isin})")
     
-            # AI explanation panel
-            with col2:
-                bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
-                bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
+            selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
     
-                # Single selectbox without search input
-                selected_isin = st.selectbox(
-                    "Select Bond for AI Explanation",
-                    options=bond_options['ISIN'].tolist(),
-                    format_func=lambda isin: bond_labels.get(isin, isin),
-                    key="bond_selector"
-                )
+            if st.button("Explain this bond"):
+                diagnostics = format_bond_diagnostics(selected_bond_history)
+                explanation = generate_ai_explanation(diagnostics)
+                st.markdown(f"### AI Explanation for {selected_name}")
+                st.write(explanation)
     
-                selected_name = bond_labels[selected_isin]
-                st.write(f"Selected Bond: {selected_name} (ISIN: {selected_isin})")
+    else:
+        st.warning("No Nelson-Siegel data available for this date.")
     
-                selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
-    
-                if st.button("Explain this bond"):
-                    diagnostics = format_bond_diagnostics(selected_bond_history)
-                    explanation = generate_ai_explanation(diagnostics)
-                    st.markdown(f"### AI Explanation for {selected_name}")
-                    st.write(explanation)
-    
-        else:
-            st.warning("No Nelson-Siegel data available for this date.")
-
+    # Animated Curves subtab
     elif subtab == "Animated Curves":
-
         country_option = st.selectbox(
             "Select Country",
             options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
@@ -674,6 +666,7 @@ with tab1:
             'Netherlands 🇳🇱': 'NETHER',
             'Belgium 🇧🇪': 'BGB'
         }
+
     
         selected_country = country_code_map[country_option]
         
@@ -911,6 +904,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
