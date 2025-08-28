@@ -488,19 +488,26 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves")
     )
 
-    zip_path = download_from_b2(file_key="ns_curves2808.zip", local_path=LOCAL_ZIP, force=False)
-    if os.path.exists(zip_path):
-        zip_hash = file_hash(zip_path)
-    else:
-        st.error(f"ZIP file not found: {zip_path}")
-        zip_hash = None
+    LOCAL_ZIP = "ns_curves_20250828.zip"
+    B2_BUCKET_FILE = "ns_curves2808.zip"
     
-    if subtab == "Single Day Curve":
-
-        country_option = st.selectbox(
-            "Select Country",
-            options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+    try:
+        zip_path = download_from_b2(
+            file_key=B2_BUCKET_FILE,  # B2 bucket file name
+            local_path=LOCAL_ZIP,
+            force=False
         )
+    
+        if not os.path.exists(zip_path):
+            raise FileNotFoundError(f"Downloaded file not found: {zip_path}")
+    
+        zip_hash = file_hash(zip_path)
+    
+    except Exception as e:
+        st.error(f"Failed to download or hash NS curves zip: {e}")
+        zip_path = None
+        zip_hash = None
+
     
         country_code_map = {
             'Italy 🇮🇹': 'BTPS',
@@ -904,6 +911,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
