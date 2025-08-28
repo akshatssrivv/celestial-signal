@@ -14,13 +14,26 @@ from datetime import datetime
 import requests
 import zipfile
 import boto3
+import os
+import hashlib
+import shutil
+import zipfile
+import pandas as pd
+import streamlit as st
+import boto3
 
+# -------------------
+# B2 Configuration
+# -------------------
 B2_KEY_ID = os.getenv("B2_KEY_ID")
 B2_APP_KEY = os.getenv("B2_APP_KEY")
 BUCKET_NAME = "Celestial-Signal"
 LOCAL_ZIP = "ns_curves_20250828.zip"
 LOCAL_FOLDER = "ns_curves"
 
+# -------------------
+# Download from B2
+# -------------------
 def download_from_b2(file_key: str, local_path: str, force: bool = False):
     """Download a file from B2 bucket."""
     if not force and os.path.exists(local_path):
@@ -37,7 +50,9 @@ def download_from_b2(file_key: str, local_path: str, force: bool = False):
 
     return local_path
 
-
+# -------------------
+# Compute MD5 hash
+# -------------------
 def file_hash(filepath: str) -> str:
     """Compute MD5 hash of a file"""
     hasher = hashlib.md5()
@@ -46,19 +61,17 @@ def file_hash(filepath: str) -> str:
             hasher.update(chunk)
     return hasher.hexdigest()
 
-# Download NS curves zip
-ns_zip = download_from_b2(file_key="ns_curves2808.zip", local_path="ns_curves_20250828.zip")
-
-# Download issuer signals CSV
-csv_path = download_from_b2(file_key="issuer_signals.csv", local_path="issuer_signals.csv")
-
-
+# -------------------
+# Unzip NS curves
+# -------------------
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
     """Unzip NS curves from B2 and return (folder, zip_hash)."""
+    # Download latest zip from B2
     zip_path = download_from_b2(file_key="ns_curves2808.zip", local_path=zip_path, force=force)
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
+    # Only unzip if new or forced
     if force or prev_hash != zip_hash or not os.path.exists(folder):
         if os.path.exists(folder):
             shutil.rmtree(folder)
@@ -68,12 +81,13 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force
 
     return folder, zip_hash
 
-
-
+# -------------------
+# Load full NS DF
+# -------------------
 @st.cache_data
-def load_full_ns_df(country_code: str) -> pd.DataFrame:
+def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     """Load all NS curves for a country. Cache invalidates if ZIP changes."""
-    folder, zip_hash = unzip_ns_curves(force=True)
+    folder, _ = unzip_ns_curves(force=True)
 
     all_files = sorted([
         f for f in os.listdir(folder)
@@ -96,7 +110,7 @@ def load_full_ns_df(country_code: str) -> pd.DataFrame:
         if 'RESIDUAL' in ns_df.columns:
             ns_df.rename(columns={'RESIDUAL': 'RESIDUAL_NS'}, inplace=True)
         if 'RESIDUAL_NS' not in ns_df.columns:
-            ns_df['RESIDUAL_NS'] = np.nan
+            ns_df['RESIDUAL_NS'] = pd.NA
 
         if "Date" in ns_df.columns:
             ns_df["Date"] = pd.to_datetime(ns_df["Date"])
@@ -110,8 +124,9 @@ def load_full_ns_df(country_code: str) -> pd.DataFrame:
     st.warning(f"No parquet files found for country code '{country_code}' in folder '{folder}'.")
     return pd.DataFrame()
 
-
-
+# -------------------
+# Load NS curve for a specific date
+# -------------------
 def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFrame | None:
     """
     Load NS curve for a single day from the full dataset.
@@ -120,10 +135,10 @@ def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFra
     df = load_full_ns_df(country_code, zip_hash=zip_hash)
 
     if df is not None and not df.empty:
-        df = df[df["Date"] == date_str]
+        df = df[df["Date"] == pd.to_datetime(date_str)]
         if not df.empty:
             return df
-    
+
     return None
 
 
@@ -184,19 +199,17 @@ with tab2:
 
 
     @st.cache_data(ttl=300)
-    def load_data(force: bool = False):
-        """Load issuer_signals.csv from B2 with caching"""
+    def load_data(force: bool = False) -> pd.DataFrame:
+        """Load issuer_signals.csv from B2 with caching."""
         local_path = "issuer_signals.csv"
-        file_key = "issuer_signals.csv"  # path in B2 bucket
+        file_key = "issuer_signals.csv"
     
         try:
-            # Download from B2
             local_path = download_from_b2(file_key=file_key, local_path=local_path, force=force)
             df = pd.read_csv(local_path)
             return df
         except Exception as e:
             st.error(f"Error loading data from B2: {e}")
-            # Fallback: try local file
             if os.path.exists(local_path):
                 try:
                     df = pd.read_csv(local_path)
@@ -497,26 +510,17 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves")
     )
 
-    LOCAL_ZIP = "ns_curves_20250828.zip"
     B2_BUCKET_FILE = "ns_curves2808.zip"
     try:
-        zip_path = download_from_b2(
-            file_key=B2_BUCKET_FILE,  # B2 bucket file name
-            local_path=LOCAL_ZIP,
-            force=False
-        )
-    
+        zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
         if not os.path.exists(zip_path):
             raise FileNotFoundError(f"Downloaded file not found: {zip_path}")
-    
         zip_hash = file_hash(zip_path)
-    
     except Exception as e:
         st.error(f"Failed to download or hash NS curves zip: {e}")
         zip_path = None
         zip_hash = None
     
-
 
     if subtab == "Single Day Curve":
 
@@ -921,6 +925,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
