@@ -37,6 +37,15 @@ def download_from_b2(file_key: str, local_path: str, force: bool = False):
 
     return local_path
 
+
+def file_hash(filepath: str) -> str:
+    """Compute MD5 hash of a file"""
+    hasher = hashlib.md5()
+    with open(filepath, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
 # Download NS curves zip
 ns_zip = download_from_b2(file_key="ns_curves2808.zip", local_path="ns_curves_20250828.zip")
 
@@ -912,6 +921,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
