@@ -489,8 +489,11 @@ with tab1:
     )
 
     zip_path = download_from_b2(file_key="ns_curves2808.zip", local_path=LOCAL_ZIP, force=False)
-    zip_hash = file_hash(zip_path)
-
+    if os.path.exists(zip_path):
+        zip_hash = file_hash(zip_path)
+    else:
+        st.error(f"ZIP file not found: {zip_path}")
+        zip_hash = None
     
     if subtab == "Single Day Curve":
 
@@ -901,6 +904,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
