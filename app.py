@@ -511,6 +511,11 @@ with tab1:
 
     if subtab == "Single Day Curve":
 
+        country_option = st.selectbox(
+            "Select Country",
+            options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+        )
+
         country_code_map = {
             'Italy 🇮🇹': 'BTPS',
             'Spain 🇪🇸': 'SPGB',
@@ -907,6 +912,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
