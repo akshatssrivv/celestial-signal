@@ -488,7 +488,7 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves")
     )
 
-    zip_path = download_from_b2(file_key=B2_FILE_KEY, local_path=LOCAL_ZIP, force=False)
+    zip_path = download_from_b2(file_key="ns_curves2808.zip", local_path=LOCAL_ZIP, force=False)
     zip_hash = file_hash(zip_path)
 
     
@@ -901,6 +901,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
