@@ -13,36 +13,40 @@ import re
 from datetime import datetime
 import requests
 import zipfile
+import boto3
 
-
-SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves2808.zip"
+B2_KEY_ID = os.getenv("B2_KEY_ID")
+B2_APP_KEY = os.getenv("B2_APP_KEY")
+BUCKET_NAME = "Celestial-Signal"
 LOCAL_ZIP = "ns_curves_20250828.zip"
 LOCAL_FOLDER = "ns_curves"
 
-def file_hash(filepath: str) -> str:
-    """Compute MD5 hash of a file"""
-    hasher = hashlib.md5()
-    with open(filepath, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
+def download_from_b2(file_key: str, local_path: str, force: bool = False):
+    """Download a file from B2 bucket."""
+    if not force and os.path.exists(local_path):
+        return local_path
 
+    with st.spinner(f"Downloading {file_key} from B2..."):
+        s3 = boto3.client(
+            "s3",
+            endpoint_url="https://s3.us-west-002.backblazeb2.com",
+            aws_access_key_id=B2_KEY_ID,
+            aws_secret_access_key=B2_APP_KEY
+        )
+        s3.download_file(BUCKET_NAME, file_key, local_path)
 
-def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP, force: bool = False) -> str:
-    """Download ns_curves.zip from Supabase, optionally forcing refresh."""
-    if force or not os.path.exists(output):
-        with st.spinner("Downloading NS curves data from Supabase..."):
-            with requests.get(url, stream=True) as r:
-                r.raise_for_status()
-                with open(output, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        f.write(chunk)
-    return output
+    return local_path
+
+# Download NS curves zip
+ns_zip = download_from_b2(file_key="ns_curves2808.zip", local_path="ns_curves_20250828.zip")
+
+# Download issuer signals CSV
+csv_path = download_from_b2(file_key="issuer_signals.csv", local_path="issuer_signals.csv")
 
 
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
-    """Unzip NS curves and return (folder, zip_hash)."""
-    zip_path = download_from_supabase(SUPABASE_URL, zip_path, force=force)
+    """Unzip NS curves from B2 and return (folder, zip_hash)."""
+    zip_path = download_from_b2(file_key="ns_curves2808.zip", local_path=zip_path, force=force)
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
@@ -58,13 +62,9 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force
 
 
 @st.cache_data
-def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
+def load_full_ns_df(country_code: str) -> pd.DataFrame:
     """Load all NS curves for a country. Cache invalidates if ZIP changes."""
-    folder, zip_hash = unzip_ns_curves(zip_path=LOCAL_ZIP, force=True)
-
-    if not os.path.exists(folder):
-        st.error(f"Data folder '{folder}' not found after unzip.")
-        return pd.DataFrame()
+    folder, zip_hash = unzip_ns_curves(force=True)
 
     all_files = sorted([
         f for f in os.listdir(folder)
@@ -175,19 +175,27 @@ with tab2:
 
 
     @st.cache_data(ttl=300)
-    def load_data():
-        """Load data from CSV with caching"""
+    def load_data(force: bool = False):
+        """Load issuer_signals.csv from B2 with caching"""
+        local_path = "issuer_signals.csv"
+        file_key = "issuer_signals.csv"  # path in B2 bucket
+    
         try:
-            csv_url = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/issuer_signals.csv"
-            df = pd.read_csv(csv_url)
+            # Download from B2
+            local_path = download_from_b2(file_key=file_key, local_path=local_path, force=force)
+            df = pd.read_csv(local_path)
             return df
         except Exception as e:
-            try:
-                df = pd.read_csv('issuer_signals.csv')
-                return df
-            except Exception as e2:
-                st.error(f"Error loading data: {e2}")
-                return pd.DataFrame()
+            st.error(f"Error loading data from B2: {e}")
+            # Fallback: try local file
+            if os.path.exists(local_path):
+                try:
+                    df = pd.read_csv(local_path)
+                    return df
+                except Exception as e2:
+                    st.error(f"Error loading local CSV: {e2}")
+            return pd.DataFrame()
+
 
     def get_country_from_isin(isin):
         """Extract country from ISIN code"""
@@ -894,6 +902,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
