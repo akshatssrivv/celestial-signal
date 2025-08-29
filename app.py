@@ -22,16 +22,14 @@ import pandas as pd
 import streamlit as st
 import boto3
 
-import boto3
-
-print("BUCKET:", BUCKET_NAME)
-print("FILE_KEY:", FILE_KEY)
-
 
 B2_KEY_ID = "00322044b88660d0000000002"
 B2_APP_KEY = "K003xQHrNmMLe1XF4hKwlbnWZiFlcUA"
 BUCKET_NAME = "Celestial-Signal"
 FILE_KEY = "ns_curves2808.zip"
+
+print("BUCKET:", BUCKET_NAME)
+print("FILE_KEY:", FILE_KEY)
 
 s3 = boto3.client(
     "s3",
@@ -947,6 +945,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
