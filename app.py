@@ -29,7 +29,7 @@ import boto3
 B2_KEY_ID = os.getenv("B2_KEY_ID")
 B2_APP_KEY = os.getenv("B2_APP_KEY")
 BUCKET_NAME = "Celestial-Signal"
-LOCAL_ZIP = "ns_curves_20250828.zip"
+LOCAL_ZIP = "ns_curves_20250829.zip"
 LOCAL_FOLDER = "ns_curves"
 
 
@@ -70,7 +70,7 @@ def file_hash(filepath: str) -> str:
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
     """Unzip NS curves from B2 and return (folder, zip_hash)."""
     # Download latest zip from B2
-    zip_path = download_from_b2(file_key="ns_curves2808.zip", local_path=zip_path, force=force)
+    zip_path = download_from_b2(file_key="ns_curves_2908.zip", local_path=zip_path, force=force)
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
@@ -513,7 +513,7 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves")
     )
 
-    B2_BUCKET_FILE = "ns_curves2808.zip"
+    B2_BUCKET_FILE = "ns_curves_2908.zip"
     try:
         zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
         if not os.path.exists(zip_path):
@@ -928,6 +928,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
