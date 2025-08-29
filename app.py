@@ -62,7 +62,7 @@ def download_from_b2(file_key: str, local_path: str, force: bool = False):
     with st.spinner(f"Downloading {file_key} from B2..."):
         s3 = boto3.client(
             "s3",
-            endpoint_url="https://s3.us-west-002.backblazeb2.com",
+            endpoint_url="s3.eu-central-003.backblazeb2.com",
             aws_access_key_id=B2_KEY_ID,
             aws_secret_access_key=B2_APP_KEY
         )
@@ -945,6 +945,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
