@@ -23,25 +23,6 @@ import streamlit as st
 import boto3
 
 
-B2_KEY_ID = "00322044b88660d0000000002"
-B2_APP_KEY = "K003xQHrNmMLe1XF4hKwlbnWZiFlcUA"
-BUCKET_NAME = "Celestial-Signal"
-FILE_KEY = "ns_curves2808.zip"
-
-print("BUCKET:", BUCKET_NAME)
-print("FILE_KEY:", FILE_KEY)
-
-s3 = boto3.client(
-    "s3",
-    endpoint_url="https://s3.eu-central-003.backblazeb2.com",
-    aws_access_key_id=B2_KEY_ID,
-    aws_secret_access_key=B2_APP_KEY
-)
-
-s3.download_file(BUCKET_NAME, FILE_KEY, "test.zip")
-print("Downloaded!")
-
-
 # -------------------
 # B2 Configuration
 # -------------------
@@ -50,6 +31,7 @@ B2_APP_KEY = os.getenv("B2_APP_KEY")
 BUCKET_NAME = "Celestial-Signal"
 LOCAL_ZIP = "ns_curves_20250828.zip"
 LOCAL_FOLDER = "ns_curves"
+
 
 # -------------------
 # Download from B2
@@ -946,6 +928,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
