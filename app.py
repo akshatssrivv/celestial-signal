@@ -13,12 +13,49 @@ import re
 from datetime import datetime
 import requests
 import zipfile
+import boto3
+import os
+import hashlib
+import shutil
+import zipfile
+import pandas as pd
+import streamlit as st
+import boto3
 
 
-SUPABASE_URL = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/ns_curves2808.zip"
+# -------------------
+# B2 Configuration
+# -------------------
+B2_KEY_ID = os.getenv("B2_KEY_ID")
+B2_APP_KEY = os.getenv("B2_APP_KEY")
+BUCKET_NAME = "Celestial-Signal"
 LOCAL_ZIP = "ns_curves_20250828.zip"
 LOCAL_FOLDER = "ns_curves"
 
+
+# -------------------
+# Download from B2
+# -------------------
+def download_from_b2(file_key: str, local_path: str, force: bool = False):
+    """Download a file from B2 bucket."""
+    if not force and os.path.exists(local_path):
+        return local_path
+
+    with st.spinner(f"Downloading {file_key} from B2..."):
+        s3 = boto3.client(
+            "s3",
+            endpoint_url="https://s3.eu-central-003.backblazeb2.com",  # updated endpoint
+            aws_access_key_id=B2_KEY_ID,
+            aws_secret_access_key=B2_APP_KEY
+        )
+        s3.download_file(BUCKET_NAME, file_key, local_path)
+
+    return local_path
+
+
+# -------------------
+# Compute MD5 hash
+# -------------------
 def file_hash(filepath: str) -> str:
     """Compute MD5 hash of a file"""
     hasher = hashlib.md5()
@@ -27,25 +64,17 @@ def file_hash(filepath: str) -> str:
             hasher.update(chunk)
     return hasher.hexdigest()
 
-
-def download_from_supabase(url: str = SUPABASE_URL, output: str = LOCAL_ZIP, force: bool = False) -> str:
-    """Download ns_curves.zip from Supabase, optionally forcing refresh."""
-    if force or not os.path.exists(output):
-        with st.spinner("Downloading NS curves data from Supabase..."):
-            with requests.get(url, stream=True) as r:
-                r.raise_for_status()
-                with open(output, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        f.write(chunk)
-    return output
-
-
+# -------------------
+# Unzip NS curves
+# -------------------
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
-    """Unzip NS curves and return (folder, zip_hash)."""
-    zip_path = download_from_supabase(SUPABASE_URL, zip_path, force=force)
+    """Unzip NS curves from B2 and return (folder, zip_hash)."""
+    # Download latest zip from B2
+    zip_path = download_from_b2(file_key="ns_curves2808.zip", local_path=zip_path, force=force)
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
+    # Only unzip if new or forced
     if force or prev_hash != zip_hash or not os.path.exists(folder):
         if os.path.exists(folder):
             shutil.rmtree(folder)
@@ -55,16 +84,13 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force
 
     return folder, zip_hash
 
-
-
+# -------------------
+# Load full NS DF
+# -------------------
 @st.cache_data
 def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     """Load all NS curves for a country. Cache invalidates if ZIP changes."""
-    folder, zip_hash = unzip_ns_curves(zip_path=LOCAL_ZIP, force=True)
-
-    if not os.path.exists(folder):
-        st.error(f"Data folder '{folder}' not found after unzip.")
-        return pd.DataFrame()
+    folder, _ = unzip_ns_curves(force=True)
 
     all_files = sorted([
         f for f in os.listdir(folder)
@@ -87,7 +113,7 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
         if 'RESIDUAL' in ns_df.columns:
             ns_df.rename(columns={'RESIDUAL': 'RESIDUAL_NS'}, inplace=True)
         if 'RESIDUAL_NS' not in ns_df.columns:
-            ns_df['RESIDUAL_NS'] = np.nan
+            ns_df['RESIDUAL_NS'] = pd.NA
 
         if "Date" in ns_df.columns:
             ns_df["Date"] = pd.to_datetime(ns_df["Date"])
@@ -101,8 +127,9 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     st.warning(f"No parquet files found for country code '{country_code}' in folder '{folder}'.")
     return pd.DataFrame()
 
-
-
+# -------------------
+# Load NS curve for a specific date
+# -------------------
 def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFrame | None:
     """
     Load NS curve for a single day from the full dataset.
@@ -111,10 +138,10 @@ def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFra
     df = load_full_ns_df(country_code, zip_hash=zip_hash)
 
     if df is not None and not df.empty:
-        df = df[df["Date"] == date_str]
+        df = df[df["Date"] == pd.to_datetime(date_str)]
         if not df.empty:
             return df
-    
+
     return None
 
 
@@ -175,19 +202,25 @@ with tab2:
 
 
     @st.cache_data(ttl=300)
-    def load_data():
-        """Load data from CSV with caching"""
+    def load_data(force: bool = False) -> pd.DataFrame:
+        """Load issuer_signals.csv from B2 with caching."""
+        local_path = "issuer_signals.csv"
+        file_key = "issuer_signals.csv"
+    
         try:
-            csv_url = "https://lpxiwnvxqozkjlgfrbfh.supabase.co/storage/v1/object/public/celestial-signal/issuer_signals.csv"
-            df = pd.read_csv(csv_url)
+            local_path = download_from_b2(file_key=file_key, local_path=local_path, force=force)
+            df = pd.read_csv(local_path)
             return df
         except Exception as e:
-            try:
-                df = pd.read_csv('issuer_signals.csv')
-                return df
-            except Exception as e2:
-                st.error(f"Error loading data: {e2}")
-                return pd.DataFrame()
+            st.error(f"Error loading data from B2: {e}")
+            if os.path.exists(local_path):
+                try:
+                    df = pd.read_csv(local_path)
+                    return df
+                except Exception as e2:
+                    st.error(f"Error loading local CSV: {e2}")
+            return pd.DataFrame()
+
 
     def get_country_from_isin(isin):
         """Extract country from ISIN code"""
@@ -480,18 +513,25 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves")
     )
 
-    # Ensure local zip exists (download from Supabase if missing)
-    zip_path = download_from_supabase()
-    zip_hash = file_hash(zip_path)
-
+    B2_BUCKET_FILE = "ns_curves2808.zip"
+    try:
+        zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
+        if not os.path.exists(zip_path):
+            raise FileNotFoundError(f"Downloaded file not found: {zip_path}")
+        zip_hash = file_hash(zip_path)
+    except Exception as e:
+        st.error(f"Failed to download or hash NS curves zip: {e}")
+        zip_path = None
+        zip_hash = None
     
+
     if subtab == "Single Day Curve":
 
         country_option = st.selectbox(
             "Select Country",
             options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
         )
-    
+
         country_code_map = {
             'Italy 🇮🇹': 'BTPS',
             'Spain 🇪🇸': 'SPGB',
@@ -503,7 +543,7 @@ with tab1:
             'Netherlands 🇳🇱': 'NETHER',
             'Belgium 🇧🇪': 'BGB'
         }
-    
+        
         selected_country = country_code_map[country_option]
         
         final_signal_df = pd.read_csv("today_all_signals.csv")
@@ -514,24 +554,23 @@ with tab1:
         date_str = date_input.strftime("%Y-%m-%d")
         
         ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
-    
+        
         if ns_df is not None and not ns_df.empty:
             ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
             curve_date = pd.to_datetime(date_input)
             ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
-    
+        
             # Load signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
-            # Merge signals into ns_df
             ns_df = ns_df.merge(
                 final_signal_df[['ISIN', 'SIGNAL']],
                 on='ISIN',
                 how='left'
             )
-            
+        
             # Normalize SIGNAL column
             ns_df['SIGNAL'] = ns_df['SIGNAL'].str.strip().str.lower()
-            
+        
             # Map signals to colors
             signal_color_map = {
                 'strong buy': 'green',
@@ -542,24 +581,19 @@ with tab1:
                 'weak sell': 'black'
             }
             ns_df['Signal_Color'] = ns_df['SIGNAL'].map(signal_color_map).fillna('black')
-    
+        
             fig = go.Figure()
-    
-            # Only include these in legend
             legend_signals = ['strong buy', 'moderate buy', 'strong sell', 'moderate sell']
-            
+        
             for signal, df_subset in ns_df.groupby('SIGNAL'):
                 if not df_subset.empty:
                     color = df_subset['Signal_Color'].iloc[0]
-                    
                     fig.add_trace(go.Scatter(
                         x=df_subset['YearsToMaturity'],
                         y=df_subset['Z_SPRD_VAL'],
                         mode='markers',
                         name=signal.title() if signal in legend_signals else None,
-                        marker=dict(size=6,
-                                    color=color,
-                                    symbol='circle'),
+                        marker=dict(size=6, color=color, symbol='circle'),
                         text=df_subset['SECURITY_NAME'],
                         customdata=np.stack((
                             df_subset['ISIN'],
@@ -575,8 +609,8 @@ with tab1:
                         ),
                         showlegend=(signal in legend_signals)
                     ))
-    
-            # Add Nelson-Siegel fit line if available
+        
+            # Nelson-Siegel fit
             if 'NS_PARAMS' in ns_df.columns:
                 try:
                     ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
@@ -585,10 +619,10 @@ with tab1:
                         ns_params = ast.literal_eval(ns_params_raw)
                     else:
                         ns_params = ns_params_raw
-    
+        
                     maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
                     ns_curve = nelson_siegel(maturity_range, *ns_params)
-    
+        
                     fig.add_trace(go.Scatter(
                         x=maturity_range,
                         y=ns_curve,
@@ -598,7 +632,7 @@ with tab1:
                     ))
                 except Exception as e:
                     st.error(f"Error plotting Nelson-Siegel curve: {e}")
-    
+        
             fig.update_layout(
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
                 xaxis_title="Years to Maturity",
@@ -607,40 +641,39 @@ with tab1:
                 showlegend=True,
                 template="plotly_white"
             )
-    
+        
             col1, col2 = st.columns([3, 2])
             with col1:
                 st.plotly_chart(fig, use_container_width=True)
-    
+        
             # AI explanation panel
             with col2:
                 bond_options = final_signal_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().sort_values('SECURITY_NAME')
                 bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
-    
-                # Single selectbox without search input
+        
                 selected_isin = st.selectbox(
                     "Select Bond for AI Explanation",
                     options=bond_options['ISIN'].tolist(),
                     format_func=lambda isin: bond_labels.get(isin, isin),
                     key="bond_selector"
                 )
-    
+        
                 selected_name = bond_labels[selected_isin]
                 st.write(f"Selected Bond: {selected_name} (ISIN: {selected_isin})")
-    
+        
                 selected_bond_history = final_signal_df[final_signal_df["ISIN"] == selected_isin]
-    
+        
                 if st.button("Explain this bond"):
                     diagnostics = format_bond_diagnostics(selected_bond_history)
                     explanation = generate_ai_explanation(diagnostics)
                     st.markdown(f"### AI Explanation for {selected_name}")
                     st.write(explanation)
-    
+        
         else:
             st.warning("No Nelson-Siegel data available for this date.")
-
+    
+    # Animated Curves subtab
     elif subtab == "Animated Curves":
-
         country_option = st.selectbox(
             "Select Country",
             options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
@@ -657,6 +690,7 @@ with tab1:
             'Netherlands 🇳🇱': 'NETHER',
             'Belgium 🇧🇪': 'BGB'
         }
+
     
         selected_country = country_code_map[country_option]
         
@@ -894,6 +928,25 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
