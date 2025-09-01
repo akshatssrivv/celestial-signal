@@ -766,6 +766,16 @@ with tab1:
         closest_idx = np.argsort(np.abs(all_maturities - new_years_to_maturity))[:4]
         z_std = ns_std.iloc[closest_idx]['Z_SPRD_VAL'].mean() if not ns_std.empty else 0
         z_min, z_max = predicted_z - 1.5*z_std, predicted_z + 1.5*z_std
+
+        close_idx = np.argsort(np.abs(all_maturities - new_years_to_maturity))
+        close_idx = [i for i in close_idx if abs(all_maturities[i] - new_years_to_maturity) <= 2]
+        
+        if close_idx:
+            distances = np.abs(all_maturities[close_idx] - new_years_to_maturity)
+            weights = 1 / (distances + 1e-6)
+            z_std_use = np.average(ns_std.iloc[close_idx]['Z_SPRD_VAL'], weights=weights)
+        else:
+            z_std_use = ns_std['Z_SPRD_VAL'].mean()
     
         # --- Plot ---
         signal_color_map = {
@@ -1107,6 +1117,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
