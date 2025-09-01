@@ -665,8 +665,9 @@ with tab1:
         else:
             st.warning("No Nelson-Siegel data available for this date.")
 
-    elif subtab == "New Bond Prediction":
     
+    elif subtab == "New Bond Prediction":
+
         country_option = st.selectbox(
             "Select Country",
             options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 
@@ -704,32 +705,81 @@ with tab1:
                 new_years_to_maturity = None
     
             if new_years_to_maturity:
-                ns_df['YearsToMaturity'] = (pd.to_datetime(ns_df['Maturity']) - today).dt.days / 365.25
-                ns_df_sorted = ns_df.sort_values('YearsToMaturity')
+                ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
+                ns_df['YearsToMaturity'] = (ns_df['Maturity'] - today).dt.days / 365.25
     
-                # Find 4 closest bonds: 2 left, 2 right
-                all_maturities = ns_df_sorted['YearsToMaturity'].values
-                closest_idx = np.argsort(np.abs(all_maturities - new_years_to_maturity))
-                selected_idx = sorted(closest_idx[:4])
-                nearest_bonds = ns_df_sorted.iloc[selected_idx]
+                # Merge SIGNALS
+                final_signal_df = pd.read_csv("today_all_signals.csv")
+                ns_df = ns_df.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+                ns_df['SIGNAL'] = ns_df['SIGNAL'].str.strip().str.lower()
+                signal_color_map = {
+                    'strong buy': 'green',
+                    'moderate buy': 'lightgreen',
+                    'weak buy': 'black',
+                    'strong sell': 'red',
+                    'moderate sell': 'orange',
+                    'weak sell': 'black'
+                }
+                ns_df['Signal_Color'] = ns_df['SIGNAL'].map(signal_color_map).fillna('black')
     
+                fig = go.Figure()
+                legend_signals = ['strong buy', 'moderate buy', 'strong sell', 'moderate sell']
     
+                # Plot all bonds like in Single Day Curve
+                for signal, df_subset in ns_df.groupby('SIGNAL'):
+                    if not df_subset.empty:
+                        color = df_subset['Signal_Color'].iloc[0]
+                        fig.add_trace(go.Scatter(
+                            x=df_subset['YearsToMaturity'],
+                            y=df_subset['Z_SPRD_VAL'],
+                            mode='markers',
+                            name=signal.title() if signal in legend_signals else None,
+                            marker=dict(size=6, color=color, symbol='circle'),
+                            text=df_subset['SECURITY_NAME'],
+                            showlegend=(signal in legend_signals)
+                        ))
+    
+                # Nelson-Siegel fit
+                if 'NS_PARAMS' in ns_df.columns:
+                    try:
+                        ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
+                        if isinstance(ns_params_raw, str):
+                            import ast
+                            ns_params = ast.literal_eval(ns_params_raw)
+                        else:
+                            ns_params = ns_params_raw
+    
+                        maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
+                        ns_curve = nelson_siegel(maturity_range, *ns_params)
+                        fig.add_trace(go.Scatter(
+                            x=maturity_range,
+                            y=ns_curve,
+                            mode='lines',
+                            name='Nelson-Siegel Fit',
+                            line=dict(color='deepskyblue', width=3)
+                        ))
+                    except Exception as e:
+                        st.error(f"Error plotting Nelson-Siegel curve: {e}")
+    
+                # --- Add new bond prediction ---
+    
+                # Find 4 closest bonds
+                ns_sorted = ns_df.sort_values('YearsToMaturity')
+                maturities = ns_sorted['YearsToMaturity'].values
+                closest_idx = np.argsort(np.abs(maturities - new_years_to_maturity))
+                nearest_idx = sorted(closest_idx[:4])
+                nearest_bonds = ns_sorted.iloc[nearest_idx]
+    
+                # Linear interpolation/extrapolation for predicted Z
+                from scipy.interpolate import interp1d
                 f = interp1d(nearest_bonds['YearsToMaturity'], nearest_bonds['Z_SPRD_VAL'],
                              kind='linear', fill_value="extrapolate")
                 predicted_z = f(new_years_to_maturity)
     
-                # Use min/max of nearest bonds as range
+                # Range for shading
                 z_min, z_max = nearest_bonds['Z_SPRD_VAL'].min(), nearest_bonds['Z_SPRD_VAL'].max()
     
-                # Plot
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(
-                    x=ns_df_sorted['YearsToMaturity'],
-                    y=ns_df_sorted['Z_SPRD_VAL'],
-                    mode='lines+markers',
-                    name='Today NS Curve'
-                ))
-                # Dotted line for new bond
+                # Vertical dotted line
                 fig.add_trace(go.Scatter(
                     x=[new_years_to_maturity, new_years_to_maturity],
                     y=[z_min, z_max],
@@ -737,6 +787,7 @@ with tab1:
                     line=dict(color='red', dash='dot', width=3),
                     name=f"New Bond {new_bond_input}"
                 ))
+    
                 # Shaded range
                 fig.add_trace(go.Scatter(
                     x=[new_years_to_maturity-0.01, new_years_to_maturity+0.01, new_years_to_maturity+0.01, new_years_to_maturity-0.01],
@@ -744,21 +795,20 @@ with tab1:
                     fill='toself',
                     fillcolor='rgba(255,0,0,0.2)',
                     line=dict(color='rgba(255,0,0,0)'),
-                    showlegend=False,
-                    name='Predicted Range'
+                    showlegend=False
                 ))
     
                 fig.update_layout(
-                    title=f"Predicted Z-Spread Range for New Bond {new_bond_input}",
+                    title=f"Nelson-Siegel Curve & Predicted Z-Spread for New Bond {new_bond_input}",
                     xaxis_title="Years to Maturity",
                     yaxis_title="Z-Spread (bps)",
                     template="plotly_white",
-                    height=600
+                    height=700,
+                    showlegend=True
                 )
     
                 st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No NS curve data available for today.")
+    
 
     
     # Animated Curves subtab
@@ -1017,6 +1067,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
