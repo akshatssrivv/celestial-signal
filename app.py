@@ -551,7 +551,7 @@ with tab1:
         if ns_df is not None and not ns_df.empty:
             ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
             curve_date = pd.to_datetime(date_input)
-            ns_df['YearsToMaturity'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
+            ns_df['YTM'] = (ns_df['Maturity'] - curve_date).dt.days / 365.25
         
             # Load signals
             final_signal_df = pd.read_csv("today_all_signals.csv")
@@ -582,8 +582,8 @@ with tab1:
                 if not df_subset.empty:
                     color = df_subset['Signal_Color'].iloc[0]
                     fig.add_trace(go.Scatter(
-                        x=df_subset['YearsToMaturity'],
-                        y=df_subset['Z_SPRD_VAL'],
+                        x=df_subset['YTM'],
+                        y=df_subset['Z_SPRD'],
                         mode='markers',
                         name=signal.title() if signal in legend_signals else None,
                         marker=dict(size=6, color=color, symbol='circle'),
@@ -613,7 +613,7 @@ with tab1:
                     else:
                         ns_params = ns_params_raw
         
-                    maturity_range = np.linspace(ns_df['YearsToMaturity'].min(), ns_df['YearsToMaturity'].max(), 100)
+                    maturity_range = np.linspace(ns_df['YTM'].min(), ns_df['YTM'].max(), 100)
                     ns_curve = nelson_siegel(maturity_range, *ns_params)
         
                     fig.add_trace(go.Scatter(
@@ -711,11 +711,11 @@ with tab1:
     
         ns_full = pd.concat(ns_df_list, ignore_index=True)
         ns_full['Maturity'] = pd.to_datetime(ns_full['Maturity'])
-        ns_full['YearsToMaturity'] = (ns_full['Maturity'] - today).dt.days / 365.25
+        ns_full['YTM'] = (ns_full['Maturity'] - today).dt.days / 365.25
     
-        # Smooth NS: average Z-spread per YearsToMaturity
-        ns_smooth = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].mean().reset_index()
-        ns_std = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].std().reset_index()
+        # Smooth NS: average Z-spread per YTM
+        ns_smooth = ns_full.groupby('YTM')['Z_SPRD'].mean().reset_index()
+        ns_std = ns_full.groupby('YTM')['Z_SPRD'].std().reset_index()
     
         # Historical offsets from previous issues
         final_signal_df = pd.read_csv("today_all_signals.csv")
@@ -738,23 +738,23 @@ with tab1:
         historical_offsets = []
         for _, row in similar_bonds.iterrows():
             # Interpolate NS at historical bond's maturity
-            f_interp = interp1d(ns_smooth['YearsToMaturity'], ns_smooth['Z_SPRD_VAL'],
+            f_interp = interp1d(ns_smooth['YTM'], ns_smooth['Z_SPRD'],
                                 kind='linear', fill_value='extrapolate')
             ns_val = f_interp((row['Maturity'] - today).days / 365.25)
-            offset = row['Z_SPRD_VAL'] - ns_val
+            offset = row['Z_SPRD'] - ns_val
             historical_offsets.append(offset)
         mean_offset = np.mean(historical_offsets) if historical_offsets else 0
     
         # Interpolate/extrapolate new bond Z-spread
-        f_new = interp1d(ns_smooth['YearsToMaturity'], ns_smooth['Z_SPRD_VAL'],
+        f_new = interp1d(ns_smooth['YTM'], ns_smooth['Z_SPRD'],
                          kind='linear', fill_value='extrapolate')
         predicted_z = f_new(new_years_to_maturity) + mean_offset + auction_concession
     
         # Confidence band: std from nearby maturities ±1.5σ by default
         # Find 4 closest maturities
-        all_maturities = ns_smooth['YearsToMaturity'].values
+        all_maturities = ns_smooth['YTM'].values
         closest_idx = np.argsort(np.abs(all_maturities - new_years_to_maturity))[:4]
-        z_std = ns_std.iloc[closest_idx]['Z_SPRD_VAL'].mean() if not ns_std.empty else 0
+        z_std = ns_std.iloc[closest_idx]['Z_SPRD'].mean() if not ns_std.empty else 0
         z_min, z_max = predicted_z - 1.5*z_std, predicted_z + 1.5*z_std
     
         # --- Plot ---
@@ -767,7 +767,7 @@ with tab1:
             'weak sell': 'black'
         }
         ns_today = load_ns_curve(selected_country, today.strftime("%Y-%m-%d"), zip_hash=zip_hash)
-        ns_today['YearsToMaturity'] = (pd.to_datetime(ns_today['Maturity']) - today).dt.days / 365.25
+        ns_today['YTM'] = (pd.to_datetime(ns_today['Maturity']) - today).dt.days / 365.25
         ns_today = ns_today.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
         ns_today['SIGNAL'] = ns_today['SIGNAL'].str.strip().str.lower()
         ns_today['Signal_Color'] = ns_today['SIGNAL'].map(signal_color_map).fillna('black')
@@ -778,8 +778,8 @@ with tab1:
             if not df_subset.empty:
                 color = df_subset['Signal_Color'].iloc[0]
                 fig.add_trace(go.Scatter(
-                    x=df_subset['YearsToMaturity'],
-                    y=df_subset['Z_SPRD_VAL'],
+                    x=df_subset['YTM'],
+                    y=df_subset['Z_SPRD'],
                     mode='markers',
                     name=signal.title() if signal in legend_signals else None,
                     marker=dict(size=6, color=color, symbol='circle'),
@@ -795,7 +795,7 @@ with tab1:
                     ns_params = ast.literal_eval(ns_params_raw)
                 else:
                     ns_params = ns_params_raw
-                maturity_range = np.linspace(ns_today['YearsToMaturity'].min(), ns_today['YearsToMaturity'].max(), 100)
+                maturity_range = np.linspace(ns_today['YTM'].min(), ns_today['YTM'].max(), 100)
                 ns_curve = nelson_siegel(maturity_range, *ns_params)
                 fig.add_trace(go.Scatter(
                     x=maturity_range,
@@ -1095,6 +1095,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
