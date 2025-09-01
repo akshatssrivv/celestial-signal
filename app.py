@@ -502,7 +502,7 @@ with tab1:
     # Choose subtab inside Tab 1
     subtab = st.radio(
         "Select View",
-        ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves")
+        ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves", "New Bond Prediction")
     )
 
     B2_BUCKET_FILE = "ns_curves_0109.zip"
@@ -663,6 +663,104 @@ with tab1:
         
         else:
             st.warning("No Nelson-Siegel data available for this date.")
+
+        elif subtab == "New Bond Prediction":
+    
+        country_option = st.selectbox(
+            "Select Country",
+            options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 
+                     'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+        )
+    
+        country_code_map = {
+            'Italy 🇮🇹': 'BTPS',
+            'Spain 🇪🇸': 'SPGB',
+            'France 🇫🇷': 'FRTR',
+            'Germany 🇩🇪': 'BUNDS',
+            'Finland 🇫🇮': 'RFGB',
+            'EU 🇪🇺': 'EU',
+            'Austria 🇦🇹': 'RAGB',
+            'Netherlands 🇳🇱': 'NETHER',
+            'Belgium 🇧🇪': 'BGB'
+        }
+    
+        selected_country = country_code_map[country_option]
+    
+        ns_df = load_ns_curve(selected_country, pd.Timestamp.today().strftime("%Y-%m-%d"), zip_hash=zip_hash)
+        
+        if ns_df is not None and not ns_df.empty:
+    
+            # Parse new bond maturity
+            new_bond_input = st.text_input("Enter New Bond Maturity (MM/YY)", value="09/55")
+            try:
+                month, year = map(int, new_bond_input.split('/'))
+                year += 2000 if year < 100 else 0
+                new_maturity_date = pd.Timestamp(year=year, month=month, day=1)
+                today = pd.Timestamp.today().normalize()
+                new_years_to_maturity = (new_maturity_date - today).days / 365.25
+            except Exception as e:
+                st.error(f"Invalid format: {e}")
+                new_years_to_maturity = None
+    
+            if new_years_to_maturity:
+                ns_df['YearsToMaturity'] = (pd.to_datetime(ns_df['Maturity']) - today).dt.days / 365.25
+                ns_df_sorted = ns_df.sort_values('YearsToMaturity')
+    
+                # Find 4 closest bonds: 2 left, 2 right
+                all_maturities = ns_df_sorted['YearsToMaturity'].values
+                closest_idx = np.argsort(np.abs(all_maturities - new_years_to_maturity))
+                selected_idx = sorted(closest_idx[:4])
+                nearest_bonds = ns_df_sorted.iloc[selected_idx]
+    
+                # Interpolate Z-spread
+                from scipy.interpolate import interp1d
+    
+                f = interp1d(nearest_bonds['YearsToMaturity'], nearest_bonds['Z_SPRD_VAL'],
+                             kind='linear', fill_value="extrapolate")
+                predicted_z = f(new_years_to_maturity)
+    
+                # Use min/max of nearest bonds as range
+                z_min, z_max = nearest_bonds['Z_SPRD_VAL'].min(), nearest_bonds['Z_SPRD_VAL'].max()
+    
+                # Plot
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=ns_df_sorted['YearsToMaturity'],
+                    y=ns_df_sorted['Z_SPRD_VAL'],
+                    mode='lines+markers',
+                    name='Today NS Curve'
+                ))
+                # Dotted line for new bond
+                fig.add_trace(go.Scatter(
+                    x=[new_years_to_maturity, new_years_to_maturity],
+                    y=[z_min, z_max],
+                    mode='lines',
+                    line=dict(color='red', dash='dot', width=3),
+                    name=f"New Bond {new_bond_input}"
+                ))
+                # Shaded range
+                fig.add_trace(go.Scatter(
+                    x=[new_years_to_maturity-0.01, new_years_to_maturity+0.01, new_years_to_maturity+0.01, new_years_to_maturity-0.01],
+                    y=[z_min, z_min, z_max, z_max],
+                    fill='toself',
+                    fillcolor='rgba(255,0,0,0.2)',
+                    line=dict(color='rgba(255,0,0,0)'),
+                    showlegend=False,
+                    name='Predicted Range'
+                ))
+    
+                fig.update_layout(
+                    title=f"Predicted Z-Spread Range for New Bond {new_bond_input}",
+                    xaxis_title="Years to Maturity",
+                    yaxis_title="Z-Spread (bps)",
+                    template="plotly_white",
+                    height=600
+                )
+    
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No NS curve data available for today.")
+
     
     # Animated Curves subtab
     elif subtab == "Animated Curves":
@@ -920,4 +1018,5 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
