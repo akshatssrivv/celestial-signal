@@ -13,6 +13,7 @@ import re
 from datetime import datetime
 import requests
 import boto3
+from scipy.interpolate import interp1d
 
 
 # -------------------
@@ -712,8 +713,6 @@ with tab1:
                 selected_idx = sorted(closest_idx[:4])
                 nearest_bonds = ns_df_sorted.iloc[selected_idx]
     
-                # Interpolate Z-spread
-                from scipy.interpolate import interp1d
     
                 f = interp1d(nearest_bonds['YearsToMaturity'], nearest_bonds['Z_SPRD_VAL'],
                              kind='linear', fill_value="extrapolate")
@@ -1018,6 +1017,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
