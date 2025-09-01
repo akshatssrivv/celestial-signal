@@ -6,3 +6,4 @@ openai>=0.27.0
 streamlit-autocomplete
 boto3
 pyarrow        
+scipy>=1.10.0
