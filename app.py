@@ -664,7 +664,7 @@ with tab1:
         else:
             st.warning("No Nelson-Siegel data available for this date.")
 
-        elif subtab == "New Bond Prediction":
+    elif subtab == "New Bond Prediction":
     
         country_option = st.selectbox(
             "Select Country",
@@ -1018,5 +1018,6 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
