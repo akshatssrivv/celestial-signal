@@ -874,7 +874,7 @@ with tab1:
                new_years_to_maturity+0.01, new_years_to_maturity-0.01],
             y=[z_min, z_min, z_max, z_max],
             fill='toself',
-            fillcolor='rgba(255,0,0,0.4)', 
+            fillcolor='rgba(255,0,0,0.8)', 
             line=dict(color='rgba(255,0,0,0)'),  
             showlegend=False
         ))
@@ -1148,6 +1148,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
