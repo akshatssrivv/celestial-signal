@@ -702,8 +702,7 @@ with tab1:
     
         selected_country = country_code_map[country_option]
     
-        # --- Inputs ---
-        new_bond_input = st.text_input("Enter New Bond Maturity (MM/YY)", value="09/55")
+        new_bond_input = st.text_input("Enter New Bond Maturity (MM/YY)", value="10/55")
         auction_concession = st.number_input("Auction concession (bps)", value=0, step=1)
     
         # Load NS curves for last 2 weeks
@@ -810,14 +809,33 @@ with tab1:
         for signal, df_subset in ns_today_plot.groupby('SIGNAL'):
             if not df_subset.empty:
                 color = df_subset['Signal_Color'].iloc[0]
+        
+                # Add text and customdata for hover
+                hover_text = df_subset.get('SECURITY_NAME', df_subset['ISIN']).fillna("Unknown Bond")
+                customdata = np.stack([
+                    df_subset['ISIN'],
+                    df_subset['Maturity'].dt.strftime('%Y-%m-%d'),
+                    df_subset.get('RESIDUAL_NS', pd.Series([np.nan]*len(df_subset)))
+                ], axis=-1)
+        
                 fig.add_trace(go.Scatter(
                     x=df_subset['YearsToMaturity'],
                     y=df_subset['Z_SPRD_VAL'],
                     mode='markers',
                     name=signal.title() if signal in legend_signals else None,
                     marker=dict(size=6, color=color, symbol='circle'),
+                    customdata=customdata,
+                    text=hover_text,
+                    hovertemplate=(
+                        'Years to Maturity: %{x:.2f}<br>'
+                        'Z-Spread: %{y:.1f}bps<br>'
+                        'Residual: %{customdata[2]:.2f}bps<br>'
+                        'Signal: ' + (signal.title() if signal else "None") + '<br>'
+                        '%{text}<extra></extra>'
+                    ),
                     showlegend=(signal in legend_signals)
                 ))
+
     
         # Nelson-Siegel fit
         if 'NS_PARAMS' in ns_today_plot.columns:
@@ -844,29 +862,29 @@ with tab1:
         # New bond vertical line
         fig.add_trace(go.Scatter(
             x=[new_years_to_maturity, new_years_to_maturity],
-            y=[z_min, z_max],
+            y=[0, z_min],
             mode='lines',
-            line=dict(color='red', dash='dot', width=3),
+            line=dict(color='purple', dash='dot', width=1),
             name=f"New Bond {new_bond_input}"
         ))
-    
-        # Shaded prediction band
+        
+        # Shaded prediction band from z_min to z_max
         fig.add_trace(go.Scatter(
-            x=[new_years_to_maturity-0.01, new_years_to_maturity+0.01,
-               new_years_to_maturity+0.01, new_years_to_maturity-0.01],
+            x=[new_years_to_maturity-0.05, new_years_to_maturity+0.05,
+               new_years_to_maturity+0.05, new_years_to_maturity-0.05],  # small width around the bond
             y=[z_min, z_min, z_max, z_max],
             fill='toself',
-            fillcolor='rgba(255,0,0,0.2)',
-            line=dict(color='rgba(255,0,0,0)'),
+            fillcolor='rgba(0,0,0,0.9)',  # black with some opacity
+            line=dict(color='rgba(0,0,0,0)'),  # no border
             showlegend=False
         ))
-    
+
         fig.update_layout(
             title=f"Predicted Z-Spread Range for New Bond {new_bond_input}",
             xaxis_title="Years to Maturity",
             yaxis_title="Z-Spread (bps)",
             template="plotly_white",
-            height=700,
+            height=900,
             showlegend=True
         )
     
@@ -1129,6 +1147,16 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
+
+
+
+
+
+
+
+
+
 
 
 
