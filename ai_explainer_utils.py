@@ -58,9 +58,11 @@ def generate_ai_explanation(diagnostics):
     answer = response.choices[0].message.content
     return answer
 
-
 def format_bond_diagnostics(history_df):
+    import pandas as pd
+
     def safe_get(series, key):
+        """Get a value from a Series safely. Returns None if missing or invalid."""
         if key not in series:
             return None
         val = series[key]
@@ -73,13 +75,14 @@ def format_bond_diagnostics(history_df):
         return val
 
     def safe_round(val, digits=2):
+        """Round numeric values safely, returns None if val is None."""
         if val is None:
             return None
         try:
             return round(val, digits)
         except Exception:
             return None
-            
+
     latest_row = history_df.sort_values("Date").iloc[-1]
 
     return {
@@ -87,7 +90,7 @@ def format_bond_diagnostics(history_df):
         "SECURITY_NAME": latest_row.get("SECURITY_NAME", "Unknown"),
         "Date": str(latest_row.get("Date", None)),
         "SIGNAL": latest_row.get("SIGNAL", None),
-        
+
         # Composite scores & trends
         "COMPOSITE_SCORE": safe_round(safe_get(latest_row, "COMPOSITE_SCORE")),
         "COMPOSITE_Strength_Category": latest_row.get("COMPOSITE_Strength_Category", "Unknown"),
@@ -99,7 +102,7 @@ def format_bond_diagnostics(history_df):
         "COMPOSITE_SCORE_1M_AGO": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1M_AGO")),
         "Composite_1M_Change": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1M_Change")),
         "Composite_1M_Change_Pct": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1M_Change_Pct"), 1),
-        
+
         # Residual Z-score
         "Z_RESIDUAL_BUCKET": safe_round(safe_get(latest_row, "Z_Residual_Score")),
         "Z_Residual_Score_1W_Change": safe_round(safe_get(latest_row, "Z_Residual_Score_1W_Change")),
@@ -109,7 +112,7 @@ def format_bond_diagnostics(history_df):
         "Z_Residual_Score_Market_Percentile": safe_round(latest_row.get("Z_Residual_Score_Market_Percentile", 50), 0),
         "Z_Residual_Score_Issuer_Percentile": safe_round(latest_row.get("Z_Residual_Score_Issuer_Percentile", 50), 0),
         "Z_Residual_Score_Relative_Strength": safe_round(latest_row.get("Z_Residual_Score_Relative_Strength", 1.0)),
-        
+
         # Cluster score
         "Cluster_Score": safe_round(safe_get(latest_row, "Cluster_Score")),
         "Cluster_Score_1W_Change": safe_round(safe_get(latest_row, "Cluster_Score_1W_Change")),
@@ -119,7 +122,7 @@ def format_bond_diagnostics(history_df):
         "Cluster_Score_Market_Percentile": safe_round(latest_row.get("Cluster_Score_Market_Percentile", 50), 0),
         "Cluster_Score_Issuer_Percentile": safe_round(latest_row.get("Cluster_Score_Issuer_Percentile", 50), 0),
         "Cluster_Score_Relative_Strength": safe_round(latest_row.get("Cluster_Score_Relative_Strength", 1.0)),
-        
+
         # Regression component
         "Regression_Component": safe_round(safe_get(latest_row, "Regression_Score")),
         "Regression_Score_1W_Change": safe_round(safe_get(latest_row, "Regression_Score_1W_Change")),
@@ -129,7 +132,7 @@ def format_bond_diagnostics(history_df):
         "Regression_Score_Market_Percentile": safe_round(latest_row.get("Regression_Score_Market_Percentile", 50), 0),
         "Regression_Score_Issuer_Percentile": safe_round(latest_row.get("Regression_Score_Issuer_Percentile", 50), 0),
         "Regression_Score_Relative_Strength": safe_round(latest_row.get("Regression_Score_Relative_Strength", 1.0)),
-        
+
         # Volatility
         "Volatility": safe_round(safe_get(latest_row, "Volatility_Score")),
         "VOLATILITY_1M_AGO": safe_round(safe_get(latest_row, "VOLATILITY_1M_AGO")),
