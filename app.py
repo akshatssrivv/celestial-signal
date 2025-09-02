@@ -666,194 +666,92 @@ with tab1:
             st.warning("No Nelson-Siegel data available for this date.")
 
     
-    elif subtab == "New Bond Prediction":
-
-        country_option = st.selectbox(
-            "Select Country",
-            options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 
-                     'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+    elif selected_tab == "New Bond Prediction":
+        st.header("🔮 New Bond Z-Spread Prediction")
+    
+        # Inputs
+        new_years_to_maturity = st.number_input("Years to Maturity", min_value=0.5, max_value=50.0, step=0.5, value=5.0)
+        new_coupon = st.number_input("Coupon (%)", min_value=0.0, max_value=10.0, step=0.1, value=2.0)
+    
+        # Prepare Nelson-Siegel base data
+        ns_full = ns_df.copy()
+        ns_full.rename(columns={
+            "YearsToMaturity": "YTM",
+            "Z_SPRD_VAL": "Z_SPRD"
+        }, inplace=True)
+    
+        # Smooth NS: mean + std spread per YTM
+        ns_smooth = ns_full.groupby('YTM')['Z_SPRD'].mean().reset_index()
+        ns_std = ns_full.groupby('YTM')['Z_SPRD'].std().reset_index()
+    
+        # Interpolation function
+        f_interp = interp1d(
+            ns_smooth['YTM'],
+            ns_smooth['Z_SPRD'],
+            kind='linear',
+            fill_value='extrapolate'
         )
     
-        country_code_map = {
-            'Italy 🇮🇹': 'BTPS',
-            'Spain 🇪🇸': 'SPGB',
-            'France 🇫🇷': 'FRTR',
-            'Germany 🇩🇪': 'BUNDS',
-            'Finland 🇫🇮': 'RFGB',
-            'EU 🇪🇺': 'EU',
-            'Austria 🇦🇹': 'RAGB',
-            'Netherlands 🇳🇱': 'NETHER',
-            'Belgium 🇧🇪': 'BGB'
-        }
-    
-        selected_country = country_code_map[country_option]
-    
-        # --- Inputs ---
-        new_bond_input = st.text_input("Enter New Bond Maturity (MM/YY)", value="09/55")
-        auction_concession = st.number_input("Auction concession (bps)", value=0, step=1)
-    
-        # Load NS curves for last 2 weeks
-        today = pd.Timestamp.today().normalize()
-        start_date = today - pd.Timedelta(days=14)
-        ns_df_list = []
-    
-        date_range = pd.date_range(start_date, today)
-        for d in date_range:
-            ns_tmp = load_ns_curve(selected_country, d.strftime("%Y-%m-%d"), zip_hash=zip_hash)
-            if ns_tmp is not None and not ns_tmp.empty:
-                ns_tmp['Date'] = pd.to_datetime(d)
-                ns_tmp['YearsToMaturity'] = (pd.to_datetime(ns_tmp['Maturity']) - today).dt.days / 365.25
-                ns_df_list.append(ns_tmp)
-    
-        if not ns_df_list:
-            st.warning("No NS curve data for the last 2 weeks.")
-            st.stop()
-    
-        ns_full = pd.concat(ns_df_list, ignore_index=True)
-    
-        # Smooth NS: mean Z-spread per YearsToMaturity
-        ns_smooth = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].mean().reset_index()
-        ns_std = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].std().reset_index()
-    
-        # Parse new bond maturity
-        try:
-            month, year = map(int, new_bond_input.split('/'))
-            year += 2000 if year < 100 else 0
-            new_maturity_date = pd.Timestamp(year=year, month=month, day=1)
-            new_years_to_maturity = (new_maturity_date - today).days / 365.25
-        except:
-            st.error("Invalid bond maturity format. Use MM/YY.")
-            st.stop()
-    
-        # Historical offsets using NS Z-spread
-        final_signal_df = pd.read_csv("today_all_signals.csv")
-        final_signal_df['Maturity'] = pd.to_datetime(final_signal_df['Maturity'], errors='coerce')
-    
-        similar_bonds = final_signal_df[
-            (final_signal_df['Maturity'].notna()) &
-            (abs((final_signal_df['Maturity'] - new_maturity_date).dt.days / 365.25) <= 2)
-        ]
-    
-        # Merge with NS Z-spreads from last 2 weeks (nearest available day)
-        if not similar_bonds.empty:
-            # Take the NS curve for the bond's date closest to today
-            ns_today = ns_full[ns_full['Date'] == ns_full['Date'].max()]
-            similar_bonds = similar_bonds.merge(
-                ns_today[['ISIN', 'Z_SPRD_VAL', 'YearsToMaturity']],
-                on='ISIN',
-                how='left',
-                suffixes=('', '_NS')
-            )
-    
-        historical_offsets = []
-        for _, row in similar_bonds.iterrows():
-            if pd.notnull(row['Z_SPRD_VAL']):
-                # Interpolate NS at historical bond's YearsToMaturity
-                f_interp = interp1d(ns_smooth['YearsToMaturity'], ns_smooth['Z_SPRD_VAL'],
-                                    kind='linear', fill_value='extrapolate')
-                ns_val = f_interp(row['YearsToMaturity'])
-                offset = row['Z_SPRD_VAL'] - ns_val
-                historical_offsets.append(offset)
-        mean_offset = np.mean(historical_offsets) if historical_offsets else 0
-    
-        # Interpolate/extrapolate new bond Z-spread
-        f_new = interp1d(ns_smooth['YearsToMaturity'], ns_smooth['Z_SPRD_VAL'],
-                         kind='linear', fill_value='extrapolate')
-        predicted_z = f_new(new_years_to_maturity) + mean_offset + auction_concession
+        # Predict spread for new bond
+        predicted_z = float(f_interp(new_years_to_maturity))
     
         # Confidence band using 4 closest maturities
-        all_maturities = ns_smooth['YearsToMaturity'].values
+        all_maturities = ns_smooth['YTM'].values
         closest_idx = np.argsort(np.abs(all_maturities - new_years_to_maturity))[:4]
-        z_std = ns_std.iloc[closest_idx]['Z_SPRD_VAL'].mean() if not ns_std.empty else 0
-        z_min, z_max = predicted_z - 1.5*z_std, predicted_z + 1.5*z_std
-
-        close_idx = np.argsort(np.abs(all_maturities - new_years_to_maturity))
-        close_idx = [i for i in close_idx if abs(all_maturities[i] - new_years_to_maturity) <= 2]
-        
-        if close_idx:
-            distances = np.abs(all_maturities[close_idx] - new_years_to_maturity)
-            weights = 1 / (distances + 1e-6)
-            z_std_use = np.average(ns_std.iloc[close_idx]['Z_SPRD_VAL'], weights=weights)
-        else:
-            z_std_use = ns_std['Z_SPRD_VAL'].mean()
+        z_std = ns_std.iloc[closest_idx]['Z_SPRD'].mean() if not ns_std.empty else 0
+        z_min, z_max = predicted_z - 1.5 * z_std, predicted_z + 1.5 * z_std
     
-        # --- Plot ---
-        signal_color_map = {
-            'strong buy': 'green',
-            'moderate buy': 'lightgreen',
-            'weak buy': 'black',
-            'strong sell': 'red',
-            'moderate sell': 'orange',
-            'weak sell': 'black'
-        }
-        ns_today_plot = ns_full[ns_full['Date'] == ns_full['Date'].max()]
-        ns_today_plot = ns_today_plot.merge(final_signal_df[['ISIN', 'SIGNAL']], on='ISIN', how='left')
-        ns_today_plot['SIGNAL'] = ns_today_plot['SIGNAL'].str.strip().str.lower()
-        ns_today_plot['Signal_Color'] = ns_today_plot['SIGNAL'].map(signal_color_map).fillna('black')
+        # Display results
+        st.metric("Predicted Z-Spread", f"{predicted_z:.1f} bps")
+        st.caption(f"Confidence range: {z_min:.1f} – {z_max:.1f} bps")
     
+        # Plot
         fig = go.Figure()
-        legend_signals = ['strong buy', 'moderate buy', 'strong sell', 'moderate sell']
-        for signal, df_subset in ns_today_plot.groupby('SIGNAL'):
-            if not df_subset.empty:
-                color = df_subset['Signal_Color'].iloc[0]
-                fig.add_trace(go.Scatter(
-                    x=df_subset['YearsToMaturity'],
-                    y=df_subset['Z_SPRD_VAL'],
-                    mode='markers',
-                    name=signal.title() if signal in legend_signals else None,
-                    marker=dict(size=6, color=color, symbol='circle'),
-                    showlegend=(signal in legend_signals)
-                ))
     
-        # Nelson-Siegel fit
-        if 'NS_PARAMS' in ns_today_plot.columns:
-            try:
-                ns_params_raw = ns_today_plot['NS_PARAMS'].iloc[0]
-                if isinstance(ns_params_raw, str):
-                    import ast
-                    ns_params = ast.literal_eval(ns_params_raw)
-                else:
-                    ns_params = ns_params_raw
-                maturity_range = np.linspace(ns_today_plot['YearsToMaturity'].min(),
-                                             ns_today_plot['YearsToMaturity'].max(), 100)
-                ns_curve = nelson_siegel(maturity_range, *ns_params)
-                fig.add_trace(go.Scatter(
-                    x=maturity_range,
-                    y=ns_curve,
-                    mode='lines',
-                    name='Nelson-Siegel Fit',
-                    line=dict(color='deepskyblue', width=3)
-                ))
-            except Exception as e:
-                st.error(f"Error plotting NS curve: {e}")
+        # Add all bonds (latest day)
+        ns_today = ns_full[ns_full['Date'] == ns_full['Date'].max()]
+        for signal, df_subset in ns_today.groupby('SIGNAL'):
+            fig.add_trace(go.Scatter(
+                x=df_subset['YTM'],
+                y=df_subset['Z_SPRD'],
+                mode='markers',
+                name=f"{signal}",
+                marker=dict(size=8, line=dict(width=0.5, color='black'))
+            ))
     
-        # New bond vertical line
+        # Add best-fit NS curve
+        fig.add_trace(go.Scatter(
+            x=ns_smooth['YTM'],
+            y=ns_smooth['Z_SPRD'],
+            mode='lines',
+            name='NS Best-Fit Curve',
+            line=dict(color='blue', width=2)
+        ))
+    
+        # Add predicted bond point
+        fig.add_trace(go.Scatter(
+            x=[new_years_to_maturity],
+            y=[predicted_z],
+            mode='markers',
+            name='Predicted Bond',
+            marker=dict(color='red', size=12, symbol='star')
+        ))
+    
+        # Add confidence band
         fig.add_trace(go.Scatter(
             x=[new_years_to_maturity, new_years_to_maturity],
             y=[z_min, z_max],
             mode='lines',
-            line=dict(color='red', dash='dot', width=3),
-            name=f"New Bond {new_bond_input}"
-        ))
-    
-        # Shaded prediction band
-        fig.add_trace(go.Scatter(
-            x=[new_years_to_maturity-0.01, new_years_to_maturity+0.01,
-               new_years_to_maturity+0.01, new_years_to_maturity-0.01],
-            y=[z_min, z_min, z_max, z_max],
-            fill='toself',
-            fillcolor='rgba(255,0,0,0.2)',
-            line=dict(color='rgba(255,0,0,0)'),
-            showlegend=False
+            name='Confidence Range',
+            line=dict(color='red', width=2, dash='dot')
         ))
     
         fig.update_layout(
-            title=f"Predicted Z-Spread Range for New Bond {new_bond_input}",
-            xaxis_title="Years to Maturity",
+            title="New Bond Z-Spread Prediction vs NS Curve",
+            xaxis_title="Years to Maturity (YTM)",
             yaxis_title="Z-Spread (bps)",
             template="plotly_white",
-            height=700,
-            showlegend=True
+            legend_title="Legend"
         )
     
         st.plotly_chart(fig, use_container_width=True)
@@ -1117,6 +1015,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
