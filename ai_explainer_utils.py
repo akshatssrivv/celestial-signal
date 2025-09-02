@@ -61,75 +61,80 @@ def generate_ai_explanation(diagnostics):
 
 def format_bond_diagnostics(history_df):
     def safe_get(series, key):
-        val = series[key] if key in series else None
+        if key not in series:
+            return None
+        val = series[key]
+        try:
+            val = float(val)
+        except (ValueError, TypeError):
+            return None
         if pd.isna(val):
             return None
         return val
 
-    def safe_round(val):
+    def safe_round(val, digits=2):
         if val is None:
             return None
         try:
-            return round(val, 2)
-        except:
+            return round(val, digits)
+        except Exception:
             return None
             
     latest_row = history_df.sort_values("Date").iloc[-1]
 
     return {
-    "ISIN": latest_row["ISIN"],
-    "SECURITY_NAME": latest_row["SECURITY_NAME"],
-    "Date": str(latest_row["Date"]),
-    "SIGNAL": latest_row["SIGNAL"],
-    
-    # Composite scores & trends
-    "COMPOSITE_SCORE": round(safe_get(latest_row, "COMPOSITE_SCORE"), 2),
-    "COMPOSITE_Strength_Category": latest_row.get("COMPOSITE_Strength_Category", "Unknown"),
-    "COMPOSITE_Market_Category": latest_row.get("COMPOSITE_Market_Category", "Unknown"),
-    "COMPOSITE_Issuer_Category": latest_row.get("COMPOSITE_Issuer_Category", "Unknown"),
-    "COMPOSITE_SCORE_1W_AGO": round(safe_get(latest_row, "COMPOSITE_SCORE_1W_AGO"), 2),
-    "Composite_1W_Change": round(safe_get(latest_row, "COMPOSITE_SCORE_1W_Change"), 2),
-    "Composite_1W_Change_Pct": round(safe_get(latest_row, "COMPOSITE_SCORE_1W_Change_Pct"), 1),
-    "COMPOSITE_SCORE_1M_AGO": round(safe_get(latest_row, "COMPOSITE_SCORE_1M_AGO"), 2),
-    "Composite_1M_Change": round(safe_get(latest_row, "COMPOSITE_SCORE_1M_Change"), 2),
-    "Composite_1M_Change_Pct": round(safe_get(latest_row, "COMPOSITE_SCORE_1M_Change_Pct"), 1),
-    
-    # Residual Z-score
-    "Z_RESIDUAL_BUCKET": round(safe_get(latest_row, "Z_Residual_Score"), 2),
-    "Z_Residual_Score_1W_Change": round(safe_get(latest_row, "Z_Residual_Score_1W_Change"), 2),
-    "Z_Residual_Score_1W_Change_Pct": round(safe_get(latest_row, "Z_Residual_Score_1W_Change_Pct"), 1),
-    "Z_Residual_Score_1M_Change": round(safe_get(latest_row, "Z_Residual_Score_1M_Change"), 2),
-    "Z_Residual_Score_1M_Change_Pct": round(safe_get(latest_row, "Z_Residual_Score_1M_Change_Pct"), 1),
-    "Z_Residual_Score_Market_Percentile": round(latest_row.get("Z_Residual_Score_Market_Percentile", 50), 0),
-    "Z_Residual_Score_Issuer_Percentile": round(latest_row.get("Z_Residual_Score_Issuer_Percentile", 50), 0),
-    "Z_Residual_Score_Relative_Strength": round(latest_row.get("Z_Residual_Score_Relative_Strength", 1.0), 2),
-    
-    # Cluster score
-    "Cluster_Score": round(safe_get(latest_row, "Cluster_Score"), 2),
-    "Cluster_Score_1W_Change": round(safe_get(latest_row, "Cluster_Score_1W_Change"), 2),
-    "Cluster_Score_1W_Change_Pct": round(safe_get(latest_row, "Cluster_Score_1W_Change_Pct"), 1),
-    "Cluster_Score_1M_Change": round(safe_get(latest_row, "Cluster_Score_1M_Change"), 2),
-    "Cluster_Score_1M_Change_Pct": round(safe_get(latest_row, "Cluster_Score_1M_Change_Pct"), 1),
-    "Cluster_Score_Market_Percentile": round(latest_row.get("Cluster_Score_Market_Percentile", 50), 0),
-    "Cluster_Score_Issuer_Percentile": round(latest_row.get("Cluster_Score_Issuer_Percentile", 50), 0),
-    "Cluster_Score_Relative_Strength": round(latest_row.get("Cluster_Score_Relative_Strength", 1.0), 2),
-    
-    # Regression component
-    "Regression_Component": round(safe_get(latest_row, "Regression_Score"), 2),
-    "Regression_Score_1W_Change": round(safe_get(latest_row, "Regression_Score_1W_Change"), 2),
-    "Regression_Score_1W_Change_Pct": round(safe_get(latest_row, "Regression_Score_1W_Change_Pct"), 1),
-    "Regression_Score_1M_Change": round(safe_get(latest_row, "Regression_Score_1M_Change"), 2),
-    "Regression_Score_1M_Change_Pct": round(safe_get(latest_row, "Regression_Score_1M_Change_Pct"), 1),
-    "Regression_Score_Market_Percentile": round(latest_row.get("Regression_Score_Market_Percentile", 50), 0),
-    "Regression_Score_Issuer_Percentile": round(latest_row.get("Regression_Score_Issuer_Percentile", 50), 0),
-    "Regression_Score_Relative_Strength": round(latest_row.get("Regression_Score_Relative_Strength", 1.0), 2),
-    
-    # Volatility
-    "Volatility": round(safe_get(latest_row, "Volatility_Score"), 2),
-    "VOLATILITY_1M_AGO": round(safe_get(latest_row, "VOLATILITY_1M_AGO"), 2),
-    "Volatility_1M_Change": round(safe_get(latest_row, "Volatility_1M_Change"), 2),
-    "Volatility_Trend": latest_row.get("Volatility_Trend", "stable"),
-    "Volatility_Market_Percentile": round(latest_row.get("Volatility_Market_Percentile", 50), 0),
-    "Volatility_Issuer_Percentile": round(latest_row.get("Volatility_Issuer_Percentile", 50), 0),
-    
-}
+        "ISIN": latest_row.get("ISIN", None),
+        "SECURITY_NAME": latest_row.get("SECURITY_NAME", "Unknown"),
+        "Date": str(latest_row.get("Date", None)),
+        "SIGNAL": latest_row.get("SIGNAL", None),
+        
+        # Composite scores & trends
+        "COMPOSITE_SCORE": safe_round(safe_get(latest_row, "COMPOSITE_SCORE")),
+        "COMPOSITE_Strength_Category": latest_row.get("COMPOSITE_Strength_Category", "Unknown"),
+        "COMPOSITE_Market_Category": latest_row.get("COMPOSITE_Market_Category", "Unknown"),
+        "COMPOSITE_Issuer_Category": latest_row.get("COMPOSITE_Issuer_Category", "Unknown"),
+        "COMPOSITE_SCORE_1W_AGO": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1W_AGO")),
+        "Composite_1W_Change": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1W_Change")),
+        "Composite_1W_Change_Pct": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1W_Change_Pct"), 1),
+        "COMPOSITE_SCORE_1M_AGO": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1M_AGO")),
+        "Composite_1M_Change": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1M_Change")),
+        "Composite_1M_Change_Pct": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1M_Change_Pct"), 1),
+        
+        # Residual Z-score
+        "Z_RESIDUAL_BUCKET": safe_round(safe_get(latest_row, "Z_Residual_Score")),
+        "Z_Residual_Score_1W_Change": safe_round(safe_get(latest_row, "Z_Residual_Score_1W_Change")),
+        "Z_Residual_Score_1W_Change_Pct": safe_round(safe_get(latest_row, "Z_Residual_Score_1W_Change_Pct"), 1),
+        "Z_Residual_Score_1M_Change": safe_round(safe_get(latest_row, "Z_Residual_Score_1M_Change")),
+        "Z_Residual_Score_1M_Change_Pct": safe_round(safe_get(latest_row, "Z_Residual_Score_1M_Change_Pct"), 1),
+        "Z_Residual_Score_Market_Percentile": safe_round(latest_row.get("Z_Residual_Score_Market_Percentile", 50), 0),
+        "Z_Residual_Score_Issuer_Percentile": safe_round(latest_row.get("Z_Residual_Score_Issuer_Percentile", 50), 0),
+        "Z_Residual_Score_Relative_Strength": safe_round(latest_row.get("Z_Residual_Score_Relative_Strength", 1.0)),
+        
+        # Cluster score
+        "Cluster_Score": safe_round(safe_get(latest_row, "Cluster_Score")),
+        "Cluster_Score_1W_Change": safe_round(safe_get(latest_row, "Cluster_Score_1W_Change")),
+        "Cluster_Score_1W_Change_Pct": safe_round(safe_get(latest_row, "Cluster_Score_1W_Change_Pct"), 1),
+        "Cluster_Score_1M_Change": safe_round(safe_get(latest_row, "Cluster_Score_1M_Change")),
+        "Cluster_Score_1M_Change_Pct": safe_round(safe_get(latest_row, "Cluster_Score_1M_Change_Pct"), 1),
+        "Cluster_Score_Market_Percentile": safe_round(latest_row.get("Cluster_Score_Market_Percentile", 50), 0),
+        "Cluster_Score_Issuer_Percentile": safe_round(latest_row.get("Cluster_Score_Issuer_Percentile", 50), 0),
+        "Cluster_Score_Relative_Strength": safe_round(latest_row.get("Cluster_Score_Relative_Strength", 1.0)),
+        
+        # Regression component
+        "Regression_Component": safe_round(safe_get(latest_row, "Regression_Score")),
+        "Regression_Score_1W_Change": safe_round(safe_get(latest_row, "Regression_Score_1W_Change")),
+        "Regression_Score_1W_Change_Pct": safe_round(safe_get(latest_row, "Regression_Score_1W_Change_Pct"), 1),
+        "Regression_Score_1M_Change": safe_round(safe_get(latest_row, "Regression_Score_1M_Change")),
+        "Regression_Score_1M_Change_Pct": safe_round(safe_get(latest_row, "Regression_Score_1M_Change_Pct"), 1),
+        "Regression_Score_Market_Percentile": safe_round(latest_row.get("Regression_Score_Market_Percentile", 50), 0),
+        "Regression_Score_Issuer_Percentile": safe_round(latest_row.get("Regression_Score_Issuer_Percentile", 50), 0),
+        "Regression_Score_Relative_Strength": safe_round(latest_row.get("Regression_Score_Relative_Strength", 1.0)),
+        
+        # Volatility
+        "Volatility": safe_round(safe_get(latest_row, "Volatility_Score")),
+        "VOLATILITY_1M_AGO": safe_round(safe_get(latest_row, "VOLATILITY_1M_AGO")),
+        "Volatility_1M_Change": safe_round(safe_get(latest_row, "Volatility_1M_Change")),
+        "Volatility_Trend": latest_row.get("Volatility_Trend", "stable"),
+        "Volatility_Market_Percentile": safe_round(latest_row.get("Volatility_Market_Percentile", 50), 0),
+        "Volatility_Issuer_Percentile": safe_round(latest_row.get("Volatility_Issuer_Percentile", 50), 0),
+    }
