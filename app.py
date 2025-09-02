@@ -810,14 +810,34 @@ with tab1:
         for signal, df_subset in ns_today_plot.groupby('SIGNAL'):
             if not df_subset.empty:
                 color = df_subset['Signal_Color'].iloc[0]
+        
+                # Add text and customdata for hover
+                hover_text = df_subset.get('SECURITY_NAME', df_subset['ISIN']).fillna("Unknown Bond")
+                customdata = np.stack([
+                    df_subset['ISIN'],
+                    df_subset['Maturity'].dt.strftime('%Y-%m-%d'),
+                    df_subset.get('Residual', pd.Series([np.nan]*len(df_subset)))
+                ], axis=-1)
+        
                 fig.add_trace(go.Scatter(
                     x=df_subset['YearsToMaturity'],
                     y=df_subset['Z_SPRD_VAL'],
                     mode='markers',
                     name=signal.title() if signal in legend_signals else None,
                     marker=dict(size=6, color=color, symbol='circle'),
+                    customdata=customdata,
+                    text=hover_text,
+                    hovertemplate=(
+                        'Years to Maturity: %{x:.2f}<br>'
+                        'Z-Spread: %{y:.1f}bps<br>'
+                        'Maturity: %{customdata[1]}<br>'
+                        'Residual: %{customdata[2]:.2f}bps<br>'
+                        'Signal: ' + (signal.title() if signal else "None") + '<br>'
+                        '%{text}<extra></extra>'
+                    ),
                     showlegend=(signal in legend_signals)
                 ))
+
     
         # Nelson-Siegel fit
         if 'NS_PARAMS' in ns_today_plot.columns:
@@ -1129,6 +1149,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
