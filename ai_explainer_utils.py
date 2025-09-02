@@ -62,20 +62,15 @@ def format_bond_diagnostics(history_df):
     import pandas as pd
 
     def safe_get(series, key):
-        """Get a value from a Series safely. Returns None if missing or invalid."""
-        if key not in series:
+        val = series.get(key, None)
+        if val is None or pd.isna(val):
             return None
-        val = series[key]
         try:
-            val = float(val)
+            return float(val)
         except (ValueError, TypeError):
             return None
-        if pd.isna(val):
-            return None
-        return val
 
     def safe_round(val, digits=2):
-        """Round numeric values safely, returns None if val is None."""
         if val is None:
             return None
         try:
@@ -91,11 +86,11 @@ def format_bond_diagnostics(history_df):
         "Date": str(latest_row.get("Date", None)),
         "SIGNAL": latest_row.get("SIGNAL", None),
 
-        # Composite scores & trends
+        # Composite
         "COMPOSITE_SCORE": safe_round(safe_get(latest_row, "COMPOSITE_SCORE")),
-        "COMPOSITE_Strength_Category": latest_row.get("COMPOSITE_Strength_Category", "Unknown"),
-        "COMPOSITE_Market_Category": latest_row.get("COMPOSITE_Market_Category", "Unknown"),
-        "COMPOSITE_Issuer_Category": latest_row.get("COMPOSITE_Issuer_Category", "Unknown"),
+        "COMPOSITE_Strength_Category": latest_row.get("COMPOSITE_Strength_Category") or "Unknown",
+        "COMPOSITE_Market_Category": latest_row.get("COMPOSITE_Market_Category") or "Unknown",
+        "COMPOSITE_Issuer_Category": latest_row.get("COMPOSITE_Issuer_Category") or "Unknown",
         "COMPOSITE_SCORE_1W_AGO": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1W_AGO")),
         "Composite_1W_Change": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1W_Change")),
         "Composite_1W_Change_Pct": safe_round(safe_get(latest_row, "COMPOSITE_SCORE_1W_Change_Pct"), 1),
@@ -109,9 +104,9 @@ def format_bond_diagnostics(history_df):
         "Z_Residual_Score_1W_Change_Pct": safe_round(safe_get(latest_row, "Z_Residual_Score_1W_Change_Pct"), 1),
         "Z_Residual_Score_1M_Change": safe_round(safe_get(latest_row, "Z_Residual_Score_1M_Change")),
         "Z_Residual_Score_1M_Change_Pct": safe_round(safe_get(latest_row, "Z_Residual_Score_1M_Change_Pct"), 1),
-        "Z_Residual_Score_Market_Percentile": safe_round(latest_row.get("Z_Residual_Score_Market_Percentile", 50), 0),
-        "Z_Residual_Score_Issuer_Percentile": safe_round(latest_row.get("Z_Residual_Score_Issuer_Percentile", 50), 0),
-        "Z_Residual_Score_Relative_Strength": safe_round(latest_row.get("Z_Residual_Score_Relative_Strength", 1.0)),
+        "Z_Residual_Score_Market_Percentile": safe_round(safe_get(latest_row, "Z_Residual_Score_Market_Percentile"), 0) or 50,
+        "Z_Residual_Score_Issuer_Percentile": safe_round(safe_get(latest_row, "Z_Residual_Score_Issuer_Percentile"), 0) or 50,
+        "Z_Residual_Score_Relative_Strength": safe_round(safe_get(latest_row, "Z_Residual_Score_Relative_Strength")) or 1.0,
 
         # Cluster score
         "Cluster_Score": safe_round(safe_get(latest_row, "Cluster_Score")),
@@ -119,25 +114,25 @@ def format_bond_diagnostics(history_df):
         "Cluster_Score_1W_Change_Pct": safe_round(safe_get(latest_row, "Cluster_Score_1W_Change_Pct"), 1),
         "Cluster_Score_1M_Change": safe_round(safe_get(latest_row, "Cluster_Score_1M_Change")),
         "Cluster_Score_1M_Change_Pct": safe_round(safe_get(latest_row, "Cluster_Score_1M_Change_Pct"), 1),
-        "Cluster_Score_Market_Percentile": safe_round(latest_row.get("Cluster_Score_Market_Percentile", 50), 0),
-        "Cluster_Score_Issuer_Percentile": safe_round(latest_row.get("Cluster_Score_Issuer_Percentile", 50), 0),
-        "Cluster_Score_Relative_Strength": safe_round(latest_row.get("Cluster_Score_Relative_Strength", 1.0)),
+        "Cluster_Score_Market_Percentile": safe_round(safe_get(latest_row, "Cluster_Score_Market_Percentile"), 0) or 50,
+        "Cluster_Score_Issuer_Percentile": safe_round(safe_get(latest_row, "Cluster_Score_Issuer_Percentile"), 0) or 50,
+        "Cluster_Score_Relative_Strength": safe_round(safe_get(latest_row, "Cluster_Score_Relative_Strength")) or 1.0,
 
-        # Regression component
+        # Regression
         "Regression_Component": safe_round(safe_get(latest_row, "Regression_Score")),
         "Regression_Score_1W_Change": safe_round(safe_get(latest_row, "Regression_Score_1W_Change")),
         "Regression_Score_1W_Change_Pct": safe_round(safe_get(latest_row, "Regression_Score_1W_Change_Pct"), 1),
         "Regression_Score_1M_Change": safe_round(safe_get(latest_row, "Regression_Score_1M_Change")),
         "Regression_Score_1M_Change_Pct": safe_round(safe_get(latest_row, "Regression_Score_1M_Change_Pct"), 1),
-        "Regression_Score_Market_Percentile": safe_round(latest_row.get("Regression_Score_Market_Percentile", 50), 0),
-        "Regression_Score_Issuer_Percentile": safe_round(latest_row.get("Regression_Score_Issuer_Percentile", 50), 0),
-        "Regression_Score_Relative_Strength": safe_round(latest_row.get("Regression_Score_Relative_Strength", 1.0)),
+        "Regression_Score_Market_Percentile": safe_round(safe_get(latest_row, "Regression_Score_Market_Percentile"), 0) or 50,
+        "Regression_Score_Issuer_Percentile": safe_round(safe_get(latest_row, "Regression_Score_Issuer_Percentile"), 0) or 50,
+        "Regression_Score_Relative_Strength": safe_round(safe_get(latest_row, "Regression_Score_Relative_Strength")) or 1.0,
 
         # Volatility
         "Volatility": safe_round(safe_get(latest_row, "Volatility_Score")),
         "VOLATILITY_1M_AGO": safe_round(safe_get(latest_row, "VOLATILITY_1M_AGO")),
         "Volatility_1M_Change": safe_round(safe_get(latest_row, "Volatility_1M_Change")),
-        "Volatility_Trend": latest_row.get("Volatility_Trend", "stable"),
-        "Volatility_Market_Percentile": safe_round(latest_row.get("Volatility_Market_Percentile", 50), 0),
-        "Volatility_Issuer_Percentile": safe_round(latest_row.get("Volatility_Issuer_Percentile", 50), 0),
+        "Volatility_Trend": latest_row.get("Volatility_Trend") or "stable",
+        "Volatility_Market_Percentile": safe_round(safe_get(latest_row, "Volatility_Market_Percentile"), 0) or 50,
+        "Volatility_Issuer_Percentile": safe_round(safe_get(latest_row, "Volatility_Issuer_Percentile"), 0) or 50,
     }
