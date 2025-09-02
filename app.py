@@ -864,7 +864,7 @@ with tab1:
             x=[new_years_to_maturity, new_years_to_maturity],
             y=[0, z_min],
             mode='lines',
-            line=dict(color='green', dash='dot', width=1),  # green dotted line
+            line=dict(color='purple', dash='dot', width=1),
             name=f"New Bond {new_bond_input}"
         ))
         
@@ -878,8 +878,6 @@ with tab1:
             line=dict(color='rgba(0,0,0,0)'),  # no border
             showlegend=False
         ))
-
-
 
         fig.update_layout(
             title=f"Predicted Z-Spread Range for New Bond {new_bond_input}",
@@ -1149,6 +1147,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
