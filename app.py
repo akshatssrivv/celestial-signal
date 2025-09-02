@@ -547,6 +547,20 @@ with tab1:
         date_str = date_input.strftime("%Y-%m-%d")
         
         ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
+
+        ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
+
+        if ns_df is not None and not ns_df.empty:
+            # --- Normalize column names for consistency ---
+            col_map = {c.lower(): c for c in ns_df.columns}
+            if "z_sprd_val" in col_map:
+                ns_df.rename(columns={col_map["z_sprd_val"]: "Z_SPRD"}, inplace=True)
+            elif "z_sprd" in col_map:
+                ns_df.rename(columns={col_map["z_sprd"]: "Z_SPRD"}, inplace=True)
+        
+            if "yearstomaturity" in col_map:
+                ns_df.rename(columns={col_map["yearstomaturity"]: "YTM"}, inplace=True)
+
         
         if ns_df is not None and not ns_df.empty:
             ns_df['Maturity'] = pd.to_datetime(ns_df['Maturity'])
@@ -858,8 +872,6 @@ with tab1:
     
         st.plotly_chart(fig, use_container_width=True)
 
-
-
     
     # Animated Curves subtab
     elif subtab == "Animated Curves":
@@ -1117,6 +1129,10 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
+
+
+
 
 
 
