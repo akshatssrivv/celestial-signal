@@ -702,8 +702,7 @@ with tab1:
     
         selected_country = country_code_map[country_option]
     
-        # --- Inputs ---
-        new_bond_input = st.text_input("Enter New Bond Maturity (MM/YY)", value="09/55")
+        new_bond_input = st.text_input("Enter New Bond Maturity (MM/YY)", value="10/55")
         auction_concession = st.number_input("Auction concession (bps)", value=0, step=1)
     
         # Load NS curves for last 2 weeks
@@ -816,7 +815,7 @@ with tab1:
                 customdata = np.stack([
                     df_subset['ISIN'],
                     df_subset['Maturity'].dt.strftime('%Y-%m-%d'),
-                    df_subset.get('Residual', pd.Series([np.nan]*len(df_subset)))
+                    df_subset.get('RESIDUAL_NS', pd.Series([np.nan]*len(df_subset)))
                 ], axis=-1)
         
                 fig.add_trace(go.Scatter(
@@ -830,7 +829,6 @@ with tab1:
                     hovertemplate=(
                         'Years to Maturity: %{x:.2f}<br>'
                         'Z-Spread: %{y:.1f}bps<br>'
-                        'Maturity: %{customdata[1]}<br>'
                         'Residual: %{customdata[2]:.2f}bps<br>'
                         'Signal: ' + (signal.title() if signal else "None") + '<br>'
                         '%{text}<extra></extra>'
@@ -1149,6 +1147,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
