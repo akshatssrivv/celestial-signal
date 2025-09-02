@@ -862,13 +862,13 @@ with tab1:
         # New bond vertical line
         fig.add_trace(go.Scatter(
             x=[new_years_to_maturity, new_years_to_maturity],
-            y=[z_min, z_max],
+            y=[0, z_max],  # starts at 0 now
             mode='lines',
             line=dict(color='red', dash='dot', width=3),
             name=f"New Bond {new_bond_input}"
         ))
-    
-        # Shaded prediction band
+        
+        # Shaded prediction band remains the same
         fig.add_trace(go.Scatter(
             x=[new_years_to_maturity-0.01, new_years_to_maturity+0.01,
                new_years_to_maturity+0.01, new_years_to_maturity-0.01],
@@ -878,13 +878,14 @@ with tab1:
             line=dict(color='rgba(255,0,0,0)'),
             showlegend=False
         ))
+
     
         fig.update_layout(
             title=f"Predicted Z-Spread Range for New Bond {new_bond_input}",
             xaxis_title="Years to Maturity",
             yaxis_title="Z-Spread (bps)",
             template="plotly_white",
-            height=700,
+            height=900,
             showlegend=True
         )
     
@@ -1147,6 +1148,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
