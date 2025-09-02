@@ -680,7 +680,7 @@ with tab1:
             st.warning("No Nelson-Siegel data available for this date.")
 
     
-    elif selected_tab == "New Bond Prediction":
+    elif subtab == "New Bond Prediction":
         st.header("🔮 New Bond Z-Spread Prediction")
     
         # Inputs
@@ -1029,6 +1029,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
