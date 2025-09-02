@@ -864,20 +864,21 @@ with tab1:
             x=[new_years_to_maturity, new_years_to_maturity],
             y=[0, z_min],
             mode='lines',
-            line=dict(color='red', dash='dot', width=1),  # thinner line
+            line=dict(color='green', dash='dot', width=1),  # green dotted line
             name=f"New Bond {new_bond_input}"
         ))
         
         # Shaded prediction band from z_min to z_max
         fig.add_trace(go.Scatter(
-            x=[new_years_to_maturity-0.01, new_years_to_maturity+0.01,
-               new_years_to_maturity+0.01, new_years_to_maturity-0.01],
+            x=[new_years_to_maturity-0.05, new_years_to_maturity+0.05,
+               new_years_to_maturity+0.05, new_years_to_maturity-0.05],  # small width around the bond
             y=[z_min, z_min, z_max, z_max],
             fill='toself',
-            fillcolor='rgba(255,0,0,0.8)', 
-            line=dict(color='rgba(255,0,0,0)'),  
+            fillcolor='rgba(0,0,0,0.9)',  # black with some opacity
+            line=dict(color='rgba(0,0,0,0)'),  # no border
             showlegend=False
         ))
+
 
 
         fig.update_layout(
@@ -1148,6 +1149,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
