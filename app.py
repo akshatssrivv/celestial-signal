@@ -862,9 +862,9 @@ with tab1:
         # New bond vertical line
         fig.add_trace(go.Scatter(
             x=[new_years_to_maturity, new_years_to_maturity],
-            y=[0, z_min],  # from x-axis to top of band
+            y=[0, z_min],
             mode='lines',
-            line=dict(color='red', dash='dot', width=3),
+            line=dict(color='red', dash='dot', width=1),  # thinner line
             name=f"New Bond {new_bond_input}"
         ))
         
@@ -874,13 +874,12 @@ with tab1:
                new_years_to_maturity+0.01, new_years_to_maturity-0.01],
             y=[z_min, z_min, z_max, z_max],
             fill='toself',
-            fillcolor='rgba(255,0,0,0.2)',
-            line=dict(color='rgba(255,0,0,0)'),
+            fillcolor='rgba(255,0,0,0.3)',  # slightly more opaque
+            line=dict(color='rgba(255,0,0,0)'),  # keep outline invisible
             showlegend=False
         ))
 
 
-    
         fig.update_layout(
             title=f"Predicted Z-Spread Range for New Bond {new_bond_input}",
             xaxis_title="Years to Maturity",
@@ -1149,6 +1148,7 @@ with tab1:
                 # Display charts
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
+
 
 
 
