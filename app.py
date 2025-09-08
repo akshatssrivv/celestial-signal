@@ -1148,9 +1148,8 @@ with tab1:
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
-
-
-
+    
+    
     elif subtab == "Analysis":
         
         import streamlit as st
@@ -1194,7 +1193,7 @@ with tab1:
         if not st.session_state.curves:
             add_curve()
     
-        # Load issuer_signal data (from B2 or local)
+        # Load issuer_signal data
         @st.cache_data(ttl=300)
         def load_issuer_signal() -> pd.DataFrame:
             try:
@@ -1209,13 +1208,28 @@ with tab1:
         curves_to_keep = []
         curve_dfs = []
     
+        # Build global legend mapping for all ISINs (Name + Maturity only)
+        global_legend_labels = {}
+        for curve in st.session_state.curves:
+            selected_country = country_code_map[curve['country']]
+            ns_df_tmp = load_full_ns_df(selected_country, zip_hash=zip_hash)
+            ns_df_tmp['Date'] = pd.to_datetime(ns_df_tmp['Date']).dt.normalize()
+            bond_options_tmp = ns_df_tmp[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
+            bond_options_tmp = bond_options_tmp.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+            bond_options_tmp['Maturity'] = pd.to_datetime(bond_options_tmp['Maturity'], errors='coerce')
+            for _, row in bond_options_tmp.iterrows():
+                isin = row['ISIN']
+                name = row['SECURITY_NAME']
+                maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
+                global_legend_labels[isin] = f"{name} ({maturity})"
+    
+        # Process each curve
         for i, curve in enumerate(st.session_state.curves):
             st.subheader(f"Curve {i+1}")
             col_main, col_remove = st.columns([9, 1])
             remove_clicked = False
             with col_remove:
                 remove_clicked = st.button("❌", key=f"remove_{curve['id']}")
-    
             if remove_clicked:
                 continue
             else:
@@ -1224,40 +1238,44 @@ with tab1:
             with col_main:
                 col1, col2 = st.columns(2)
                 with col1:
-                    curve['country'] = st.selectbox(f"Select Country (Curve {i+1})",
-                                                    country_options,
-                                                    index=country_options.index(curve['country']),
-                                                    key=f"country_{curve['id']}")
+                    curve['country'] = st.selectbox(
+                        f"Select Country (Curve {i+1})",
+                        country_options,
+                        index=country_options.index(curve['country']),
+                        key=f"country_{curve['id']}"
+                    )
                     selected_country = country_code_map[curve['country']]
                     ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
                     ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
     
-                    # Bond options with signal
+                    # Bond options with signal for dropdown
                     bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
                     bond_options = bond_options.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
                     bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
                     bond_options.sort_values('Maturity', inplace=True)
     
-                    # Two sets of labels: one for dropdowns (with signal), one for legend (without signal)
-                    bond_labels = {}  # dropdown
-                    bond_labels_for_legend = {}  # legend
+                    # Dropdown labels (with signal)
+                    bond_labels = {}
                     for _, row in bond_options.iterrows():
                         isin = row['ISIN']
                         name = row['SECURITY_NAME']
                         maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
                         signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
                         bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
-                        bond_labels_for_legend[isin] = f"{name} ({maturity})"
     
                 with col2:
-                    curve['bond1'] = st.selectbox(f"Select Bond 1 (Curve {i+1})",
-                                                  bond_options['ISIN'],
-                                                  format_func=lambda isin: bond_labels.get(isin, isin),
-                                                  key=f"bond1_{curve['id']}")
-                    curve['bond2'] = st.selectbox(f"Select Bond 2 (Curve {i+1})",
-                                                  bond_options['ISIN'],
-                                                  format_func=lambda isin: bond_labels.get(isin, isin),
-                                                  key=f"bond2_{curve['id']}")
+                    curve['bond1'] = st.selectbox(
+                        f"Select Bond 1 (Curve {i+1})",
+                        bond_options['ISIN'],
+                        format_func=lambda isin: bond_labels.get(isin, isin),
+                        key=f"bond1_{curve['id']}"
+                    )
+                    curve['bond2'] = st.selectbox(
+                        f"Select Bond 2 (Curve {i+1})",
+                        bond_options['ISIN'],
+                        format_func=lambda isin: bond_labels.get(isin, isin),
+                        key=f"bond2_{curve['id']}"
+                    )
     
                 # Compute curve (Bond1 - Bond2)
                 if curve['bond1'] and curve['bond2']:
@@ -1277,11 +1295,11 @@ with tab1:
             combined_df = pd.concat(curve_dfs)
             fig = go.Figure()
     
-            # Plot individual curves with bond1 - bond2 (without signal) in legend
+            # Plot individual curves
             for i, curve_df in enumerate(curve_dfs):
                 curve = st.session_state.curves[i]
-                bond1_label = bond_labels_for_legend.get(curve['bond1'], curve['bond1'])
-                bond2_label = bond_labels_for_legend.get(curve['bond2'], curve['bond2'])
+                bond1_label = global_legend_labels.get(curve['bond1'], curve['bond1'])
+                bond2_label = global_legend_labels.get(curve['bond2'], curve['bond2'])
                 curve_name = f"{bond1_label} − {bond2_label}"
     
                 fig.add_trace(go.Scatter(
@@ -1291,7 +1309,7 @@ with tab1:
                     name=curve_name
                 ))
     
-            # Compute combined curve (sum of all curves)
+            # Combined curve
             combined_curve_df = combined_df.groupby('Date')['Curve'].sum().reset_index()
             fig.add_trace(go.Scatter(
                 x=combined_curve_df['Date'],
