@@ -1172,7 +1172,8 @@ with tab3:
 
     # --- USE EXISTING NS DATA ---
     # Assuming ns_df is already loaded earlier and contains residuals
-    country_ns_df = ns_df[ns_df['ISIN'].str.startswith(selected_country)].copy()
+    country_ns_df = ns_df[ns_df['SECURITY_NAME'].str.startswith(selected_country)].copy()
+
 
     if country_ns_df.empty:
         st.warning("No data available for this country.")
@@ -1323,4 +1324,5 @@ with tab3:
             height=500
         )
         st.plotly_chart(fig, use_container_width=True)
+
 
