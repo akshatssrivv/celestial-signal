@@ -1321,7 +1321,7 @@ with tab1:
     
             # Layout
             fig.update_layout(
-                title="Multi-Curve Residual Comparison (Each Curve = Bond1 - Bond2)",
+                title="Multi-Curve Residual Comparison",
                 xaxis_title="Date",
                 yaxis_title="Residual Difference (bps)",
                 template="plotly_white",
@@ -1329,4 +1329,5 @@ with tab1:
                 legend_title="Curves"
             )
             st.plotly_chart(fig, use_container_width=True)
+
 
