@@ -1151,27 +1151,11 @@ with tab1:
 
 
 with tab3:
-    import streamlit as st
-    import pandas as pd
-    import plotly.graph_objects as go
-
     st.markdown("## Bond Pair Residual Curve Comparison")
 
-    # --- Load NS data like in Tab1 ---
-    B2_BUCKET_FILE = "ns_curves_0809.zip"
-    try:
-        zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
-        if not os.path.exists(zip_path):
-            raise FileNotFoundError(f"Downloaded file not found: {zip_path}")
-        zip_hash = file_hash(zip_path)
-    except Exception as e:
-        st.error(f"Failed to download or hash NS curves zip: {e}")
-        zip_path = None
-        zip_hash = None
-
-    # --- Country selection (unique key for Tab 3) ---
-    country_option = st.selectbox(
-        "Select Country (Tab 3)",
+    # Country selector (keyed for Tab 3)
+    country_option_tab3 = st.selectbox(
+        "Select Country",
         options=[
             'Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
             'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪'
@@ -1191,100 +1175,86 @@ with tab3:
         'Belgium 🇧🇪': 'BGB'
     }
 
-    selected_country = country_code_map[country_option]
+    selected_country = country_code_map[country_option_tab3]
 
-    # Load full NS dataset
+    # Load NS dataset for this country
     ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
     ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
 
-    # Map maturities for display
+    # Prepare bond options
+    country_isins = ns_df['ISIN'].unique()
+    bond_options = ns_df[ns_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
     isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
-    bond_labels = {
-        row['ISIN']: f"{row['SECURITY_NAME']} ({pd.to_datetime(isin_maturity_map[row['ISIN']]).strftime('%Y-%m-%d')})"
-        for _, row in ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().iterrows()
-    }
+    bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
+    bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
+    bond_options.sort_values('Maturity', inplace=True)
 
-    # --- UI: Select bond pairs ---
-    st.markdown("### Select Bond Pairs for Curve Comparison")
-    col1, col2 = st.columns(2)
+    bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
+    def format_bond_label(isin):
+        maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
+        if len(maturity) > 0 and pd.notnull(maturity[0]):
+            maturity_str = pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')
+            return f"{bond_labels.get(isin, isin)} ({maturity_str})"
+        else:
+            return f"{bond_labels.get(isin, isin)} (N/A)"
 
-    with col1:
-        st.markdown("**Curve A (Same Issuer)**")
-        curve_a_bond1 = st.selectbox(
-            "Bond 1 (Curve A)",
-            options=ns_df['ISIN'].unique(),
-            format_func=lambda x: bond_labels[x],
-            key="tab3_curve_a_bond1"
-        )
-        curve_a_bond2 = st.selectbox(
-            "Bond 2 (Curve A)",
-            options=ns_df['ISIN'].unique(),
-            format_func=lambda x: bond_labels[x],
-            key="tab3_curve_a_bond2"
-        )
+    # Pair A (same issuer)
+    st.subheader("Curve A (Issuer 1)")
+    bond_a1 = st.selectbox("Select Bond A1", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_a1")
+    bond_a2 = st.selectbox("Select Bond A2", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_a2")
 
-    with col2:
-        st.markdown("**Curve B (Same Issuer)**")
-        curve_b_bond1 = st.selectbox(
-            "Bond 1 (Curve B)",
-            options=ns_df['ISIN'].unique(),
-            format_func=lambda x: bond_labels[x],
-            key="tab3_curve_b_bond1"
-        )
-        curve_b_bond2 = st.selectbox(
-            "Bond 2 (Curve B)",
-            options=ns_df['ISIN'].unique(),
-            format_func=lambda x: bond_labels[x],
-            key="tab3_curve_b_bond2"
-        )
+    # Pair B (same issuer)
+    st.subheader("Curve B (Issuer 2)")
+    bond_b1 = st.selectbox("Select Bond B1", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_b1")
+    bond_b2 = st.selectbox("Select Bond B2", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_b2")
 
-    show_diff = st.checkbox(
-        "Show Curve A − Curve B Difference",
-        value=True,
-        key="tab3_show_diff"
-    )
+    # Difference checkbox
+    show_diff_tab3 = st.checkbox("Show difference between curves", key="tab3_show_diff")
 
     # --- Compute curves ---
-    def compute_curve(bond1, bond2):
-        df1 = ns_df[ns_df['ISIN'] == bond1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'R1'})
-        df2 = ns_df[ns_df['ISIN'] == bond2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'R2'})
-        merged = pd.merge(df1, df2, on='Date', how='outer').sort_values('Date')
-        merged['Curve'] = merged['R1'] - merged['R2']
-        return merged[['Date', 'Curve']]
+    if all([bond_a1, bond_a2, bond_b1, bond_b2]):
+        # Filter data
+        df_a1 = ns_df[ns_df['ISIN'] == bond_a1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'A1'})
+        df_a2 = ns_df[ns_df['ISIN'] == bond_a2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'A2'})
+        df_b1 = ns_df[ns_df['ISIN'] == bond_b1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B1'})
+        df_b2 = ns_df[ns_df['ISIN'] == bond_b2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B2'})
 
-    curve_a_df = compute_curve(curve_a_bond1, curve_a_bond2)
-    curve_b_df = compute_curve(curve_b_bond1, curve_b_bond2)
+        # Merge on Date
+        pivot_df = df_a1.merge(df_a2, on='Date', how='outer')
+        pivot_df = pivot_df.merge(df_b1, on='Date', how='outer')
+        pivot_df = pivot_df.merge(df_b2, on='Date', how='outer')
+        pivot_df.sort_values('Date', inplace=True)
 
-    # Merge for difference
-    if show_diff:
-        merged_df = pd.merge(curve_a_df, curve_b_df, on='Date', how='outer', suffixes=('_A', '_B')).sort_values('Date')
-        merged_df['Difference'] = merged_df['Curve_A'] - merged_df['Curve_B']
-    else:
-        merged_df = pd.merge(curve_a_df, curve_b_df, on='Date', how='outer', suffixes=('_A', '_B'))
+        # Compute curves
+        pivot_df['Curve_A'] = pivot_df['A1'] - pivot_df['A2']
+        pivot_df['Curve_B'] = pivot_df['B1'] - pivot_df['B2']
+        if show_diff_tab3:
+            pivot_df['Curve_Diff'] = pivot_df['Curve_A'] - pivot_df['Curve_B']
 
-    # --- Plot ---
-    fig = go.Figure()
+        # --- Plot ---
+        fig = go.Figure()
 
-    fig.add_trace(go.Scatter(
-        x=merged_df['Date'], y=merged_df['Curve_A'],
-        mode='lines+markers', name='Curve A'
-    ))
-    fig.add_trace(go.Scatter(
-        x=merged_df['Date'], y=merged_df['Curve_B'],
-        mode='lines+markers', name='Curve B'
-    ))
-    if show_diff:
         fig.add_trace(go.Scatter(
-            x=merged_df['Date'], y=merged_df['Difference'],
-            mode='lines+markers', name='Curve A − Curve B', line=dict(dash='dash')
+            x=pivot_df['Date'], y=pivot_df['Curve_A'],
+            mode='lines', name="Curve A"
+        ))
+        fig.add_trace(go.Scatter(
+            x=pivot_df['Date'], y=pivot_df['Curve_B'],
+            mode='lines', name="Curve B"
         ))
 
-    fig.update_layout(
-        title="Bond Pair Residual Curve Comparison",
-        xaxis_title="Date",
-        yaxis_title="Residual Difference (bps)",
-        template="plotly_white",
-        height=600
-    )
+        if show_diff_tab3:
+            fig.add_trace(go.Scatter(
+                x=pivot_df['Date'], y=pivot_df['Curve_Diff'],
+                mode='lines', name="Curve A − Curve B", line=dict(dash='dash')
+            ))
 
-    st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(
+            title="Pair Residual Curve Comparison",
+            xaxis_title="Date",
+            yaxis_title="Residual Difference (bps)",
+            template="plotly_white",
+            height=600
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
