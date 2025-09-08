@@ -1150,6 +1150,45 @@ with tab1:
 
 
 with tab3 : 
+
+    def load_full_ns_df(country_code, zip_hash=None):
+        """
+        Load full Nelson-Siegel dataset for a given country.
+        Assumes you have a zip file downloaded locally via B2.
+        """
+        B2_BUCKET_FILE = "ns_curves_0809.zip"
+        LOCAL_ZIP = "ns_curves_0809.zip"  # or wherever you store it
+    
+        # Download or locate the zip
+        try:
+            zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
+            if not os.path.exists(zip_path):
+                raise FileNotFoundError(f"Downloaded file not found: {zip_path}")
+            zip_hash_local = file_hash(zip_path)
+            if zip_hash is not None and zip_hash != zip_hash_local:
+                st.warning("Local zip hash differs from provided zip_hash. Reloading...")
+        except Exception as e:
+            st.error(f"Failed to download or hash NS curves zip: {e}")
+            return pd.DataFrame()
+    
+        # Load the CSV for the country from the zip
+        try:
+            import zipfile
+            with zipfile.ZipFile(zip_path, 'r') as z:
+                # Assuming files inside are named like NS_BTPS.csv, NS_FRTR.csv, etc.
+                filename = f"NS_{country_code}.csv"
+                if filename not in z.namelist():
+                    st.error(f"{filename} not found in zip")
+                    return pd.DataFrame()
+                with z.open(filename) as f:
+                    df = pd.read_csv(f)
+            # Ensure Date column is datetime
+            df['Date'] = pd.to_datetime(df['Date']).dt.normalize()
+            return df
+        except Exception as e:
+            st.error(f"Failed to load NS data for {country_code}: {e}")
+            return pd.DataFrame()
+
     
     # --- COUNTRY SELECTION ---
     country_option = st.selectbox(
@@ -1345,3 +1384,4 @@ with tab3 :
     
     
     
+
