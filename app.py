@@ -159,7 +159,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
+tab1, tab2, tab3 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis"])
 
 
 with tab2:
@@ -503,7 +503,7 @@ with tab1:
     # Choose subtab inside Tab 1
     subtab = st.radio(
         "Select View",
-        ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves", "New Bond Prediction", "Analysis")
+        ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves", "New Bond Prediction")
     )
 
     B2_BUCKET_FILE = "ns_curves_0809.zip"
@@ -1150,184 +1150,184 @@ with tab1:
 
     
     
-    elif subtab == "Analysis":
-        
-        import streamlit as st
-        import pandas as pd
-        import plotly.graph_objects as go
-        import uuid
-        import os
+with tab3:
+    import streamlit as st
+    import pandas as pd
+    import plotly.graph_objects as go
+    import uuid
+    import os
     
-        st.markdown("## Multi-Curve Residual Comparison")
+    st.markdown("## Multi-Curve Residual Comparison")
     
-        # Initialize session state for dynamic curves
-        if "curves" not in st.session_state:
-            st.session_state.curves = []
+    # Initialize session state for dynamic curves
+    if "curves" not in st.session_state:
+        st.session_state.curves = []
     
-        country_options = ['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
+    country_options = ['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
                            'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
-        country_code_map = {
-            'Italy 🇮🇹': 'BTPS',
-            'Spain 🇪🇸': 'SPGB',
-            'France 🇫🇷': 'FRTR',
-            'Germany 🇩🇪': 'BUNDS',
-            'Finland 🇫🇮': 'RFGB',
-            'EU 🇪🇺': 'EU',
-            'Austria 🇦🇹': 'RAGB',
-            'Netherlands 🇳🇱': 'NETHER',
-            'Belgium 🇧🇪': 'BGB'
-        }
+    country_code_map = {
+                'Italy 🇮🇹': 'BTPS',
+                'Spain 🇪🇸': 'SPGB',
+                'France 🇫🇷': 'FRTR',
+                'Germany 🇩🇪': 'BUNDS',
+                'Finland 🇫🇮': 'RFGB',
+                'EU 🇪🇺': 'EU',
+                'Austria 🇦🇹': 'RAGB',
+                'Netherlands 🇳🇱': 'NETHER',
+                'Belgium 🇧🇪': 'BGB'
+    }
     
-        # Function to add a new curve
-        def add_curve():
-            st.session_state.curves.append({
-                "id": str(uuid.uuid4()),
-                "country": country_options[0],
-                "bond1": None,
-                "bond2": None
-            })
+    # Function to add a new curve
+    def add_curve():
+        st.session_state.curves.append({
+            "id": str(uuid.uuid4()),
+            "country": country_options[0],
+            "bond1": None,
+            "bond2": None
+        })
     
-        st.button("➕ Add Curve", on_click=add_curve)
+    st.button("➕ Add Curve", on_click=add_curve)
     
-        # Ensure at least one curve exists
-        if not st.session_state.curves:
-            add_curve()
+    # Ensure at least one curve exists
+    if not st.session_state.curves:
+        add_curve()
     
-        # Load issuer_signal data
-        @st.cache_data(ttl=300)
-        def load_issuer_signal() -> pd.DataFrame:
-            try:
-                df = pd.read_csv("issuer_signals.csv")  # replace with your B2 download if needed
-                return df
-            except Exception as e:
-                st.error(f"Failed to load issuer_signal: {e}")
-                return pd.DataFrame()
+    # Load issuer_signal data
+    @st.cache_data(ttl=300)
+    def load_issuer_signal() -> pd.DataFrame:
+        try:
+            df = pd.read_csv("issuer_signals.csv")  # replace with your B2 download if needed
+            return df
+        except Exception as e:
+            st.error(f"Failed to load issuer_signal: {e}")
+            return pd.DataFrame()
     
-        issuer_signal = load_issuer_signal()
+    issuer_signal = load_issuer_signal()
     
-        curves_to_keep = []
-        curve_dfs = []
+    curves_to_keep = []
+    curve_dfs = []
     
-        # Build global legend mapping for all ISINs (Name + Maturity only)
-        global_legend_labels = {}
-        for curve in st.session_state.curves:
-            selected_country = country_code_map[curve['country']]
-            ns_df_tmp = load_full_ns_df(selected_country, zip_hash=zip_hash)
-            ns_df_tmp['Date'] = pd.to_datetime(ns_df_tmp['Date']).dt.normalize()
-            bond_options_tmp = ns_df_tmp[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
-            bond_options_tmp = bond_options_tmp.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
-            bond_options_tmp['Maturity'] = pd.to_datetime(bond_options_tmp['Maturity'], errors='coerce')
-            for _, row in bond_options_tmp.iterrows():
-                isin = row['ISIN']
-                name = row['SECURITY_NAME']
-                maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
-                global_legend_labels[isin] = f"{name} ({maturity})"
+    # Build global legend mapping for all ISINs (Name + Maturity only)
+    global_legend_labels = {}
+    for curve in st.session_state.curves:
+        selected_country = country_code_map[curve['country']]
+        ns_df_tmp = load_full_ns_df(selected_country, zip_hash=zip_hash)
+        ns_df_tmp['Date'] = pd.to_datetime(ns_df_tmp['Date']).dt.normalize()
+        bond_options_tmp = ns_df_tmp[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
+        bond_options_tmp = bond_options_tmp.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+        bond_options_tmp['Maturity'] = pd.to_datetime(bond_options_tmp['Maturity'], errors='coerce')
+        for _, row in bond_options_tmp.iterrows():
+            isin = row['ISIN']
+            name = row['SECURITY_NAME']
+            maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
+            global_legend_labels[isin] = f"{name} ({maturity})"
     
-        # Process each curve
-        for i, curve in enumerate(st.session_state.curves):
-            st.subheader(f"Curve {i+1}")
-            col_main, col_remove = st.columns([9, 1])
-            remove_clicked = False
-            with col_remove:
-                remove_clicked = st.button("❌", key=f"remove_{curve['id']}")
-            if remove_clicked:
-                continue
-            else:
-                curves_to_keep.append(curve)
+    # Process each curve
+    for i, curve in enumerate(st.session_state.curves):
+        st.subheader(f"Curve {i+1}")
+        col_main, col_remove = st.columns([9, 1])
+        remove_clicked = False
+        with col_remove:
+            remove_clicked = st.button("❌", key=f"remove_{curve['id']}")
+        if remove_clicked:
+            continue
+        else:
+            curves_to_keep.append(curve)
     
-            with col_main:
-                col1, col2 = st.columns(2)
-                with col1:
-                    curve['country'] = st.selectbox(
-                        f"Select Country (Curve {i+1})",
-                        country_options,
-                        index=country_options.index(curve['country']),
-                        key=f"country_{curve['id']}"
-                    )
-                    selected_country = country_code_map[curve['country']]
-                    ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
-                    ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
+        with col_main:
+            col1, col2 = st.columns(2)
+            with col1:
+                curve['country'] = st.selectbox(
+                    f"Select Country (Curve {i+1})",
+                    country_options,
+                    index=country_options.index(curve['country']),
+                    key=f"country_{curve['id']}"
+                )
+                selected_country = country_code_map[curve['country']]
+                ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
+                ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
     
-                    # Bond options with signal for dropdown
-                    bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
-                    bond_options = bond_options.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
-                    bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
-                    bond_options.sort_values('Maturity', inplace=True)
+                # Bond options with signal for dropdown
+                bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
+                bond_options = bond_options.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
+                bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
+                bond_options.sort_values('Maturity', inplace=True)
     
-                    # Dropdown labels (with signal)
-                    bond_labels = {}
-                    for _, row in bond_options.iterrows():
-                        isin = row['ISIN']
-                        name = row['SECURITY_NAME']
-                        maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
-                        signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
-                        bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
+                # Dropdown labels (with signal)
+                bond_labels = {}
+                for _, row in bond_options.iterrows():
+                    isin = row['ISIN']
+                    name = row['SECURITY_NAME']
+                    maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
+                    signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
+                    bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
     
-                with col2:
-                    curve['bond1'] = st.selectbox(
-                        f"Select Bond 1 (Curve {i+1})",
-                        bond_options['ISIN'],
-                        format_func=lambda isin: bond_labels.get(isin, isin),
-                        key=f"bond1_{curve['id']}"
-                    )
-                    curve['bond2'] = st.selectbox(
-                        f"Select Bond 2 (Curve {i+1})",
-                        bond_options['ISIN'],
-                        format_func=lambda isin: bond_labels.get(isin, isin),
-                        key=f"bond2_{curve['id']}"
-                    )
+            with col2:
+                curve['bond1'] = st.selectbox(
+                    f"Select Bond 1 (Curve {i+1})",
+                    bond_options['ISIN'],
+                    format_func=lambda isin: bond_labels.get(isin, isin),
+                    key=f"bond1_{curve['id']}"
+                )
+                curve['bond2'] = st.selectbox(
+                    f"Select Bond 2 (Curve {i+1})",
+                    bond_options['ISIN'],
+                    format_func=lambda isin: bond_labels.get(isin, isin),
+                    key=f"bond2_{curve['id']}"
+                )
     
-                # Compute curve (Bond1 - Bond2)
-                if curve['bond1'] and curve['bond2']:
-                    df1 = ns_df[ns_df['ISIN'] == curve['bond1']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B1'})
-                    df2 = ns_df[ns_df['ISIN'] == curve['bond2']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B2'})
-                    df_curve = df1.merge(df2, on='Date', how='outer').sort_values('Date')
-                    df_curve['Curve'] = df_curve['B1'] - df_curve['B2']
-                    df_curve['Curve_Name'] = f"Curve {i+1}"
-                    df_curve['Bond1_ISIN'] = curve['bond1']
-                    df_curve['Bond2_ISIN'] = curve['bond2']
-                    curve_dfs.append(df_curve)
+            # Compute curve (Bond1 - Bond2)
+            if curve['bond1'] and curve['bond2']:
+                df1 = ns_df[ns_df['ISIN'] == curve['bond1']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B1'})
+                df2 = ns_df[ns_df['ISIN'] == curve['bond2']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B2'})
+                df_curve = df1.merge(df2, on='Date', how='outer').sort_values('Date')
+                df_curve['Curve'] = df_curve['B1'] - df_curve['B2']
+                df_curve['Curve_Name'] = f"Curve {i+1}"
+                df_curve['Bond1_ISIN'] = curve['bond1']
+                df_curve['Bond2_ISIN'] = curve['bond2']
+                curve_dfs.append(df_curve)
     
-        st.session_state.curves = curves_to_keep
+    st.session_state.curves = curves_to_keep
     
-        # --- Plot individual curves + combined curve ---
-        if curve_dfs:
-            combined_df = pd.concat(curve_dfs)
-            fig = go.Figure()
+    # --- Plot individual curves + combined curve ---
+    if curve_dfs:
+        combined_df = pd.concat(curve_dfs)
+        fig = go.Figure()
     
-            # Plot individual curves
-            for i, curve_df in enumerate(curve_dfs):
-                curve = st.session_state.curves[i]
-                bond1_label = global_legend_labels.get(curve['bond1'], curve['bond1'])
-                bond2_label = global_legend_labels.get(curve['bond2'], curve['bond2'])
-                curve_name = f"{bond1_label} − {bond2_label}"
+        # Plot individual curves
+        for i, curve_df in enumerate(curve_dfs):
+            curve = st.session_state.curves[i]
+            bond1_label = global_legend_labels.get(curve['bond1'], curve['bond1'])
+            bond2_label = global_legend_labels.get(curve['bond2'], curve['bond2'])
+            curve_name = f"{bond1_label} − {bond2_label}"
     
-                fig.add_trace(go.Scatter(
-                    x=curve_df['Date'],
-                    y=curve_df['Curve'],
-                    mode='lines',
-                    name=curve_name
-                ))
-    
-            # Combined curve
-            combined_curve_df = combined_df.groupby('Date')['Curve'].sum().reset_index()
             fig.add_trace(go.Scatter(
-                x=combined_curve_df['Date'],
-                y=combined_curve_df['Curve'],
+                x=curve_df['Date'],
+                y=curve_df['Curve'],
                 mode='lines',
-                name="Combined Curve",
-                line=dict(color='black', width=3, dash='dot')
+                name=curve_name
             ))
     
-            # Layout
-            fig.update_layout(
-                title="Multi-Curve Residual Comparison",
-                xaxis_title="Date",
-                yaxis_title="Residual Difference (bps)",
-                template="plotly_white",
-                height=900,
-                legend_title="Curves"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+        # Combined curve
+        combined_curve_df = combined_df.groupby('Date')['Curve'].sum().reset_index()
+        fig.add_trace(go.Scatter(
+            x=combined_curve_df['Date'],
+            y=combined_curve_df['Curve'],
+            mode='lines',
+            name="Combined Curve",
+            line=dict(color='black', width=3, dash='dot')
+        ))
+    
+        # Layout
+        fig.update_layout(
+            title="Multi-Curve Residual Comparison",
+            xaxis_title="Date",
+            yaxis_title="Residual Difference (bps)",
+            template="plotly_white",
+            height=900,
+            legend_title="Curves"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
 
 
