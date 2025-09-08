@@ -1148,12 +1148,13 @@ with tab1:
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
-
 with tab3:
+    import streamlit as st
+    import pandas as pd
+    import plotly.graph_objects as go
 
-    
-    st.set_page_config(page_title="Curve Pair Analysis", layout="wide")
-    
+    st.markdown("## Bond Pair Residual Curve Comparison")
+
     # --- Load NS data like in Tab1 ---
     B2_BUCKET_FILE = "ns_curves_0809.zip"
     try:
@@ -1165,13 +1166,13 @@ with tab3:
         st.error(f"Failed to download or hash NS curves zip: {e}")
         zip_path = None
         zip_hash = None
-    
+
     # --- Country selection ---
     country_option = st.selectbox(
         "Select Country",
         options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
     )
-    
+
     country_code_map = {
         'Italy 🇮🇹': 'BTPS',
         'Spain 🇪🇸': 'SPGB',
@@ -1183,35 +1184,34 @@ with tab3:
         'Netherlands 🇳🇱': 'NETHER',
         'Belgium 🇧🇪': 'BGB'
     }
-    
+
     selected_country = country_code_map[country_option]
-    
+
     # Load full NS dataset
     ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
     ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
-    
+
     # Map maturities for display
     isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
     bond_labels = {row['ISIN']: f"{row['SECURITY_NAME']} ({pd.to_datetime(isin_maturity_map[row['ISIN']]).strftime('%Y-%m-%d')})"
                    for _, row in ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().iterrows()}
-    
+
     # --- UI: Select bond pairs ---
     st.markdown("### Select Bond Pairs for Curve Comparison")
-    
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.markdown("**Curve A (Same Issuer)**")
         curve_a_bond1 = st.selectbox("Bond 1 (Curve A)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
         curve_a_bond2 = st.selectbox("Bond 2 (Curve A)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
-    
+
     with col2:
         st.markdown("**Curve B (Same Issuer)**")
         curve_b_bond1 = st.selectbox("Bond 1 (Curve B)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
         curve_b_bond2 = st.selectbox("Bond 2 (Curve B)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
-    
+
     show_diff = st.checkbox("Show Curve A − Curve B Difference", value=True)
-    
+
     # --- Compute curves ---
     def compute_curve(bond1, bond2):
         df1 = ns_df[ns_df['ISIN'] == bond1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'R1'})
@@ -1219,20 +1219,20 @@ with tab3:
         merged = pd.merge(df1, df2, on='Date', how='outer').sort_values('Date')
         merged['Curve'] = merged['R1'] - merged['R2']
         return merged[['Date', 'Curve']]
-    
+
     curve_a_df = compute_curve(curve_a_bond1, curve_a_bond2)
     curve_b_df = compute_curve(curve_b_bond1, curve_b_bond2)
-    
+
     # Merge for difference
     if show_diff:
         merged_df = pd.merge(curve_a_df, curve_b_df, on='Date', how='outer', suffixes=('_A', '_B')).sort_values('Date')
         merged_df['Difference'] = merged_df['Curve_A'] - merged_df['Curve_B']
     else:
         merged_df = pd.merge(curve_a_df, curve_b_df, on='Date', how='outer', suffixes=('_A', '_B'))
-    
+
     # --- Plot ---
     fig = go.Figure()
-    
+
     fig.add_trace(go.Scatter(
         x=merged_df['Date'], y=merged_df['Curve_A'],
         mode='lines+markers', name='Curve A'
@@ -1246,7 +1246,7 @@ with tab3:
             x=merged_df['Date'], y=merged_df['Difference'],
             mode='lines+markers', name='Curve A − Curve B', line=dict(dash='dash')
         ))
-    
+
     fig.update_layout(
         title="Bond Pair Residual Curve Comparison",
         xaxis_title="Date",
@@ -1254,5 +1254,5 @@ with tab3:
         template="plotly_white",
         height=600
     )
-    
+
     st.plotly_chart(fig, use_container_width=True)
