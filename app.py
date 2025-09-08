@@ -1149,16 +1149,31 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 
-with tab3 : 
+with tab3:
 
+    st.subheader("Enhanced Pair & Curve Analysis")
+
+    # --- COUNTRY SELECTION ---
+    country_option = st.selectbox(
+        "Select Country",
+        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 
+                 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪'],
+        key="country_selector"
+    )
+
+    country_code_map = {
+        'Italy 🇮🇹': 'BTPS', 'Spain 🇪🇸': 'SPGB', 'France 🇫🇷': 'FRTR',
+        'Germany 🇩🇪': 'BUNDS', 'Finland 🇫🇮': 'RFGB', 'EU 🇪🇺': 'EU',
+        'Austria 🇦🇹': 'RAGB', 'Netherlands 🇳🇱': 'NETHER', 'Belgium 🇧🇪': 'BGB'
+    }
+
+    selected_country = country_code_map[country_option]
+
+    # --- LOAD NS DATA FUNCTION ---
     def load_full_ns_df(country_code, zip_hash=None):
-        """
-        Load full Nelson-Siegel dataset for a given country.
-        Assumes you have a zip file downloaded locally via B2.
-        """
         B2_BUCKET_FILE = "ns_curves_0809.zip"
-        LOCAL_ZIP = "ns_curves_0809.zip"  # or wherever you store it
-    
+        LOCAL_ZIP = "ns_curves_0809.zip"
+
         # Download or locate the zip
         try:
             zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
@@ -1170,66 +1185,38 @@ with tab3 :
         except Exception as e:
             st.error(f"Failed to download or hash NS curves zip: {e}")
             return pd.DataFrame()
-    
+
         # Load the CSV for the country from the zip
         try:
-            import zipfile
             with zipfile.ZipFile(zip_path, 'r') as z:
-                # Assuming files inside are named like NS_BTPS.csv, NS_FRTR.csv, etc.
                 filename = f"NS_{country_code}.csv"
                 if filename not in z.namelist():
                     st.error(f"{filename} not found in zip")
                     return pd.DataFrame()
                 with z.open(filename) as f:
                     df = pd.read_csv(f)
-            # Ensure Date column is datetime
             df['Date'] = pd.to_datetime(df['Date']).dt.normalize()
             return df
         except Exception as e:
             st.error(f"Failed to load NS data for {country_code}: {e}")
             return pd.DataFrame()
 
-    
-    # --- COUNTRY SELECTION ---
-    country_option = st.selectbox(
-        "Select Country",
-        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
-    )
-    
-    country_code_map = {
-        'Italy 🇮🇹': 'BTPS',
-        'Spain 🇪🇸': 'SPGB',
-        'France 🇫🇷': 'FRTR',
-        'Germany 🇩🇪': 'BUNDS',
-        'Finland 🇫🇮': 'RFGB',
-        'EU 🇪🇺': 'EU',
-        'Austria 🇦🇹': 'RAGB',
-        'Netherlands 🇳🇱': 'NETHER',
-        'Belgium 🇧🇪': 'BGB'
-    }
-    
-    selected_country = country_code_map[country_option]
-    
-    # --- Load full NS dataset ---
+    # --- Load NS dataset ---
     ns_df = load_full_ns_df(selected_country, zip_hash=None)
     if ns_df.empty:
         st.warning("No data available for this country.")
         st.stop()
-    
-    # Ensure date column is datetime
-    ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
-    
+
     # --- BOND OPTIONS ---
     country_isins = ns_df['ISIN'].unique()
     bond_options = ns_df[ns_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
-    
     isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
     bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
     bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
     bond_options.sort_values('Maturity', inplace=True)
-    
+
     bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
-    
+
     def format_bond_label(isin):
         maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
         if len(maturity) > 0 and pd.notnull(maturity[0]):
@@ -1237,37 +1224,41 @@ with tab3 :
             return f"{bond_labels.get(isin, isin)} ({maturity_str})"
         else:
             return f"{bond_labels.get(isin, isin)} (N/A)"
-    
+
     # --- ANALYSIS LEVEL ---
-    st.subheader("Enhanced Pair & Curve Analysis")
     analysis_level = st.radio(
         "Select Analysis Level",
-        options=["Single Bond", "Pair", "Difference of Pairs"]
+        options=["Single Bond", "Pair", "Difference of Pairs"],
+        key="analysis_level_selector"
     )
-    
+
     # --- OPTIONS ---
-    normalize = st.checkbox("Normalize", value=False)
-    rolling_window = st.slider("Rolling window (days, 0 = no smoothing)", min_value=0, max_value=60, value=0)
-    
+    normalize = st.checkbox("Normalize", value=False, key="normalize_checkbox")
+    rolling_window = st.slider(
+        "Rolling window (days, 0 = no smoothing)",
+        min_value=0, max_value=60, value=0, key="rolling_window_slider"
+    )
+
     # --- HELPER FUNCTIONS ---
     def apply_normalize(df, col):
         if normalize:
             return (df[col] - df[col].mean()) / df[col].std()
         return df[col]
-    
+
     def apply_rolling(df, col):
         if rolling_window > 0:
             return df[col].rolling(window=rolling_window).mean()
         return df[col]
-    
+
     # --- SINGLE BOND ANALYSIS ---
     if analysis_level == "Single Bond":
         selected_bonds = st.multiselect(
             "Select Bonds",
             options=bond_options['ISIN'].tolist(),
-            format_func=format_bond_label
+            format_func=format_bond_label,
+            key="single_bond_select"
         )
-        
+
         if not selected_bonds:
             st.warning("Select at least one bond.")
         else:
@@ -1291,19 +1282,19 @@ with tab3 :
                 height=500
             )
             st.plotly_chart(fig, use_container_width=True)
-    
+
     # --- PAIR ANALYSIS ---
     elif analysis_level == "Pair":
-        bond_a = st.selectbox("Select Bond A", options=bond_options['ISIN'])
-        bond_b = st.selectbox("Select Bond B", options=[i for i in bond_options['ISIN'] if i != bond_a])
-        
+        bond_a = st.selectbox("Select Bond A", options=bond_options['ISIN'], key="pair_bond_a")
+        bond_b = st.selectbox("Select Bond B", options=[i for i in bond_options['ISIN'] if i != bond_a], key="pair_bond_b")
+
         pair_df = ns_df[ns_df['ISIN'].isin([bond_a, bond_b])].copy()
         pivot_df = pair_df.pivot(index='Date', columns='ISIN', values='RESIDUAL_NS').dropna()
         pivot_df['PAIR_SPREAD'] = pivot_df[bond_a] - pivot_df[bond_b]
-        
+
         y_vals = apply_rolling(pivot_df, 'PAIR_SPREAD')
         y_vals = apply_normalize(pivot_df.assign(PAIR_SPREAD=y_vals), 'PAIR_SPREAD')
-        
+
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=pivot_df.index,
@@ -1319,24 +1310,24 @@ with tab3 :
             height=500
         )
         st.plotly_chart(fig, use_container_width=True)
-    
+
     # --- DIFFERENCE OF PAIRS ---
     elif analysis_level == "Difference of Pairs":
-        pair1_a = st.selectbox("Pair 1 - Bond A", options=bond_options['ISIN'])
-        pair1_b = st.selectbox("Pair 1 - Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a])
-        pair2_a = st.selectbox("Pair 2 - Bond A", options=bond_options['ISIN'])
-        pair2_b = st.selectbox("Pair 2 - Bond B", options=[i for i in bond_options['ISIN'] if i not in [pair2_a, pair1_a, pair1_b]])
-        
+        pair1_a = st.selectbox("Pair 1 - Bond A", options=bond_options['ISIN'], key="diff_pair1_a")
+        pair1_b = st.selectbox("Pair 1 - Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a], key="diff_pair1_b")
+        pair2_a = st.selectbox("Pair 2 - Bond A", options=bond_options['ISIN'], key="diff_pair2_a")
+        pair2_b = st.selectbox("Pair 2 - Bond B", options=[i for i in bond_options['ISIN'] if i not in [pair2_a, pair1_a, pair1_b]], key="diff_pair2_b")
+
         subset_df = ns_df[ns_df['ISIN'].isin([pair1_a, pair1_b, pair2_a, pair2_b])].copy()
         pivot_df = subset_df.pivot(index='Date', columns='ISIN', values='RESIDUAL_NS').dropna()
-        
+
         pivot_df['PAIR1_SPREAD'] = pivot_df[pair1_a] - pivot_df[pair1_b]
         pivot_df['PAIR2_SPREAD'] = pivot_df[pair2_a] - pivot_df[pair2_b]
         pivot_df['DIFF_PAIR'] = pivot_df['PAIR1_SPREAD'] - pivot_df['PAIR2_SPREAD']
-        
+
         y_vals = apply_rolling(pivot_df, 'DIFF_PAIR')
         y_vals = apply_normalize(pivot_df.assign(DIFF_PAIR=y_vals), 'DIFF_PAIR')
-        
+
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=pivot_df.index,
@@ -1353,6 +1344,7 @@ with tab3 :
             height=500
         )
         st.plotly_chart(fig, use_container_width=True)
+
     
     
     
@@ -1384,4 +1376,5 @@ with tab3 :
     
     
     
+
 
