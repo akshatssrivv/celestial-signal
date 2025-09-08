@@ -1149,8 +1149,8 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 
-
 with tab3:
+
     st.subheader("Enhanced Residual Pair Analysis")
 
     # --- COUNTRY SELECTION ---
@@ -1169,10 +1169,10 @@ with tab3:
 
     selected_country = country_code_map[country_option]
 
-    # --- FILTER NS DF BY SECURITY_NAME PREFIX ---
+    # --- FILTER NS DF BY COUNTRY ---
     country_bonds = ns_df[ns_df['SECURITY_NAME'].str.contains(selected_country[:3], case=False)].copy()
     country_bonds['Date'] = pd.to_datetime(country_bonds['Date']).dt.normalize()
-    
+
     if country_bonds.empty:
         st.warning("No data available for this country.")
         st.stop()
@@ -1184,12 +1184,10 @@ with tab3:
     def format_bond_label(isin):
         return bond_labels.get(isin, isin)
 
-    # --- SELECT PAIRS ---
+    # --- PAIR SELECTION ---
     st.markdown("### Pair 1 Selection")
     pair1_a = st.selectbox("Pair 1 - Bond A", options=bond_options['ISIN'], key="pair1_a")
-    pair1_b = st.selectbox(
-        "Pair 1 - Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a], key="pair1_b"
-    )
+    pair1_b = st.selectbox("Pair 1 - Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a], key="pair1_b")
 
     st.markdown("### Pair 2 Selection")
     pair2_a = st.selectbox("Pair 2 - Bond A", options=bond_options['ISIN'], key="pair2_a")
@@ -1201,32 +1199,23 @@ with tab3:
 
     show_diff = st.checkbox("Show difference between Pair 1 and Pair 2", value=True, key="show_diff")
 
-    # --- SUBSET DATA FOR SELECTED BONDS ---
-    df_subset = country_bonds[country_bonds['ISIN'].isin([pair1_a, pair1_b, pair2_a, pair2_b])].copy()
+    # --- SUBSET NS DF FOR SELECTED PAIRS ---
+    selected_isins = [pair1_a, pair1_b, pair2_a, pair2_b]
+    df_subset = country_bonds[country_bonds['ISIN'].isin(selected_isins)].copy()
 
-    # --- PIVOT WITH AGGREGATION TO AVOID DUPLICATE DATES ---
-    pivot_df = df_subset.pivot_table(
-        index='Date',
-        columns='ISIN',
-        values='RESIDUAL_NS',
-        aggfunc='first'  # or np.mean if multiple residuals per date
-    ).sort_index()
+    if df_subset.empty:
+        st.warning("No data available for the selected bonds.")
+        st.stop()
 
-    # Ensure all selected ISINs exist
-    for col in [pair1_a, pair1_b, pair2_a, pair2_b]:
-        if col not in pivot_df.columns:
-            pivot_df[col] = np.nan
-
-    pivot_df = pivot_df[[pair1_a, pair1_b, pair2_a, pair2_b]]
+    # --- PIVOT FOR ALL DATES ---
+    pivot_df = df_subset.pivot_table(index='Date', columns='ISIN', values='RESIDUAL_NS', aggfunc='first').sort_index()
 
     # --- COMPUTE PAIR SPREADS ---
     pivot_df['Curve_A'] = pivot_df[pair1_a] - pivot_df[pair1_b]
     pivot_df['Curve_B'] = pivot_df[pair2_a] - pivot_df[pair2_b]
+
     if show_diff:
         pivot_df['Diff_Curves'] = pivot_df['Curve_A'] - pivot_df['Curve_B']
-
-    # Fill NaNs for Plotly gaps
-    pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']] = pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']].fillna(np.nan)
 
     # --- PLOT ---
     fig = go.Figure()
