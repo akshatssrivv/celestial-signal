@@ -1148,6 +1148,7 @@ with tab1:
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
+
 with tab3:
 
     st.subheader("Enhanced Residual Pair Analysis")
@@ -1156,7 +1157,8 @@ with tab3:
     country_option = st.selectbox(
         "Select Country",
         options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 
-                 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+                 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪'],
+        key="country_select"
     )
 
     country_code_map = {
@@ -1183,20 +1185,27 @@ with tab3:
         return bond_labels.get(isin, isin)
 
     # --- SELECT PAIRS ---
-    st.markdown("### Pair 1")
-    pair1_a = st.selectbox("Bond A", options=bond_options['ISIN'], key="pair1_a")
+    st.markdown("### Pair 1 Selection")
+    pair1_a = st.selectbox(
+        "Pair 1 - Bond A", options=bond_options['ISIN'], key="pair1_a"
+    )
     pair1_b = st.selectbox(
-        "Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a], key="pair1_b"
+        "Pair 1 - Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a], key="pair1_b"
     )
 
-    st.markdown("### Pair 2")
-    pair2_a = st.selectbox("Bond A", options=bond_options['ISIN'], key="pair2_a")
+    st.markdown("### Pair 2 Selection")
+    pair2_a = st.selectbox(
+        "Pair 2 - Bond A", options=bond_options['ISIN'], key="pair2_a"
+    )
     pair2_b = st.selectbox(
-        "Bond B", options=[i for i in bond_options['ISIN'] if i not in [pair2_a, pair1_a, pair1_b]], 
+        "Pair 2 - Bond B", 
+        options=[i for i in bond_options['ISIN'] if i not in [pair2_a, pair1_a, pair1_b]], 
         key="pair2_b"
     )
 
-    show_diff = st.checkbox("Show difference between Pair 1 and Pair 2", value=True)
+    show_diff = st.checkbox(
+        "Show difference between Pair 1 and Pair 2", value=True, key="show_diff"
+    )
 
     # --- COMPUTE CURVES ---
     df_subset = country_ns_df[country_ns_df['ISIN'].isin([pair1_a, pair1_b, pair2_a, pair2_b])]
