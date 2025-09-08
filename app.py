@@ -1298,7 +1298,7 @@ with tab1:
     
         # --- Plot individual curves + combined curve ---
         if curve_dfs:
-            combined_df = pd.concat(curve_dfs)
+            combined_df = curve_dfs[1] - curve_dfs[0]
             fig = go.Figure()
     
             # Plot individual curves
@@ -1338,5 +1338,6 @@ with tab1:
 
 
     
+
 
 
