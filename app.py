@@ -159,7 +159,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-tab1, tab2, tab3 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis"])
+tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
 
 
 with tab2:
@@ -1262,3 +1262,4 @@ with tab1:
     
     
     
+
