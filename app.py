@@ -1150,8 +1150,9 @@ with tab1:
 
 
 
+
     elif subtab == "Analysis":
-    
+        
         import streamlit as st
         import pandas as pd
         import plotly.graph_objects as go
@@ -1233,19 +1234,20 @@ with tab1:
     
                     # Bond options with signal
                     bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
-                    # Merge in issuer signals
                     bond_options = bond_options.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
                     bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
                     bond_options.sort_values('Maturity', inplace=True)
     
-                    # Format bond label: Name (Maturity) [Signal]
-                    bond_labels = {}
+                    # Two sets of labels: one for dropdowns (with signal), one for legend (without signal)
+                    bond_labels = {}  # dropdown
+                    bond_labels_for_legend = {}  # legend
                     for _, row in bond_options.iterrows():
                         isin = row['ISIN']
                         name = row['SECURITY_NAME']
                         maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
                         signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
                         bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
+                        bond_labels_for_legend[isin] = f"{name} ({maturity})"
     
                 with col2:
                     curve['bond1'] = st.selectbox(f"Select Bond 1 (Curve {i+1})",
@@ -1264,7 +1266,9 @@ with tab1:
                     df_curve = df1.merge(df2, on='Date', how='outer').sort_values('Date')
                     df_curve['Curve'] = df_curve['B1'] - df_curve['B2']
                     df_curve['Curve_Name'] = f"Curve {i+1}"
-                    curve_dfs.append(df_curve[['Date','Curve','Curve_Name']])
+                    df_curve['Bond1_ISIN'] = curve['bond1']
+                    df_curve['Bond2_ISIN'] = curve['bond2']
+                    curve_dfs.append(df_curve)
     
         st.session_state.curves = curves_to_keep
     
@@ -1272,21 +1276,21 @@ with tab1:
         if curve_dfs:
             combined_df = pd.concat(curve_dfs)
             fig = go.Figure()
-        
-            # Plot individual curves
+    
+            # Plot individual curves with bond1 - bond2 (without signal) in legend
             for i, curve_df in enumerate(curve_dfs):
                 curve = st.session_state.curves[i]
-                bond1_label = bond_labels.get(curve['bond1'], curve['bond1'])
-                bond2_label = bond_labels.get(curve['bond2'], curve['bond2'])
+                bond1_label = bond_labels_for_legend.get(curve['bond1'], curve['bond1'])
+                bond2_label = bond_labels_for_legend.get(curve['bond2'], curve['bond2'])
                 curve_name = f"{bond1_label} − {bond2_label}"
-        
+    
                 fig.add_trace(go.Scatter(
                     x=curve_df['Date'],
                     y=curve_df['Curve'],
                     mode='lines',
                     name=curve_name
                 ))
-        
+    
             # Compute combined curve (sum of all curves)
             combined_curve_df = combined_df.groupby('Date')['Curve'].sum().reset_index()
             fig.add_trace(go.Scatter(
@@ -1296,7 +1300,7 @@ with tab1:
                 name="Combined Curve",
                 line=dict(color='black', width=3, dash='dot')
             ))
-        
+    
             # Layout
             fig.update_layout(
                 title="Multi-Curve Residual Comparison (Each Curve = Bond1 - Bond2)",
