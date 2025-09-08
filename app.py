@@ -1149,10 +1149,7 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 with tab3:
-    import streamlit as st
-    import pandas as pd
-    import plotly.graph_objects as go
-
+    
     st.markdown("## Bond Pair Residual Curve Comparison")
 
     # --- Load NS data like in Tab1 ---
@@ -1170,7 +1167,8 @@ with tab3:
     # --- Country selection ---
     country_option = st.selectbox(
         "Select Country",
-        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪'],
+        key="tab3_country"
     )
 
     country_code_map = {
@@ -1202,15 +1200,20 @@ with tab3:
 
     with col1:
         st.markdown("**Curve A (Same Issuer)**")
-        curve_a_bond1 = st.selectbox("Bond 1 (Curve A)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
-        curve_a_bond2 = st.selectbox("Bond 2 (Curve A)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
-
+        curve_a_bond1 = st.selectbox("Bond 1 (Curve A)", options=ns_df['ISIN'].unique(),
+                                     format_func=lambda x: bond_labels[x], key="curve_a_bond1")
+        curve_a_bond2 = st.selectbox("Bond 2 (Curve A)", options=ns_df['ISIN'].unique(),
+                                     format_func=lambda x: bond_labels[x], key="curve_a_bond2")
+    
     with col2:
         st.markdown("**Curve B (Same Issuer)**")
-        curve_b_bond1 = st.selectbox("Bond 1 (Curve B)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
-        curve_b_bond2 = st.selectbox("Bond 2 (Curve B)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
+        curve_b_bond1 = st.selectbox("Bond 1 (Curve B)", options=ns_df['ISIN'].unique(),
+                                     format_func=lambda x: bond_labels[x], key="curve_b_bond1")
+        curve_b_bond2 = st.selectbox("Bond 2 (Curve B)", options=ns_df['ISIN'].unique(),
+                                     format_func=lambda x: bond_labels[x], key="curve_b_bond2")
+    
+    show_diff = st.checkbox("Show Curve A − Curve B Difference", value=True, key="tab3_show_diff")
 
-    show_diff = st.checkbox("Show Curve A − Curve B Difference", value=True)
 
     # --- Compute curves ---
     def compute_curve(bond1, bond2):
@@ -1256,3 +1259,4 @@ with tab3:
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
