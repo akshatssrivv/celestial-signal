@@ -1149,25 +1149,15 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 
-    
     elif subtab == "Analysis":
-
+    
         st.markdown("## Bond Pair Residual Curve Comparison")
     
-        # --- Helper function ---
-        import uuid
-        def safe_selectbox(label, options, **kwargs):
-            """Drop-in replacement for st.selectbox with a unique key."""
-            unique_key = f"{label}_{uuid.uuid4()}"
-            return st.selectbox(label, options, key=unique_key, **kwargs)
-    
         # --- Country selector ---
-        country_option_tab3 = safe_selectbox(
+        country_option_tab3 = st.selectbox(
             "Select Country",
-            options=[
-                'Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
-                'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪'
-            ]
+            options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
+                     'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
         )
     
         country_code_map = {
@@ -1181,6 +1171,7 @@ with tab1:
             'Netherlands 🇳🇱': 'NETHER',
             'Belgium 🇧🇪': 'BGB'
         }
+    
         selected_country = country_code_map[country_option_tab3]
     
         # --- Load NS data ---
@@ -1188,41 +1179,33 @@ with tab1:
         ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
     
         # --- Prepare bond options ---
-        bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'ISSUER', 'Maturity']].drop_duplicates()
+        bond_options = ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates()
+        isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
+        bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
         bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
         bond_options.sort_values('Maturity', inplace=True)
     
+        # Labels for display
         bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
         def format_bond_label(isin):
             maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
             if len(maturity) > 0 and pd.notnull(maturity[0]):
-                maturity_str = pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')
-                return f"{bond_labels.get(isin, isin)} ({maturity_str})"
+                return f"{bond_labels.get(isin, isin)} ({pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')})"
             else:
                 return f"{bond_labels.get(isin, isin)} (N/A)"
     
-        # --- Issuer selection ---
-        st.subheader("Issuer Selection")
-        issuers = ns_df['ISSUER'].unique()
-        issuer_a = st.selectbox("Select Issuer for Curve A", issuers)
-        issuer_b = st.selectbox("Select Issuer for Curve B", issuers)
+        # --- Select bonds for Curve A ---
+        st.subheader("Curve A")
+        bond_a1 = st.selectbox("Select Bond A1", bond_options['ISIN'], format_func=format_bond_label)
+        bond_a2 = st.selectbox("Select Bond A2", bond_options['ISIN'], format_func=format_bond_label)
     
-        # --- Filter bonds by issuer ---
-        bond_options_a = bond_options[bond_options['ISIN'].isin(ns_df[ns_df['ISSUER'] == issuer_a]['ISIN'].unique())]
-        bond_options_b = bond_options[bond_options['ISIN'].isin(ns_df[ns_df['ISSUER'] == issuer_b]['ISIN'].unique())]
-    
-        # --- Pair A (Curve A) ---
-        st.subheader("Curve A (Issuer 1)")
-        bond_a1 = safe_selectbox("Select Bond A1", bond_options_a['ISIN'], format_func=format_bond_label)
-        bond_a2 = safe_selectbox("Select Bond A2", bond_options_a['ISIN'], format_func=format_bond_label)
-    
-        # --- Pair B (Curve B) ---
-        st.subheader("Curve B (Issuer 2)")
-        bond_b1 = safe_selectbox("Select Bond B1", bond_options_b['ISIN'], format_func=format_bond_label)
-        bond_b2 = safe_selectbox("Select Bond B2", bond_options_b['ISIN'], format_func=format_bond_label)
+        # --- Select bonds for Curve B ---
+        st.subheader("Curve B")
+        bond_b1 = st.selectbox("Select Bond B1", bond_options['ISIN'], format_func=format_bond_label)
+        bond_b2 = st.selectbox("Select Bond B2", bond_options['ISIN'], format_func=format_bond_label)
     
         # --- Checkbox: show difference ---
-        show_diff_tab3 = st.checkbox("Show difference between curves", key=f"show_diff_{uuid.uuid4()}")
+        show_diff_tab3 = st.checkbox("Show difference between curves")
     
         # --- Compute curves ---
         if all([bond_a1, bond_a2, bond_b1, bond_b2]):
@@ -1231,13 +1214,11 @@ with tab1:
             df_b1 = ns_df[ns_df['ISIN'] == bond_b1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B1'})
             df_b2 = ns_df[ns_df['ISIN'] == bond_b2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B2'})
     
-            # Merge all on Date
-            pivot_df = df_a1.merge(df_a2, on='Date', how='outer')
-            pivot_df = pivot_df.merge(df_b1, on='Date', how='outer')
-            pivot_df = pivot_df.merge(df_b2, on='Date', how='outer')
-            pivot_df.sort_values('Date', inplace=True)
+            pivot_df = df_a1.merge(df_a2, on='Date', how='outer')\
+                            .merge(df_b1, on='Date', how='outer')\
+                            .merge(df_b2, on='Date', how='outer')\
+                            .sort_values('Date')
     
-            # Compute curves
             pivot_df['Curve_A'] = pivot_df['A1'] - pivot_df['A2']
             pivot_df['Curve_B'] = pivot_df['B1'] - pivot_df['B2']
             if show_diff_tab3:
@@ -1245,16 +1226,12 @@ with tab1:
     
             # --- Plot ---
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=pivot_df['Date'], y=pivot_df['Curve_A'], mode='lines', name="Curve A"
-            ))
-            fig.add_trace(go.Scatter(
-                x=pivot_df['Date'], y=pivot_df['Curve_B'], mode='lines', name="Curve B"
-            ))
+            fig.add_trace(go.Scatter(x=pivot_df['Date'], y=pivot_df['Curve_A'], mode='lines', name="Curve A"))
+            fig.add_trace(go.Scatter(x=pivot_df['Date'], y=pivot_df['Curve_B'], mode='lines', name="Curve B"))
             if show_diff_tab3:
                 fig.add_trace(go.Scatter(
-                    x=pivot_df['Date'], y=pivot_df['Curve_Diff'], mode='lines', name="Curve A − Curve B",
-                    line=dict(dash='dash')
+                    x=pivot_df['Date'], y=pivot_df['Curve_Diff'], mode='lines', 
+                    name="Curve A − Curve B", line=dict(dash='dash')
                 ))
     
             fig.update_layout(
