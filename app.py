@@ -1148,19 +1148,23 @@ with tab1:
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
-
-
 with tab3:
     st.markdown("## Bond Pair Residual Curve Comparison")
 
+    # --- Helper function ---
+    import uuid
+    def safe_selectbox(label, options, **kwargs):
+        """Drop-in replacement for st.selectbox with a unique key."""
+        unique_key = f"{label}_{uuid.uuid4()}"
+        return st.selectbox(label, options, key=unique_key, **kwargs)
+
     # Country selector
-    country_option_tab3 = st.selectbox(
+    country_option_tab3 = safe_selectbox(
         "Select Country",
         options=[
             'Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
             'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪'
-        ],
-        key="tab3_country"
+        ]
     )
 
     country_code_map = {
@@ -1174,7 +1178,6 @@ with tab3:
         'Netherlands 🇳🇱': 'NETHER',
         'Belgium 🇧🇪': 'BGB'
     }
-
     selected_country = country_code_map[country_option_tab3]
 
     # Load NS data
@@ -1200,16 +1203,16 @@ with tab3:
 
     # --- Pair A (same issuer) ---
     st.subheader("Curve A (Issuer 1)")
-    bond_a1 = st.selectbox("Select Bond A1", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_a1")
-    bond_a2 = st.selectbox("Select Bond A2", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_a2")
+    bond_a1 = safe_selectbox("Select Bond A1", bond_options['ISIN'], format_func=format_bond_label)
+    bond_a2 = safe_selectbox("Select Bond A2", bond_options['ISIN'], format_func=format_bond_label)
 
     # --- Pair B (same issuer) ---
     st.subheader("Curve B (Issuer 2)")
-    bond_b1 = st.selectbox("Select Bond B1", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_b1")
-    bond_b2 = st.selectbox("Select Bond B2", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_b2")
+    bond_b1 = safe_selectbox("Select Bond B1", bond_options['ISIN'], format_func=format_bond_label)
+    bond_b2 = safe_selectbox("Select Bond B2", bond_options['ISIN'], format_func=format_bond_label)
 
     # Checkbox: show difference
-    show_diff_tab3 = st.checkbox("Show difference between curves", key="tab3_show_diff")
+    show_diff_tab3 = st.checkbox("Show difference between curves", key=f"show_diff_{uuid.uuid4()}")
 
     # --- Compute curves ---
     if all([bond_a1, bond_a2, bond_b1, bond_b2]):
