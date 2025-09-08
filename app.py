@@ -1268,14 +1268,42 @@ with tab1:
     
         st.session_state.curves = curves_to_keep
     
-        # Plot individual curves
+        # --- Plot individual curves + combined curve ---
         if curve_dfs:
             combined_df = pd.concat(curve_dfs)
             fig = go.Figure()
-            for curve_name, group in combined_df.groupby('Curve_Name'):
-                fig.add_trace(go.Scatter(x=group['Date'], y=group['Curve'], mode='lines', name=curve_name))
-    
-            fig.update_layout(title="Multi-Curve Residual Comparison (Each Curve = Bond1 - Bond2)",
-                              xaxis_title="Date", yaxis_title="Residual Difference (bps)",
-                              template="plotly_white", height=600)
+        
+            # Plot individual curves
+            for i, curve_df in enumerate(curve_dfs):
+                curve = st.session_state.curves[i]
+                bond1_label = bond_labels.get(curve['bond1'], curve['bond1'])
+                bond2_label = bond_labels.get(curve['bond2'], curve['bond2'])
+                curve_name = f"{bond1_label} − {bond2_label}"
+        
+                fig.add_trace(go.Scatter(
+                    x=curve_df['Date'],
+                    y=curve_df['Curve'],
+                    mode='lines',
+                    name=curve_name
+                ))
+        
+            # Compute combined curve (sum of all curves)
+            combined_curve_df = combined_df.groupby('Date')['Curve'].sum().reset_index()
+            fig.add_trace(go.Scatter(
+                x=combined_curve_df['Date'],
+                y=combined_curve_df['Curve'],
+                mode='lines',
+                name="Combined Curve",
+                line=dict(color='black', width=3, dash='dot')
+            ))
+        
+            # Layout
+            fig.update_layout(
+                title="Multi-Curve Residual Comparison (Each Curve = Bond1 - Bond2)",
+                xaxis_title="Date",
+                yaxis_title="Residual Difference (bps)",
+                template="plotly_white",
+                height=600,
+                legend_title="Curves"
+            )
             st.plotly_chart(fig, use_container_width=True)
