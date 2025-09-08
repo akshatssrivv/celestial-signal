@@ -1153,9 +1153,15 @@ with tab1:
     
         st.markdown("## Bond Pair Residual Curve Comparison")
     
-        # --- Country selector ---
-        country_option_tab3 = st.selectbox(
-            "Select Country",
+        # --- Country selector for Curve A ---
+        country_option_a = st.selectbox(
+            "Select Country for Curve A",
+            options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
+                     'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+        )
+    
+        country_option_b = st.selectbox(
+            "Select Country for Curve B",
             options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
                      'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
         )
@@ -1172,47 +1178,65 @@ with tab1:
             'Belgium 🇧🇪': 'BGB'
         }
     
-        selected_country = country_code_map[country_option_tab3]
+        selected_country_a = country_code_map[country_option_a]
+        selected_country_b = country_code_map[country_option_b]
     
-        # --- Load NS data ---
-        ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
-        ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
+        # --- Load NS data for each curve ---
+        ns_df_a = load_full_ns_df(selected_country_a, zip_hash=zip_hash)
+        ns_df_b = load_full_ns_df(selected_country_b, zip_hash=zip_hash)
+    
+        for df in [ns_df_a, ns_df_b]:
+            df['Date'] = pd.to_datetime(df['Date']).dt.normalize()
     
         # --- Prepare bond options ---
-        bond_options = ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates()
-        isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
-        bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
-        bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
-        bond_options.sort_values('Maturity', inplace=True)
+        bond_options_a = ns_df_a[['ISIN', 'SECURITY_NAME']].drop_duplicates()
+        bond_options_b = ns_df_b[['ISIN', 'SECURITY_NAME']].drop_duplicates()
+    
+        # Map maturities
+        bond_options_a['Maturity'] = bond_options_a['ISIN'].map(ns_df_a.groupby('ISIN')['Maturity'].first())
+        bond_options_b['Maturity'] = bond_options_b['ISIN'].map(ns_df_b.groupby('ISIN')['Maturity'].first())
+        bond_options_a['Maturity'] = pd.to_datetime(bond_options_a['Maturity'], errors='coerce')
+        bond_options_b['Maturity'] = pd.to_datetime(bond_options_b['Maturity'], errors='coerce')
+        bond_options_a.sort_values('Maturity', inplace=True)
+        bond_options_b.sort_values('Maturity', inplace=True)
     
         # Labels for display
-        bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
-        def format_bond_label(isin):
-            maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
+        bond_labels_a = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options_a.iterrows()}
+        bond_labels_b = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options_b.iterrows()}
+    
+        def format_bond_label_a(isin):
+            maturity = bond_options_a.loc[bond_options_a['ISIN'] == isin, 'Maturity'].values
             if len(maturity) > 0 and pd.notnull(maturity[0]):
-                return f"{bond_labels.get(isin, isin)} ({pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')})"
+                return f"{bond_labels_a.get(isin, isin)} ({pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')})"
             else:
-                return f"{bond_labels.get(isin, isin)} (N/A)"
+                return f"{bond_labels_a.get(isin, isin)} (N/A)"
+    
+        def format_bond_label_b(isin):
+            maturity = bond_options_b.loc[bond_options_b['ISIN'] == isin, 'Maturity'].values
+            if len(maturity) > 0 and pd.notnull(maturity[0]):
+                return f"{bond_labels_b.get(isin, isin)} ({pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')})"
+            else:
+                return f"{bond_labels_b.get(isin, isin)} (N/A)"
     
         # --- Select bonds for Curve A ---
         st.subheader("Curve A")
-        bond_a1 = st.selectbox("Select Bond A1", bond_options['ISIN'], format_func=format_bond_label)
-        bond_a2 = st.selectbox("Select Bond A2", bond_options['ISIN'], format_func=format_bond_label)
+        bond_a1 = st.selectbox("Select Bond A1", bond_options_a['ISIN'], format_func=format_bond_label_a)
+        bond_a2 = st.selectbox("Select Bond A2", bond_options_a['ISIN'], format_func=format_bond_label_a)
     
         # --- Select bonds for Curve B ---
         st.subheader("Curve B")
-        bond_b1 = st.selectbox("Select Bond B1", bond_options['ISIN'], format_func=format_bond_label)
-        bond_b2 = st.selectbox("Select Bond B2", bond_options['ISIN'], format_func=format_bond_label)
+        bond_b1 = st.selectbox("Select Bond B1", bond_options_b['ISIN'], format_func=format_bond_label_b)
+        bond_b2 = st.selectbox("Select Bond B2", bond_options_b['ISIN'], format_func=format_bond_label_b)
     
         # --- Checkbox: show difference ---
         show_diff_tab3 = st.checkbox("Show difference between curves")
     
         # --- Compute curves ---
         if all([bond_a1, bond_a2, bond_b1, bond_b2]):
-            df_a1 = ns_df[ns_df['ISIN'] == bond_a1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'A1'})
-            df_a2 = ns_df[ns_df['ISIN'] == bond_a2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'A2'})
-            df_b1 = ns_df[ns_df['ISIN'] == bond_b1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B1'})
-            df_b2 = ns_df[ns_df['ISIN'] == bond_b2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B2'})
+            df_a1 = ns_df_a[ns_df_a['ISIN'] == bond_a1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'A1'})
+            df_a2 = ns_df_a[ns_df_a['ISIN'] == bond_a2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'A2'})
+            df_b1 = ns_df_b[ns_df_b['ISIN'] == bond_b1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B1'})
+            df_b2 = ns_df_b[ns_df_b['ISIN'] == bond_b2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B2'})
     
             pivot_df = df_a1.merge(df_a2, on='Date', how='outer')\
                             .merge(df_b1, on='Date', how='outer')\
@@ -1243,3 +1267,7 @@ with tab1:
             )
     
             st.plotly_chart(fig, use_container_width=True)
+    
+    
+    
+        
