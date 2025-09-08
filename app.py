@@ -1151,7 +1151,7 @@ with tab1:
 
     
     elif subtab == "Analysis":
-            
+
         st.markdown("## Bond Pair Residual Curve Comparison")
     
         # --- Helper function ---
@@ -1161,7 +1161,7 @@ with tab1:
             unique_key = f"{label}_{uuid.uuid4()}"
             return st.selectbox(label, options, key=unique_key, **kwargs)
     
-        # Country selector
+        # --- Country selector ---
         country_option_tab3 = safe_selectbox(
             "Select Country",
             options=[
@@ -1183,15 +1183,12 @@ with tab1:
         }
         selected_country = country_code_map[country_option_tab3]
     
-        # Load NS data
+        # --- Load NS data ---
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
     
-        # Prepare bond options
-        country_isins = ns_df['ISIN'].unique()
-        bond_options = ns_df[ns_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
-        isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
-        bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
+        # --- Prepare bond options ---
+        bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'ISSUER', 'Maturity']].drop_duplicates()
         bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
         bond_options.sort_values('Maturity', inplace=True)
     
@@ -1204,17 +1201,27 @@ with tab1:
             else:
                 return f"{bond_labels.get(isin, isin)} (N/A)"
     
-        # --- Pair A (same issuer) ---
+        # --- Issuer selection ---
+        st.subheader("Issuer Selection")
+        issuers = ns_df['ISSUER'].unique()
+        issuer_a = st.selectbox("Select Issuer for Curve A", issuers)
+        issuer_b = st.selectbox("Select Issuer for Curve B", issuers)
+    
+        # --- Filter bonds by issuer ---
+        bond_options_a = bond_options[bond_options['ISIN'].isin(ns_df[ns_df['ISSUER'] == issuer_a]['ISIN'].unique())]
+        bond_options_b = bond_options[bond_options['ISIN'].isin(ns_df[ns_df['ISSUER'] == issuer_b]['ISIN'].unique())]
+    
+        # --- Pair A (Curve A) ---
         st.subheader("Curve A (Issuer 1)")
-        bond_a1 = safe_selectbox("Select Bond A1", bond_options['ISIN'], format_func=format_bond_label)
-        bond_a2 = safe_selectbox("Select Bond A2", bond_options['ISIN'], format_func=format_bond_label)
+        bond_a1 = safe_selectbox("Select Bond A1", bond_options_a['ISIN'], format_func=format_bond_label)
+        bond_a2 = safe_selectbox("Select Bond A2", bond_options_a['ISIN'], format_func=format_bond_label)
     
-        # --- Pair B (same issuer) ---
+        # --- Pair B (Curve B) ---
         st.subheader("Curve B (Issuer 2)")
-        bond_b1 = safe_selectbox("Select Bond B1", bond_options['ISIN'], format_func=format_bond_label)
-        bond_b2 = safe_selectbox("Select Bond B2", bond_options['ISIN'], format_func=format_bond_label)
+        bond_b1 = safe_selectbox("Select Bond B1", bond_options_b['ISIN'], format_func=format_bond_label)
+        bond_b2 = safe_selectbox("Select Bond B2", bond_options_b['ISIN'], format_func=format_bond_label)
     
-        # Checkbox: show difference
+        # --- Checkbox: show difference ---
         show_diff_tab3 = st.checkbox("Show difference between curves", key=f"show_diff_{uuid.uuid4()}")
     
         # --- Compute curves ---
@@ -1259,7 +1266,3 @@ with tab1:
             )
     
             st.plotly_chart(fig, use_container_width=True)
-    
-    
-    
-
