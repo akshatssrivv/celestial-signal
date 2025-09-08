@@ -1148,8 +1148,13 @@ with tab1:
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
+
+
 with tab3:
-    
+    import streamlit as st
+    import pandas as pd
+    import plotly.graph_objects as go
+
     st.markdown("## Bond Pair Residual Curve Comparison")
 
     # --- Load NS data like in Tab1 ---
@@ -1164,10 +1169,13 @@ with tab3:
         zip_path = None
         zip_hash = None
 
-    # --- Country selection ---
+    # --- Country selection (unique key for Tab 3) ---
     country_option = st.selectbox(
-        "Select Country",
-        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪'],
+        "Select Country (Tab 3)",
+        options=[
+            'Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
+            'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪'
+        ],
         key="tab3_country"
     )
 
@@ -1191,8 +1199,10 @@ with tab3:
 
     # Map maturities for display
     isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
-    bond_labels = {row['ISIN']: f"{row['SECURITY_NAME']} ({pd.to_datetime(isin_maturity_map[row['ISIN']]).strftime('%Y-%m-%d')})"
-                   for _, row in ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().iterrows()}
+    bond_labels = {
+        row['ISIN']: f"{row['SECURITY_NAME']} ({pd.to_datetime(isin_maturity_map[row['ISIN']]).strftime('%Y-%m-%d')})"
+        for _, row in ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().iterrows()
+    }
 
     # --- UI: Select bond pairs ---
     st.markdown("### Select Bond Pairs for Curve Comparison")
@@ -1200,20 +1210,39 @@ with tab3:
 
     with col1:
         st.markdown("**Curve A (Same Issuer)**")
-        curve_a_bond1 = st.selectbox("Bond 1 (Curve A)", options=ns_df['ISIN'].unique(),
-                                     format_func=lambda x: bond_labels[x], key="curve_a_bond1")
-        curve_a_bond2 = st.selectbox("Bond 2 (Curve A)", options=ns_df['ISIN'].unique(),
-                                     format_func=lambda x: bond_labels[x], key="curve_a_bond2")
-    
+        curve_a_bond1 = st.selectbox(
+            "Bond 1 (Curve A)",
+            options=ns_df['ISIN'].unique(),
+            format_func=lambda x: bond_labels[x],
+            key="tab3_curve_a_bond1"
+        )
+        curve_a_bond2 = st.selectbox(
+            "Bond 2 (Curve A)",
+            options=ns_df['ISIN'].unique(),
+            format_func=lambda x: bond_labels[x],
+            key="tab3_curve_a_bond2"
+        )
+
     with col2:
         st.markdown("**Curve B (Same Issuer)**")
-        curve_b_bond1 = st.selectbox("Bond 1 (Curve B)", options=ns_df['ISIN'].unique(),
-                                     format_func=lambda x: bond_labels[x], key="curve_b_bond1")
-        curve_b_bond2 = st.selectbox("Bond 2 (Curve B)", options=ns_df['ISIN'].unique(),
-                                     format_func=lambda x: bond_labels[x], key="curve_b_bond2")
-    
-    show_diff = st.checkbox("Show Curve A − Curve B Difference", value=True, key="tab3_show_diff")
+        curve_b_bond1 = st.selectbox(
+            "Bond 1 (Curve B)",
+            options=ns_df['ISIN'].unique(),
+            format_func=lambda x: bond_labels[x],
+            key="tab3_curve_b_bond1"
+        )
+        curve_b_bond2 = st.selectbox(
+            "Bond 2 (Curve B)",
+            options=ns_df['ISIN'].unique(),
+            format_func=lambda x: bond_labels[x],
+            key="tab3_curve_b_bond2"
+        )
 
+    show_diff = st.checkbox(
+        "Show Curve A − Curve B Difference",
+        value=True,
+        key="tab3_show_diff"
+    )
 
     # --- Compute curves ---
     def compute_curve(bond1, bond2):
@@ -1259,4 +1288,3 @@ with tab3:
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
