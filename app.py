@@ -1295,49 +1295,60 @@ with tab1:
                     curve_dfs.append(df_curve)
     
         st.session_state.curves = curves_to_keep
-    
+
         # --- Plot individual curves + combined curve ---
-        if curve_dfs:
-            combined_df = curve_dfs[1] - curve_dfs[0]
+        if curve_dfs and len(curve_dfs) == 2:
+            # Merge the two curve DataFrames on Date
+            combined_curve_df = curve_dfs[0][['Date', 'Curve']].merge(
+                curve_dfs[1][['Date', 'Curve']],
+                on='Date',
+                suffixes=('_1', '_2')
+            )
+        
+            # Subtract Curve1 from Curve2
+            combined_curve_df['Curve'] = combined_curve_df['Curve_2'] - combined_curve_df['Curve_1']
+        
             fig = go.Figure()
-    
+        
             # Plot individual curves
             for i, curve_df in enumerate(curve_dfs):
                 curve = st.session_state.curves[i]
                 bond1_label = global_legend_labels.get(curve['bond1'], curve['bond1'])
                 bond2_label = global_legend_labels.get(curve['bond2'], curve['bond2'])
                 curve_name = f"{bond1_label} − {bond2_label}"
-    
+        
                 fig.add_trace(go.Scatter(
                     x=curve_df['Date'],
                     y=curve_df['Curve'],
                     mode='lines',
                     name=curve_name
                 ))
-    
-            # Combined curve
-            combined_curve_df = combined_df.groupby('Date')['Curve'].sum().reset_index()
+        
+            # Plot combined curve (Curve2 − Curve1)
             fig.add_trace(go.Scatter(
                 x=combined_curve_df['Date'],
                 y=combined_curve_df['Curve'],
                 mode='lines',
-                name="Combined Curve",
+                name="Combined Curve (Curve2 − Curve1)",
                 line=dict(color='black', width=3, dash='dot')
             ))
-    
+        
             # Layout
             fig.update_layout(
-                title=f"Multi-Curve {metric_option} Comparison",
+                title=f"Two-Curve {metric_option} Comparison",
                 xaxis_title="Date",
                 yaxis_title=f"{metric_option} Difference (bps)",
                 template="plotly_white",
                 height=900,
                 legend_title="Curves"
             )
+        
             st.plotly_chart(fig, use_container_width=True)
 
 
+
     
+
 
 
 
