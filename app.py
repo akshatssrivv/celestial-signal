@@ -1149,6 +1149,10 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 
+
+
+
+
     elif subtab == "Analysis":
     
         import streamlit as st
@@ -1161,9 +1165,6 @@ with tab1:
         # Initialize session state for dynamic curves
         if "curves" not in st.session_state:
             st.session_state.curves = []
-    
-        if "remove_curve_id" not in st.session_state:
-            st.session_state.remove_curve_id = None
     
         country_options = ['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
                            'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
@@ -1188,24 +1189,30 @@ with tab1:
                 "bond2": None
             })
     
-        # Button to add new curve
+        # Add Curve button
         st.button("➕ Add Curve", on_click=add_curve)
     
         # Ensure at least one curve exists
         if not st.session_state.curves:
             add_curve()
     
+        # Store curves to remove after widget processing
+        curves_to_keep = []
+    
         curve_dfs = []
     
-        # Loop over curves
         for i, curve in enumerate(st.session_state.curves):
             st.subheader(f"Curve {i+1}")
             col_main, col_remove = st.columns([9, 1])
     
-            # Remove curve button
+            remove_clicked = False
             with col_remove:
-                if st.button("❌", key=f"remove_{curve['id']}"):
-                    st.session_state.remove_curve_id = curve['id']
+                remove_clicked = st.button("❌", key=f"remove_{curve['id']}")
+    
+            if remove_clicked:
+                continue  # skip adding this curve; effectively removed
+            else:
+                curves_to_keep.append(curve)
     
             with col_main:
                 col1, col2 = st.columns(2)
@@ -1252,11 +1259,8 @@ with tab1:
                     df_curve['Curve_Name'] = f"Curve {i+1}"
                     curve_dfs.append(df_curve[['Date','Curve','Curve_Name']])
     
-        # Handle curve removal safely after the loop
-        if st.session_state.remove_curve_id:
-            st.session_state.curves = [c for c in st.session_state.curves if c["id"] != st.session_state.remove_curve_id]
-            st.session_state.remove_curve_id = None
-            st.experimental_rerun()  # safe rerun after updating session_state
+        # Update session state to keep only non-removed curves
+        st.session_state.curves = curves_to_keep
     
         # --- Plot individual curves only ---
         if curve_dfs:
