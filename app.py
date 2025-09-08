@@ -1150,13 +1150,13 @@ with tab1:
 
 
 
-
     elif subtab == "Analysis":
     
         import streamlit as st
         import pandas as pd
         import plotly.graph_objects as go
         import uuid
+        import os
     
         st.markdown("## Multi-Curve Residual Comparison")
     
@@ -1187,56 +1187,64 @@ with tab1:
                 "bond2": None
             })
     
-        # Add Curve button
         st.button("➕ Add Curve", on_click=add_curve)
     
         # Ensure at least one curve exists
         if not st.session_state.curves:
             add_curve()
     
-        # Store curves to keep after removal
-        curves_to_keep = []
+        # Load issuer_signal data (from B2 or local)
+        @st.cache_data(ttl=300)
+        def load_issuer_signal() -> pd.DataFrame:
+            try:
+                df = pd.read_csv("issuer_signals.csv")  # replace with your B2 download if needed
+                return df
+            except Exception as e:
+                st.error(f"Failed to load issuer_signal: {e}")
+                return pd.DataFrame()
     
+        issuer_signal = load_issuer_signal()
+    
+        curves_to_keep = []
         curve_dfs = []
     
         for i, curve in enumerate(st.session_state.curves):
             st.subheader(f"Curve {i+1}")
             col_main, col_remove = st.columns([9, 1])
-    
             remove_clicked = False
             with col_remove:
                 remove_clicked = st.button("❌", key=f"remove_{curve['id']}")
     
             if remove_clicked:
-                continue  # skip this curve; effectively removed
+                continue
             else:
                 curves_to_keep.append(curve)
     
             with col_main:
                 col1, col2 = st.columns(2)
-    
                 with col1:
                     curve['country'] = st.selectbox(f"Select Country (Curve {i+1})",
                                                     country_options,
                                                     index=country_options.index(curve['country']),
                                                     key=f"country_{curve['id']}")
                     selected_country = country_code_map[curve['country']]
-                    # Load NS data for this country
                     ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
                     ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
     
-                    # Prepare bond options
-                    bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity', 'SIGNAL']].drop_duplicates()
+                    # Bond options with signal
+                    bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
+                    # Merge in issuer signals
+                    bond_options = bond_options.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
                     bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
                     bond_options.sort_values('Maturity', inplace=True)
     
-                    # Create bond labels: Name (Maturity) [Signal]
+                    # Format bond label: Name (Maturity) [Signal]
                     bond_labels = {}
                     for _, row in bond_options.iterrows():
                         isin = row['ISIN']
                         name = row['SECURITY_NAME']
                         maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
-                        signal = row['SIGNAL'] if 'SIGNAL' in row else "No Signal"
+                        signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
                         bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
     
                 with col2:
@@ -1254,14 +1262,13 @@ with tab1:
                     df1 = ns_df[ns_df['ISIN'] == curve['bond1']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B1'})
                     df2 = ns_df[ns_df['ISIN'] == curve['bond2']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B2'})
                     df_curve = df1.merge(df2, on='Date', how='outer').sort_values('Date')
-                    df_curve['Curve'] = df_curve['B1'] - df_curve['B2']  # always subtract
+                    df_curve['Curve'] = df_curve['B1'] - df_curve['B2']
                     df_curve['Curve_Name'] = f"Curve {i+1}"
                     curve_dfs.append(df_curve[['Date','Curve','Curve_Name']])
     
-        # Update session state to keep only non-removed curves
         st.session_state.curves = curves_to_keep
     
-        # --- Plot individual curves only ---
+        # Plot individual curves
         if curve_dfs:
             combined_df = pd.concat(curve_dfs)
             fig = go.Figure()
@@ -1272,5 +1279,3 @@ with tab1:
                               xaxis_title="Date", yaxis_title="Residual Difference (bps)",
                               template="plotly_white", height=600)
             st.plotly_chart(fig, use_container_width=True)
-
-    
