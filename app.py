@@ -1148,7 +1148,7 @@ with tab1:
                 st.plotly_chart(fig_residuals, use_container_width=True)
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
-    
+
     elif subtab == "Analysis":
     
         import streamlit as st
@@ -1185,6 +1185,10 @@ with tab1:
                 "bond2": None
             })
     
+        # Function to remove a curve by id
+        def remove_curve(curve_id):
+            st.session_state.curves = [c for c in st.session_state.curves if c["id"] != curve_id]
+    
         # Button to add new curve
         st.button("➕ Add Curve", on_click=add_curve)
     
@@ -1192,77 +1196,71 @@ with tab1:
         if not st.session_state.curves:
             add_curve()
     
-        # Store each curve's computed data
         curve_dfs = []
     
         for i, curve in enumerate(st.session_state.curves):
             st.subheader(f"Curve {i+1}")
-            col1, col2 = st.columns(2)
+            col_main, col_remove = st.columns([9, 1])
     
-            with col1:
-                curve['country'] = st.selectbox(f"Select Country (Curve {i+1})",
-                                                country_options,
-                                                index=country_options.index(curve['country']),
-                                                key=f"country_{curve['id']}")
-                selected_country = country_code_map[curve['country']]
-                # Load NS data for this country
-                ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
-                ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
+            # Remove curve button
+            with col_remove:
+                if st.button("❌", key=f"remove_{curve['id']}"):
+                    remove_curve(curve['id'])
+                    st.experimental_rerun()  # rerun to refresh UI
     
-                # Prepare bond options
-                bond_options = ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates()
-                bond_options['Maturity'] = bond_options['ISIN'].map(ns_df.groupby('ISIN')['Maturity'].first())
-                bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
-                bond_options.sort_values('Maturity', inplace=True)
-                bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
+            with col_main:
+                col1, col2 = st.columns(2)
     
-                def format_label(isin):
-                    maturity = bond_options.loc[bond_options['ISIN']==isin, 'Maturity'].values
-                    if len(maturity) > 0 and pd.notnull(maturity[0]):
-                        return f"{bond_labels.get(isin, isin)} ({pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')})"
-                    return f"{bond_labels.get(isin, isin)} (N/A)"
+                with col1:
+                    curve['country'] = st.selectbox(f"Select Country (Curve {i+1})",
+                                                    country_options,
+                                                    index=country_options.index(curve['country']),
+                                                    key=f"country_{curve['id']}")
+                    selected_country = country_code_map[curve['country']]
+                    # Load NS data for this country
+                    ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
+                    ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
     
-            with col2:
-                curve['bond1'] = st.selectbox(f"Select Bond 1 (Curve {i+1})",
-                                              bond_options['ISIN'],
-                                              format_func=format_label,
-                                              key=f"bond1_{curve['id']}")
-                curve['bond2'] = st.selectbox(f"Select Bond 2 (Curve {i+1})",
-                                              bond_options['ISIN'],
-                                              format_func=format_label,
-                                              key=f"bond2_{curve['id']}")
+                    # Prepare bond options
+                    bond_options = ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates()
+                    bond_options['Maturity'] = bond_options['ISIN'].map(ns_df.groupby('ISIN')['Maturity'].first())
+                    bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
+                    bond_options.sort_values('Maturity', inplace=True)
+                    bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
     
-            # Compute the curve for this selection
-            if curve['bond1'] and curve['bond2']:
-                df1 = ns_df[ns_df['ISIN']==curve['bond1']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B1'})
-                df2 = ns_df[ns_df['ISIN']==curve['bond2']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B2'})
-                df_curve = df1.merge(df2, on='Date', how='outer').sort_values('Date')
-                df_curve['Curve'] = df_curve['B1'] - df_curve['B2']
-                df_curve['Curve_Name'] = f"Curve {i+1}"
-                curve_dfs.append(df_curve[['Date','Curve','Curve_Name']])
+                    def format_label(isin):
+                        maturity = bond_options.loc[bond_options['ISIN']==isin, 'Maturity'].values
+                        if len(maturity) > 0 and pd.notnull(maturity[0]):
+                            return f"{bond_labels.get(isin, isin)} ({pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')})"
+                        return f"{bond_labels.get(isin, isin)} (N/A)"
     
-        # --- Option to add or subtract curves ---
-        combine_mode = st.radio("Combine Curves:", options=["Add Curves", "Subtract Curves"])
+                with col2:
+                    curve['bond1'] = st.selectbox(f"Select Bond 1 (Curve {i+1})",
+                                                  bond_options['ISIN'],
+                                                  format_func=format_label,
+                                                  key=f"bond1_{curve['id']}")
+                    curve['bond2'] = st.selectbox(f"Select Bond 2 (Curve {i+1})",
+                                                  bond_options['ISIN'],
+                                                  format_func=format_label,
+                                                  key=f"bond2_{curve['id']}")
     
+                # Compute the curve for this selection (Bond1 - Bond2)
+                if curve['bond1'] and curve['bond2']:
+                    df1 = ns_df[ns_df['ISIN']==curve['bond1']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B1'})
+                    df2 = ns_df[ns_df['ISIN']==curve['bond2']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B2'})
+                    df_curve = df1.merge(df2, on='Date', how='outer').sort_values('Date')
+                    df_curve['Curve'] = df_curve['B1'] - df_curve['B2']  # always subtract
+                    df_curve['Curve_Name'] = f"Curve {i+1}"
+                    curve_dfs.append(df_curve[['Date','Curve','Curve_Name']])
+    
+        # --- Plot individual curves only ---
         if curve_dfs:
-            # Merge all curves on Date
             combined_df = pd.concat(curve_dfs)
             fig = go.Figure()
             for curve_name, group in combined_df.groupby('Curve_Name'):
                 fig.add_trace(go.Scatter(x=group['Date'], y=group['Curve'], mode='lines', name=curve_name))
     
-            # Optionally compute total
-            pivot = combined_df.pivot(index='Date', columns='Curve_Name', values='Curve').fillna(0)
-            if combine_mode == "Add Curves":
-                pivot['Combined'] = pivot.sum(axis=1)
-            else:
-                pivot['Combined'] = pivot.iloc[:,0]  # start with first
-                for col in pivot.columns[1:-1]:
-                    pivot['Combined'] -= pivot[col]
-            fig.add_trace(go.Scatter(x=pivot.index, y=pivot['Combined'], mode='lines',
-                                     name="Combined", line=dict(dash='dash', color='black')))
-    
-            fig.update_layout(title="Multi-Curve Residual Comparison",
+            fig.update_layout(title="Multi-Curve Residual Comparison (Each Curve = Bond1 - Bond2)",
                               xaxis_title="Date", yaxis_title="Residual Difference (bps)",
                               template="plotly_white", height=600)
             st.plotly_chart(fig, use_container_width=True)
