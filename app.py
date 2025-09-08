@@ -1162,7 +1162,7 @@ with tab1:
         # Map selected metric to column name in ns_df
         metric_col_map = {
             "Residuals": "RESIDUAL_NS",
-            "Z-Spread": "Z_SPRD_MID"  # replace with actual column name in your ns_df
+            "Z-Spread": "Z_SPRD_VAL"  # replace with actual column name in your ns_df
         }
         selected_metric_col = metric_col_map[metric_option]
     
@@ -1338,4 +1338,5 @@ with tab1:
 
 
     
+
 
