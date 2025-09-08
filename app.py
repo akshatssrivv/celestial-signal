@@ -1169,20 +1169,26 @@ with tab3:
 
     selected_country = country_code_map[country_option]
 
-    # --- FILTER NS DF BY COUNTRY USING SECURITY_NAME PREFIX ---
-    country_ns_df = ns_df[ns_df['SECURITY_NAME'].str.startswith(selected_country)].copy()
-    if country_ns_df.empty:
+    country_bonds = ns_df[ns_df['SECURITY_NAME'].str.contains(selected_country[:3], case=False)].copy()
+    country_bonds['Date'] = pd.to_datetime(country_bonds['Date']).dt.normalize()
+    
+    if country_bonds.empty:
         st.warning("No data available for this country.")
         st.stop()
-
-    country_ns_df['Date'] = pd.to_datetime(country_ns_df['Date']).dt.normalize()
-
+    
     # --- BOND OPTIONS ---
-    bond_options = country_ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates()
+    bond_options = country_bonds[['ISIN', 'SECURITY_NAME']].drop_duplicates()
     bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
 
     def format_bond_label(isin):
         return bond_labels.get(isin, isin)
+
+    
+    # --- SELECTED PAIRS ---
+    df_subset = country_bonds[country_bonds['ISIN'].isin([pair1_a, pair1_b, pair2_a, pair2_b])].copy()
+    
+    # Pivot for all dates, keep NaNs to show gaps
+    pivot_df = df_subset.pivot(index='Date', columns='ISIN', values='RESIDUAL_NS').sort_index()
 
     # --- SELECT PAIRS ---
     st.markdown("### Pair 1 Selection")
@@ -1256,4 +1262,5 @@ with tab3:
         height=500
     )
     st.plotly_chart(fig, use_container_width=True)
+
 
