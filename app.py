@@ -1201,25 +1201,27 @@ with tab3:
     show_diff = st.checkbox("Show difference between Pair 1 and Pair 2", value=True, key="show_diff")
 
     # --- CREATE PIVOT WITH ALL DATES ---
-    from functools import reduce
-    pivot_list = []
-    for isin in [pair1_a, pair1_b, pair2_a, pair2_b]:
-        temp = country_bonds[country_bonds['ISIN'] == isin][['Date', 'RESIDUAL_NS']].copy()
-        temp.rename(columns={'RESIDUAL_NS': isin}, inplace=True)
-        pivot_list.append(temp)
-
-    # Outer merge to keep all dates
-    pivot_df = reduce(lambda left, right: pd.merge(left, right, on='Date', how='outer'), pivot_list)
-    pivot_df.sort_values('Date', inplace=True)
-
+        # --- CREATE PIVOT WITH ALL DATES ---
+    pivot_df = country_bonds.pivot_table(
+        index='Date', 
+        columns='ISIN', 
+        values='RESIDUAL_NS', 
+        aggfunc='first'  # in case multiple rows per date
+    ).sort_index()
+    
+    # Ensure all selected ISINs exist in pivot_df, otherwise create empty columns
+    for col in [pair1_a, pair1_b, pair2_a, pair2_b]:
+        if col not in pivot_df.columns:
+            pivot_df[col] = np.nan
+    
+    pivot_df = pivot_df[[pair1_a, pair1_b, pair2_a, pair2_b]]  # keep only relevant ISINs
+    
     # --- COMPUTE PAIR SPREADS ---
     pivot_df['Curve_A'] = pivot_df[pair1_a] - pivot_df[pair1_b]
     pivot_df['Curve_B'] = pivot_df[pair2_a] - pivot_df[pair2_b]
     if show_diff:
         pivot_df['Diff_Curves'] = pivot_df['Curve_A'] - pivot_df['Curve_B']
 
-    # Fill NaNs with np.nan so gaps appear in plot
-    pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']] = pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']].fillna(np.nan)
 
     # --- PLOT ---
     import plotly.graph_objects as go
@@ -1254,3 +1256,4 @@ with tab3:
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
