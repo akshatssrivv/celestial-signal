@@ -1151,103 +1151,108 @@ with tab1:
 
 with tab3:
 
-    st.subheader("Enhanced Residual Pair Analysis")
-
-    # --- COUNTRY SELECTION ---
+    
+    st.set_page_config(page_title="Curve Pair Analysis", layout="wide")
+    
+    # --- Load NS data like in Tab1 ---
+    B2_BUCKET_FILE = "ns_curves_0809.zip"
+    try:
+        zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
+        if not os.path.exists(zip_path):
+            raise FileNotFoundError(f"Downloaded file not found: {zip_path}")
+        zip_hash = file_hash(zip_path)
+    except Exception as e:
+        st.error(f"Failed to download or hash NS curves zip: {e}")
+        zip_path = None
+        zip_hash = None
+    
+    # --- Country selection ---
     country_option = st.selectbox(
         "Select Country",
-        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 
-                 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪'],
-        key="country_select"
+        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
     )
-
+    
     country_code_map = {
-        'Italy 🇮🇹': 'BTPS', 'Spain 🇪🇸': 'SPGB', 'France 🇫🇷': 'FRTR',
-        'Germany 🇩🇪': 'BUNDS', 'Finland 🇫🇮': 'RFGB', 'EU 🇪🇺': 'EU',
-        'Austria 🇦🇹': 'RAGB', 'Netherlands 🇳🇱': 'NETHER', 'Belgium 🇧🇪': 'BGB'
+        'Italy 🇮🇹': 'BTPS',
+        'Spain 🇪🇸': 'SPGB',
+        'France 🇫🇷': 'FRTR',
+        'Germany 🇩🇪': 'BUNDS',
+        'Finland 🇫🇮': 'RFGB',
+        'EU 🇪🇺': 'EU',
+        'Austria 🇦🇹': 'RAGB',
+        'Netherlands 🇳🇱': 'NETHER',
+        'Belgium 🇧🇪': 'BGB'
     }
-
+    
     selected_country = country_code_map[country_option]
-
-    # --- FILTER NS DF BY COUNTRY ---
-    country_bonds = ns_df[ns_df['SECURITY_NAME'].str.contains(selected_country[:3], case=False)].copy()
-    country_bonds['Date'] = pd.to_datetime(country_bonds['Date']).dt.normalize()
-
-    if country_bonds.empty:
-        st.warning("No data available for this country.")
-        st.stop()
-
-    # --- BOND OPTIONS ---
-    bond_options = country_bonds[['ISIN', 'SECURITY_NAME']].drop_duplicates()
-    bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
-
-    def format_bond_label(isin):
-        return bond_labels.get(isin, isin)
-
-    # --- PAIR SELECTION ---
-    st.markdown("### Pair 1 Selection")
-    pair1_a = st.selectbox("Pair 1 - Bond A", options=bond_options['ISIN'], key="pair1_a")
-    pair1_b = st.selectbox("Pair 1 - Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a], key="pair1_b")
-
-    st.markdown("### Pair 2 Selection")
-    pair2_a = st.selectbox("Pair 2 - Bond A", options=bond_options['ISIN'], key="pair2_a")
-    pair2_b = st.selectbox(
-        "Pair 2 - Bond B", 
-        options=[i for i in bond_options['ISIN'] if i not in [pair2_a, pair1_a, pair1_b]], 
-        key="pair2_b"
-    )
-
-    show_diff = st.checkbox("Show difference between Pair 1 and Pair 2", value=True, key="show_diff")
-
-    # --- SUBSET NS DF FOR SELECTED PAIRS ---
-    selected_isins = [pair1_a, pair1_b, pair2_a, pair2_b]
-    df_subset = country_bonds[country_bonds['ISIN'].isin(selected_isins)].copy()
-
-    if df_subset.empty:
-        st.warning("No data available for the selected bonds.")
-        st.stop()
-
-    # --- PIVOT FOR ALL DATES ---
-    pivot_df = df_subset.pivot_table(index='Date', columns='ISIN', values='RESIDUAL_NS', aggfunc='first').sort_index()
-
-    # --- COMPUTE PAIR SPREADS ---
-    pivot_df['Curve_A'] = pivot_df[pair1_a] - pivot_df[pair1_b]
-    pivot_df['Curve_B'] = pivot_df[pair2_a] - pivot_df[pair2_b]
-
+    
+    # Load full NS dataset
+    ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
+    ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
+    
+    # Map maturities for display
+    isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
+    bond_labels = {row['ISIN']: f"{row['SECURITY_NAME']} ({pd.to_datetime(isin_maturity_map[row['ISIN']]).strftime('%Y-%m-%d')})"
+                   for _, row in ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates().iterrows()}
+    
+    # --- UI: Select bond pairs ---
+    st.markdown("### Select Bond Pairs for Curve Comparison")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Curve A (Same Issuer)**")
+        curve_a_bond1 = st.selectbox("Bond 1 (Curve A)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
+        curve_a_bond2 = st.selectbox("Bond 2 (Curve A)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
+    
+    with col2:
+        st.markdown("**Curve B (Same Issuer)**")
+        curve_b_bond1 = st.selectbox("Bond 1 (Curve B)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
+        curve_b_bond2 = st.selectbox("Bond 2 (Curve B)", options=ns_df['ISIN'].unique(), format_func=lambda x: bond_labels[x])
+    
+    show_diff = st.checkbox("Show Curve A − Curve B Difference", value=True)
+    
+    # --- Compute curves ---
+    def compute_curve(bond1, bond2):
+        df1 = ns_df[ns_df['ISIN'] == bond1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'R1'})
+        df2 = ns_df[ns_df['ISIN'] == bond2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'R2'})
+        merged = pd.merge(df1, df2, on='Date', how='outer').sort_values('Date')
+        merged['Curve'] = merged['R1'] - merged['R2']
+        return merged[['Date', 'Curve']]
+    
+    curve_a_df = compute_curve(curve_a_bond1, curve_a_bond2)
+    curve_b_df = compute_curve(curve_b_bond1, curve_b_bond2)
+    
+    # Merge for difference
     if show_diff:
-        pivot_df['Diff_Curves'] = pivot_df['Curve_A'] - pivot_df['Curve_B']
-
-    # --- PLOT ---
+        merged_df = pd.merge(curve_a_df, curve_b_df, on='Date', how='outer', suffixes=('_A', '_B')).sort_values('Date')
+        merged_df['Difference'] = merged_df['Curve_A'] - merged_df['Curve_B']
+    else:
+        merged_df = pd.merge(curve_a_df, curve_b_df, on='Date', how='outer', suffixes=('_A', '_B'))
+    
+    # --- Plot ---
     fig = go.Figure()
+    
     fig.add_trace(go.Scatter(
-        x=pivot_df.index,
-        y=pivot_df['Curve_A'],
-        mode='lines+markers',
-        name=f"{bond_labels[pair1_a]} - {bond_labels[pair1_b]}",
-        line=dict(color='blue')
+        x=merged_df['Date'], y=merged_df['Curve_A'],
+        mode='lines+markers', name='Curve A'
     ))
     fig.add_trace(go.Scatter(
-        x=pivot_df.index,
-        y=pivot_df['Curve_B'],
-        mode='lines+markers',
-        name=f"{bond_labels[pair2_a]} - {bond_labels[pair2_b]}",
-        line=dict(color='green')
+        x=merged_df['Date'], y=merged_df['Curve_B'],
+        mode='lines+markers', name='Curve B'
     ))
     if show_diff:
         fig.add_trace(go.Scatter(
-            x=pivot_df.index,
-            y=pivot_df['Diff_Curves'],
-            mode='lines+markers',
-            name="Curve A - Curve B",
-            line=dict(color='red', dash='dash')
+            x=merged_df['Date'], y=merged_df['Difference'],
+            mode='lines+markers', name='Curve A − Curve B', line=dict(dash='dash')
         ))
-
+    
     fig.update_layout(
-        title="Residual Curves and Differences",
+        title="Bond Pair Residual Curve Comparison",
         xaxis_title="Date",
         yaxis_title="Residual Difference (bps)",
         template="plotly_white",
-        height=500
+        height=600
     )
-
+    
     st.plotly_chart(fig, use_container_width=True)
