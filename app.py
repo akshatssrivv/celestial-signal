@@ -1149,7 +1149,6 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 
-
 with tab3:
 
     st.subheader("Enhanced Residual Pair Analysis")
@@ -1170,14 +1169,15 @@ with tab3:
 
     selected_country = country_code_map[country_option]
 
-    # Filter bonds for the selected country
+    # --- FILTER NS DATA FOR SELECTED COUNTRY ---
     country_bonds = ns_df[ns_df['SECURITY_NAME'].str.contains(selected_country[:3], case=False)].copy()
     country_bonds['Date'] = pd.to_datetime(country_bonds['Date']).dt.normalize()
-    
+    country_bonds.sort_values('Date', inplace=True)
+
     if country_bonds.empty:
         st.warning("No data available for this country.")
         st.stop()
-    
+
     # --- BOND OPTIONS ---
     bond_options = country_bonds[['ISIN', 'SECURITY_NAME']].drop_duplicates()
     bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
@@ -1200,37 +1200,46 @@ with tab3:
 
     show_diff = st.checkbox("Show difference between Pair 1 and Pair 2", value=True, key="show_diff")
 
-    # --- FILTER NS DATA FOR SELECTED PAIRS ---
-    df_subset = country_bonds[country_bonds['ISIN'].isin([pair1_a, pair1_b, pair2_a, pair2_b])].copy()
-    pivot_df = df_subset.pivot(index='Date', columns='ISIN', values='RESIDUAL_NS').sort_index()
+    # --- CREATE PIVOT WITH ALL DATES ---
+    from functools import reduce
+    pivot_list = []
+    for isin in [pair1_a, pair1_b, pair2_a, pair2_b]:
+        temp = country_bonds[country_bonds['ISIN'] == isin][['Date', 'RESIDUAL_NS']].copy()
+        temp.rename(columns={'RESIDUAL_NS': isin}, inplace=True)
+        pivot_list.append(temp)
 
-    # Compute pair spreads
+    # Outer merge to keep all dates
+    pivot_df = reduce(lambda left, right: pd.merge(left, right, on='Date', how='outer'), pivot_list)
+    pivot_df.sort_values('Date', inplace=True)
+
+    # --- COMPUTE PAIR SPREADS ---
     pivot_df['Curve_A'] = pivot_df[pair1_a] - pivot_df[pair1_b]
     pivot_df['Curve_B'] = pivot_df[pair2_a] - pivot_df[pair2_b]
-    
     if show_diff:
         pivot_df['Diff_Curves'] = pivot_df['Curve_A'] - pivot_df['Curve_B']
 
+    # Fill NaNs with np.nan so gaps appear in plot
+    pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']] = pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']].fillna(np.nan)
+
     # --- PLOT ---
+    import plotly.graph_objects as go
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=pivot_df.index,
-        y=pivot_df['Curve_A'],
+        x=pivot_df['Date'], y=pivot_df['Curve_A'],
         mode='lines+markers',
         name=f"{bond_labels[pair1_a]} - {bond_labels[pair1_b]}",
         line=dict(color='blue')
     ))
     fig.add_trace(go.Scatter(
-        x=pivot_df.index,
-        y=pivot_df['Curve_B'],
+        x=pivot_df['Date'], y=pivot_df['Curve_B'],
         mode='lines+markers',
         name=f"{bond_labels[pair2_a]} - {bond_labels[pair2_b]}",
         line=dict(color='green')
     ))
     if show_diff:
         fig.add_trace(go.Scatter(
-            x=pivot_df.index,
-            y=pivot_df['Diff_Curves'],
+            x=pivot_df['Date'], y=pivot_df['Diff_Curves'],
             mode='lines+markers',
             name="Curve A - Curve B",
             line=dict(color='red', dash='dash')
@@ -1243,5 +1252,5 @@ with tab3:
         template="plotly_white",
         height=500
     )
-    st.plotly_chart(fig, use_container_width=True)
 
+    st.plotly_chart(fig, use_container_width=True)
