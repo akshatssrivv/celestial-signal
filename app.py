@@ -1325,7 +1325,8 @@ with tab1:
                 xaxis_title="Date",
                 yaxis_title="Residual Difference (bps)",
                 template="plotly_white",
-                height=600,
+                height=900,
                 legend_title="Curves"
             )
             st.plotly_chart(fig, use_container_width=True)
+
