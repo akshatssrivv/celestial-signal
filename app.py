@@ -1207,15 +1207,21 @@ with tab3:
         "Show difference between Pair 1 and Pair 2", value=True, key="show_diff"
     )
 
-    # --- COMPUTE CURVES ---
-    df_subset = country_ns_df[country_ns_df['ISIN'].isin([pair1_a, pair1_b, pair2_a, pair2_b])]
-    pivot_df = df_subset.pivot(index='Date', columns='ISIN', values='RESIDUAL_NS').dropna()
-
+    df_subset = country_ns_df[country_ns_df['ISIN'].isin([pair1_a, pair1_b, pair2_a, pair2_b])].copy()
+    
+    # Pivot without dropping NaNs
+    pivot_df = df_subset.pivot(index='Date', columns='ISIN', values='RESIDUAL_NS')
+    
+    # Compute pair spreads
     pivot_df['Curve_A'] = pivot_df[pair1_a] - pivot_df[pair1_b]
     pivot_df['Curve_B'] = pivot_df[pair2_a] - pivot_df[pair2_b]
-
+    
     if show_diff:
         pivot_df['Diff_Curves'] = pivot_df['Curve_A'] - pivot_df['Curve_B']
+    
+    # Optional: fill missing pair spreads with NaN (Plotly will leave gaps) or 0
+    pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']] = pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']].fillna(np.nan)
+    
 
     # --- PLOT ---
     fig = go.Figure()
@@ -1250,3 +1256,4 @@ with tab3:
         height=500
     )
     st.plotly_chart(fig, use_container_width=True)
+
