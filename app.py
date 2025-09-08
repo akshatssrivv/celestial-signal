@@ -1149,8 +1149,8 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 
-with tab3:
 
+with tab3:
     st.subheader("Enhanced Residual Pair Analysis")
 
     # --- COUNTRY SELECTION ---
@@ -1169,11 +1169,10 @@ with tab3:
 
     selected_country = country_code_map[country_option]
 
-    # --- FILTER NS DATA FOR SELECTED COUNTRY ---
+    # --- FILTER NS DF BY SECURITY_NAME PREFIX ---
     country_bonds = ns_df[ns_df['SECURITY_NAME'].str.contains(selected_country[:3], case=False)].copy()
     country_bonds['Date'] = pd.to_datetime(country_bonds['Date']).dt.normalize()
-    country_bonds.sort_values('Date', inplace=True)
-
+    
     if country_bonds.empty:
         st.warning("No data available for this country.")
         st.stop()
@@ -1188,7 +1187,9 @@ with tab3:
     # --- SELECT PAIRS ---
     st.markdown("### Pair 1 Selection")
     pair1_a = st.selectbox("Pair 1 - Bond A", options=bond_options['ISIN'], key="pair1_a")
-    pair1_b = st.selectbox("Pair 1 - Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a], key="pair1_b")
+    pair1_b = st.selectbox(
+        "Pair 1 - Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a], key="pair1_b"
+    )
 
     st.markdown("### Pair 2 Selection")
     pair2_a = st.selectbox("Pair 2 - Bond A", options=bond_options['ISIN'], key="pair2_a")
@@ -1200,48 +1201,53 @@ with tab3:
 
     show_diff = st.checkbox("Show difference between Pair 1 and Pair 2", value=True, key="show_diff")
 
-    # --- CREATE PIVOT WITH ALL DATES ---
-        # --- CREATE PIVOT WITH ALL DATES ---
-    pivot_df = country_bonds.pivot_table(
-        index='Date', 
-        columns='ISIN', 
-        values='RESIDUAL_NS', 
-        aggfunc='first'  # in case multiple rows per date
+    # --- SUBSET DATA FOR SELECTED BONDS ---
+    df_subset = country_bonds[country_bonds['ISIN'].isin([pair1_a, pair1_b, pair2_a, pair2_b])].copy()
+
+    # --- PIVOT WITH AGGREGATION TO AVOID DUPLICATE DATES ---
+    pivot_df = df_subset.pivot_table(
+        index='Date',
+        columns='ISIN',
+        values='RESIDUAL_NS',
+        aggfunc='first'  # or np.mean if multiple residuals per date
     ).sort_index()
-    
-    # Ensure all selected ISINs exist in pivot_df, otherwise create empty columns
+
+    # Ensure all selected ISINs exist
     for col in [pair1_a, pair1_b, pair2_a, pair2_b]:
         if col not in pivot_df.columns:
             pivot_df[col] = np.nan
-    
-    pivot_df = pivot_df[[pair1_a, pair1_b, pair2_a, pair2_b]]  # keep only relevant ISINs
-    
+
+    pivot_df = pivot_df[[pair1_a, pair1_b, pair2_a, pair2_b]]
+
     # --- COMPUTE PAIR SPREADS ---
     pivot_df['Curve_A'] = pivot_df[pair1_a] - pivot_df[pair1_b]
     pivot_df['Curve_B'] = pivot_df[pair2_a] - pivot_df[pair2_b]
     if show_diff:
         pivot_df['Diff_Curves'] = pivot_df['Curve_A'] - pivot_df['Curve_B']
 
+    # Fill NaNs for Plotly gaps
+    pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']] = pivot_df[['Curve_A', 'Curve_B', 'Diff_Curves']].fillna(np.nan)
 
     # --- PLOT ---
-    import plotly.graph_objects as go
-
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=pivot_df['Date'], y=pivot_df['Curve_A'],
+        x=pivot_df.index,
+        y=pivot_df['Curve_A'],
         mode='lines+markers',
         name=f"{bond_labels[pair1_a]} - {bond_labels[pair1_b]}",
         line=dict(color='blue')
     ))
     fig.add_trace(go.Scatter(
-        x=pivot_df['Date'], y=pivot_df['Curve_B'],
+        x=pivot_df.index,
+        y=pivot_df['Curve_B'],
         mode='lines+markers',
         name=f"{bond_labels[pair2_a]} - {bond_labels[pair2_b]}",
         line=dict(color='green')
     ))
     if show_diff:
         fig.add_trace(go.Scatter(
-            x=pivot_df['Date'], y=pivot_df['Diff_Curves'],
+            x=pivot_df.index,
+            y=pivot_df['Diff_Curves'],
             mode='lines+markers',
             name="Curve A - Curve B",
             line=dict(color='red', dash='dash')
@@ -1256,4 +1262,3 @@ with tab3:
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
