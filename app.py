@@ -1150,9 +1150,6 @@ with tab1:
 
 
 
-
-
-
     elif subtab == "Analysis":
     
         import streamlit as st
@@ -1196,21 +1193,20 @@ with tab1:
         if not st.session_state.curves:
             add_curve()
     
-        # Store curves to remove after widget processing
         curves_to_keep = []
-    
         curve_dfs = []
     
-        for i, curve in enumerate(st.session_state.curves):
-            st.subheader(f"Curve {i+1}")
+        for curve in st.session_state.curves:
+            curve_id = curve["id"]
+            st.subheader(f"Curve {st.session_state.curves.index(curve)+1}")
             col_main, col_remove = st.columns([9, 1])
     
             remove_clicked = False
             with col_remove:
-                remove_clicked = st.button("❌", key=f"remove_{curve['id']}")
+                remove_clicked = st.button("❌", key=f"remove_{curve_id}")
     
             if remove_clicked:
-                continue  # skip adding this curve; effectively removed
+                continue  # Skip this curve, effectively removing it
             else:
                 curves_to_keep.append(curve)
     
@@ -1218,16 +1214,14 @@ with tab1:
                 col1, col2 = st.columns(2)
     
                 with col1:
-                    curve['country'] = st.selectbox(f"Select Country (Curve {i+1})",
+                    curve['country'] = st.selectbox(f"Select Country ({curve_id})",
                                                     country_options,
                                                     index=country_options.index(curve['country']),
-                                                    key=f"country_{curve['id']}")
+                                                    key=f"country_{curve_id}")
                     selected_country = country_code_map[curve['country']]
-                    # Load NS data for this country
                     ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
                     ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
     
-                    # Prepare bond options
                     bond_options = ns_df[['ISIN', 'SECURITY_NAME']].drop_duplicates()
                     bond_options['Maturity'] = bond_options['ISIN'].map(ns_df.groupby('ISIN')['Maturity'].first())
                     bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
@@ -1241,28 +1235,27 @@ with tab1:
                         return f"{bond_labels.get(isin, isin)} (N/A)"
     
                 with col2:
-                    curve['bond1'] = st.selectbox(f"Select Bond 1 (Curve {i+1})",
+                    curve['bond1'] = st.selectbox(f"Select Bond 1 ({curve_id})",
                                                   bond_options['ISIN'],
                                                   format_func=format_label,
-                                                  key=f"bond1_{curve['id']}")
-                    curve['bond2'] = st.selectbox(f"Select Bond 2 (Curve {i+1})",
+                                                  key=f"bond1_{curve_id}")
+                    curve['bond2'] = st.selectbox(f"Select Bond 2 ({curve_id})",
                                                   bond_options['ISIN'],
                                                   format_func=format_label,
-                                                  key=f"bond2_{curve['id']}")
+                                                  key=f"bond2_{curve_id}")
     
-                # Compute the curve for this selection (Bond1 - Bond2)
                 if curve['bond1'] and curve['bond2']:
                     df1 = ns_df[ns_df['ISIN']==curve['bond1']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B1'})
                     df2 = ns_df[ns_df['ISIN']==curve['bond2']][['Date','RESIDUAL_NS']].rename(columns={'RESIDUAL_NS':'B2'})
                     df_curve = df1.merge(df2, on='Date', how='outer').sort_values('Date')
-                    df_curve['Curve'] = df_curve['B1'] - df_curve['B2']  # always subtract
-                    df_curve['Curve_Name'] = f"Curve {i+1}"
+                    df_curve['Curve'] = df_curve['B1'] - df_curve['B2']
+                    df_curve['Curve_Name'] = f"Curve {st.session_state.curves.index(curve)+1}"
                     curve_dfs.append(df_curve[['Date','Curve','Curve_Name']])
     
-        # Update session state to keep only non-removed curves
+        # Update session state to only keep non-removed curves
         st.session_state.curves = curves_to_keep
     
-        # --- Plot individual curves only ---
+        # --- Plot ---
         if curve_dfs:
             combined_df = pd.concat(curve_dfs)
             fig = go.Figure()
@@ -1273,3 +1266,5 @@ with tab1:
                               xaxis_title="Date", yaxis_title="Residual Difference (bps)",
                               template="plotly_white", height=600)
             st.plotly_chart(fig, use_container_width=True)
+
+
