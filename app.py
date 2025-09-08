@@ -159,7 +159,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-tab1, tab2 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard"])
+tab1, tab2, tab3 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis"])
 
 
 with tab2:
@@ -1149,31 +1149,199 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+with tab3 : 
+    
+    # --- COUNTRY SELECTION ---
+    country_option = st.selectbox(
+        "Select Country",
+        options=['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪', 'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
+    )
+    
+    country_code_map = {
+        'Italy 🇮🇹': 'BTPS',
+        'Spain 🇪🇸': 'SPGB',
+        'France 🇫🇷': 'FRTR',
+        'Germany 🇩🇪': 'BUNDS',
+        'Finland 🇫🇮': 'RFGB',
+        'EU 🇪🇺': 'EU',
+        'Austria 🇦🇹': 'RAGB',
+        'Netherlands 🇳🇱': 'NETHER',
+        'Belgium 🇧🇪': 'BGB'
+    }
+    
+    selected_country = country_code_map[country_option]
+    
+    # --- Load full NS dataset ---
+    ns_df = load_full_ns_df(selected_country, zip_hash=None)
+    if ns_df.empty:
+        st.warning("No data available for this country.")
+        st.stop()
+    
+    # Ensure date column is datetime
+    ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
+    
+    # --- BOND OPTIONS ---
+    country_isins = ns_df['ISIN'].unique()
+    bond_options = ns_df[ns_df['ISIN'].isin(country_isins)][['ISIN', 'SECURITY_NAME']].drop_duplicates()
+    
+    isin_maturity_map = ns_df.groupby('ISIN')['Maturity'].first().to_dict()
+    bond_options['Maturity'] = bond_options['ISIN'].map(isin_maturity_map)
+    bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
+    bond_options.sort_values('Maturity', inplace=True)
+    
+    bond_labels = {row["ISIN"]: row["SECURITY_NAME"] for _, row in bond_options.iterrows()}
+    
+    def format_bond_label(isin):
+        maturity = bond_options.loc[bond_options['ISIN'] == isin, 'Maturity'].values
+        if len(maturity) > 0 and pd.notnull(maturity[0]):
+            maturity_str = pd.to_datetime(maturity[0]).strftime('%Y-%m-%d')
+            return f"{bond_labels.get(isin, isin)} ({maturity_str})"
+        else:
+            return f"{bond_labels.get(isin, isin)} (N/A)"
+    
+    # --- ANALYSIS LEVEL ---
+    st.subheader("Enhanced Pair & Curve Analysis")
+    analysis_level = st.radio(
+        "Select Analysis Level",
+        options=["Single Bond", "Pair", "Difference of Pairs"]
+    )
+    
+    # --- OPTIONS ---
+    normalize = st.checkbox("Normalize", value=False)
+    rolling_window = st.slider("Rolling window (days, 0 = no smoothing)", min_value=0, max_value=60, value=0)
+    
+    # --- HELPER FUNCTIONS ---
+    def apply_normalize(df, col):
+        if normalize:
+            return (df[col] - df[col].mean()) / df[col].std()
+        return df[col]
+    
+    def apply_rolling(df, col):
+        if rolling_window > 0:
+            return df[col].rolling(window=rolling_window).mean()
+        return df[col]
+    
+    # --- SINGLE BOND ANALYSIS ---
+    if analysis_level == "Single Bond":
+        selected_bonds = st.multiselect(
+            "Select Bonds",
+            options=bond_options['ISIN'].tolist(),
+            format_func=format_bond_label
+        )
+        
+        if not selected_bonds:
+            st.warning("Select at least one bond.")
+        else:
+            residuals_df = ns_df[ns_df['ISIN'].isin(selected_bonds)].copy()
+            fig = go.Figure()
+            for isin in selected_bonds:
+                bond_data = residuals_df[residuals_df['ISIN'] == isin].sort_values('Date')
+                y_vals = apply_rolling(bond_data, 'RESIDUAL_NS')
+                y_vals = apply_normalize(bond_data.assign(RESIDUAL_NS=y_vals), 'RESIDUAL_NS')
+                fig.add_trace(go.Scatter(
+                    x=bond_data['Date'],
+                    y=y_vals,
+                    mode='lines+markers',
+                    name=bond_labels.get(isin, isin)
+                ))
+            fig.update_layout(
+                title="Residuals Over Time",
+                xaxis_title="Date",
+                yaxis_title="Residual (bps)",
+                template="plotly_white",
+                height=500
+            )
+            st.plotly_chart(fig, use_container_width=True)
+    
+    # --- PAIR ANALYSIS ---
+    elif analysis_level == "Pair":
+        bond_a = st.selectbox("Select Bond A", options=bond_options['ISIN'])
+        bond_b = st.selectbox("Select Bond B", options=[i for i in bond_options['ISIN'] if i != bond_a])
+        
+        pair_df = ns_df[ns_df['ISIN'].isin([bond_a, bond_b])].copy()
+        pivot_df = pair_df.pivot(index='Date', columns='ISIN', values='RESIDUAL_NS').dropna()
+        pivot_df['PAIR_SPREAD'] = pivot_df[bond_a] - pivot_df[bond_b]
+        
+        y_vals = apply_rolling(pivot_df, 'PAIR_SPREAD')
+        y_vals = apply_normalize(pivot_df.assign(PAIR_SPREAD=y_vals), 'PAIR_SPREAD')
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=pivot_df.index,
+            y=y_vals,
+            mode='lines+markers',
+            name=f"{bond_labels[bond_a]} - {bond_labels[bond_b]}"
+        ))
+        fig.update_layout(
+            title="Pair Residual Spread",
+            xaxis_title="Date",
+            yaxis_title="Spread (bps)",
+            template="plotly_white",
+            height=500
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # --- DIFFERENCE OF PAIRS ---
+    elif analysis_level == "Difference of Pairs":
+        pair1_a = st.selectbox("Pair 1 - Bond A", options=bond_options['ISIN'])
+        pair1_b = st.selectbox("Pair 1 - Bond B", options=[i for i in bond_options['ISIN'] if i != pair1_a])
+        pair2_a = st.selectbox("Pair 2 - Bond A", options=bond_options['ISIN'])
+        pair2_b = st.selectbox("Pair 2 - Bond B", options=[i for i in bond_options['ISIN'] if i not in [pair2_a, pair1_a, pair1_b]])
+        
+        subset_df = ns_df[ns_df['ISIN'].isin([pair1_a, pair1_b, pair2_a, pair2_b])].copy()
+        pivot_df = subset_df.pivot(index='Date', columns='ISIN', values='RESIDUAL_NS').dropna()
+        
+        pivot_df['PAIR1_SPREAD'] = pivot_df[pair1_a] - pivot_df[pair1_b]
+        pivot_df['PAIR2_SPREAD'] = pivot_df[pair2_a] - pivot_df[pair2_b]
+        pivot_df['DIFF_PAIR'] = pivot_df['PAIR1_SPREAD'] - pivot_df['PAIR2_SPREAD']
+        
+        y_vals = apply_rolling(pivot_df, 'DIFF_PAIR')
+        y_vals = apply_normalize(pivot_df.assign(DIFF_PAIR=y_vals), 'DIFF_PAIR')
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=pivot_df.index,
+            y=y_vals,
+            mode='lines+markers',
+            name=f"({bond_labels[pair1_a]}-{bond_labels[pair1_b]}) - ({bond_labels[pair2_a]}-{bond_labels[pair2_b]})",
+            line=dict(dash='dash')
+        ))
+        fig.update_layout(
+            title="Difference of Pair Spreads",
+            xaxis_title="Date",
+            yaxis_title="Residual Difference (bps)",
+            template="plotly_white",
+            height=500
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
