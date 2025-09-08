@@ -1162,6 +1162,9 @@ with tab1:
         if "curves" not in st.session_state:
             st.session_state.curves = []
     
+        if "remove_curve_id" not in st.session_state:
+            st.session_state.remove_curve_id = None
+    
         country_options = ['Italy 🇮🇹', 'Spain 🇪🇸', 'France 🇫🇷', 'Germany 🇩🇪',
                            'Finland 🇫🇮', 'EU 🇪🇺', 'Austria 🇦🇹', 'Netherlands 🇳🇱', 'Belgium 🇧🇪']
         country_code_map = {
@@ -1185,10 +1188,6 @@ with tab1:
                 "bond2": None
             })
     
-        # Function to remove a curve by id
-        def remove_curve(curve_id):
-            st.session_state.curves = [c for c in st.session_state.curves if c["id"] != curve_id]
-    
         # Button to add new curve
         st.button("➕ Add Curve", on_click=add_curve)
     
@@ -1198,6 +1197,7 @@ with tab1:
     
         curve_dfs = []
     
+        # Loop over curves
         for i, curve in enumerate(st.session_state.curves):
             st.subheader(f"Curve {i+1}")
             col_main, col_remove = st.columns([9, 1])
@@ -1205,8 +1205,7 @@ with tab1:
             # Remove curve button
             with col_remove:
                 if st.button("❌", key=f"remove_{curve['id']}"):
-                    remove_curve(curve['id'])
-                    st.experimental_rerun()  # rerun to refresh UI
+                    st.session_state.remove_curve_id = curve['id']
     
             with col_main:
                 col1, col2 = st.columns(2)
@@ -1252,6 +1251,12 @@ with tab1:
                     df_curve['Curve'] = df_curve['B1'] - df_curve['B2']  # always subtract
                     df_curve['Curve_Name'] = f"Curve {i+1}"
                     curve_dfs.append(df_curve[['Date','Curve','Curve_Name']])
+    
+        # Handle curve removal safely after the loop
+        if st.session_state.remove_curve_id:
+            st.session_state.curves = [c for c in st.session_state.curves if c["id"] != st.session_state.remove_curve_id]
+            st.session_state.remove_curve_id = None
+            st.experimental_rerun()  # safe rerun after updating session_state
     
         # --- Plot individual curves only ---
         if curve_dfs:
