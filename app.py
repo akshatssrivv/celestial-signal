@@ -1153,7 +1153,7 @@ with tab1:
 with tab3:
     st.markdown("## Bond Pair Residual Curve Comparison")
 
-    # Country selector (keyed for Tab 3)
+    # Country selector
     country_option_tab3 = st.selectbox(
         "Select Country",
         options=[
@@ -1177,7 +1177,7 @@ with tab3:
 
     selected_country = country_code_map[country_option_tab3]
 
-    # Load NS dataset for this country
+    # Load NS data
     ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
     ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
 
@@ -1198,28 +1198,27 @@ with tab3:
         else:
             return f"{bond_labels.get(isin, isin)} (N/A)"
 
-    # Pair A (same issuer)
+    # --- Pair A (same issuer) ---
     st.subheader("Curve A (Issuer 1)")
     bond_a1 = st.selectbox("Select Bond A1", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_a1")
     bond_a2 = st.selectbox("Select Bond A2", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_a2")
 
-    # Pair B (same issuer)
+    # --- Pair B (same issuer) ---
     st.subheader("Curve B (Issuer 2)")
     bond_b1 = st.selectbox("Select Bond B1", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_b1")
     bond_b2 = st.selectbox("Select Bond B2", bond_options['ISIN'], format_func=format_bond_label, key="tab3_bond_b2")
 
-    # Difference checkbox
+    # Checkbox: show difference
     show_diff_tab3 = st.checkbox("Show difference between curves", key="tab3_show_diff")
 
     # --- Compute curves ---
     if all([bond_a1, bond_a2, bond_b1, bond_b2]):
-        # Filter data
         df_a1 = ns_df[ns_df['ISIN'] == bond_a1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'A1'})
         df_a2 = ns_df[ns_df['ISIN'] == bond_a2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'A2'})
         df_b1 = ns_df[ns_df['ISIN'] == bond_b1][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B1'})
         df_b2 = ns_df[ns_df['ISIN'] == bond_b2][['Date', 'RESIDUAL_NS']].rename(columns={'RESIDUAL_NS': 'B2'})
 
-        # Merge on Date
+        # Merge all on Date
         pivot_df = df_a1.merge(df_a2, on='Date', how='outer')
         pivot_df = pivot_df.merge(df_b1, on='Date', how='outer')
         pivot_df = pivot_df.merge(df_b2, on='Date', how='outer')
@@ -1233,20 +1232,16 @@ with tab3:
 
         # --- Plot ---
         fig = go.Figure()
-
         fig.add_trace(go.Scatter(
-            x=pivot_df['Date'], y=pivot_df['Curve_A'],
-            mode='lines', name="Curve A"
+            x=pivot_df['Date'], y=pivot_df['Curve_A'], mode='lines', name="Curve A"
         ))
         fig.add_trace(go.Scatter(
-            x=pivot_df['Date'], y=pivot_df['Curve_B'],
-            mode='lines', name="Curve B"
+            x=pivot_df['Date'], y=pivot_df['Curve_B'], mode='lines', name="Curve B"
         ))
-
         if show_diff_tab3:
             fig.add_trace(go.Scatter(
-                x=pivot_df['Date'], y=pivot_df['Curve_Diff'],
-                mode='lines', name="Curve A − Curve B", line=dict(dash='dash')
+                x=pivot_df['Date'], y=pivot_df['Curve_Diff'], mode='lines', name="Curve A − Curve B",
+                line=dict(dash='dash')
             ))
 
         fig.update_layout(
