@@ -1149,8 +1149,6 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 
-
-
 with tab3:
     st.markdown("## Multi-Curve Comparison")
 
@@ -1158,8 +1156,7 @@ with tab3:
     metric_option = st.radio(
         "Select Metric for Curve Calculation",
         options=["Residuals", "Z-Spread"],
-        horizontal=True,
-        key="metric_selector_tab3"
+        horizontal=True
     )
 
     # Map selected metric to column name in ns_df
@@ -1187,6 +1184,28 @@ with tab3:
         'Belgium 🇧🇪': 'BGB'
     }
 
+    # Load issuer_signal data
+    @st.cache_data(ttl=300)
+    def load_issuer_signal() -> pd.DataFrame:
+        try:
+            df = pd.read_csv("issuer_signals.csv")
+            return df
+        except Exception as e:
+            st.error(f"Failed to load issuer_signal: {e}")
+            return pd.DataFrame()
+
+    issuer_signal = load_issuer_signal()
+
+    # Function to find closest maturity
+    def find_closest(df, target_maturity):
+        if pd.isnull(target_maturity) or df.empty:
+            return None
+        diffs = (df['Maturity'] - target_maturity).dt.days.abs()
+        closest_row = df.loc[diffs.idxmin()]
+        if abs((closest_row['Maturity'] - target_maturity).days) <= 365:
+            return closest_row['ISIN']
+        return None
+
     # Function to add a new curve
     def add_curve():
         new_curve = {
@@ -1196,61 +1215,38 @@ with tab3:
             "bond2": None
         }
 
-        # If we already have a curve, try to map maturities
+        # Auto-select bonds based on Curve 1 if it exists
         if st.session_state.curves:
-            ref_curve = st.session_state.curves[0]  # use Curve A as reference
-            ref_country = country_code_map[ref_curve['country']]
-            ref_ns_df = load_full_ns_df(ref_country, zip_hash=zip_hash)
-            ref_ns_df['Maturity'] = pd.to_datetime(ref_ns_df['Maturity'], errors='coerce')
+            ref_curve = st.session_state.curves[0]
+            if ref_curve['bond1'] and ref_curve['bond2']:
+                # Load reference country NS df
+                ref_ns_df = load_full_ns_df(country_code_map[ref_curve['country']], zip_hash=zip_hash)
+                ref_ns_df['Maturity'] = pd.to_datetime(ref_ns_df['Maturity'], errors='coerce')
+                ref_bonds = ref_ns_df[ref_ns_df['ISIN'].isin([ref_curve['bond1'], ref_curve['bond2']])]
+                ref_maturities = dict(zip(ref_bonds['ISIN'], ref_bonds['Maturity']))
 
-            # Get maturities of Curve A bonds
-            ref_bonds = ref_ns_df[ref_ns_df['ISIN'].isin([ref_curve['bond1'], ref_curve['bond2']])]
-            ref_maturities = dict(zip(ref_bonds['ISIN'], ref_bonds['Maturity']))
+                # Load new curve country NS df
+                new_ns_df = load_full_ns_df(country_code_map[new_curve['country']], zip_hash=zip_hash)
+                new_ns_df['Maturity'] = pd.to_datetime(new_ns_df['Maturity'], errors='coerce')
 
-            # Load new curve's country bonds
-            new_country = country_code_map[new_curve['country']]
-            new_ns_df = load_full_ns_df(new_country, zip_hash=zip_hash)
-            new_ns_df['Maturity'] = pd.to_datetime(new_ns_df['Maturity'], errors='coerce')
-
-            def find_closest(target_maturity):
-                if pd.isnull(target_maturity):
-                    return None
-                diffs = (new_ns_df['Maturity'] - target_maturity).dt.days.abs()
-                candidate = new_ns_df.loc[diffs.idxmin()]
-                if abs(candidate['Maturity'] - target_maturity).days <= 365:
-                    return candidate['ISIN']
-                return None
-
-            if len(ref_maturities) == 2:
+                # Find closest maturities
                 ref_bond1, ref_bond2 = list(ref_maturities.keys())
-                new_curve['bond1'] = find_closest(ref_maturities[ref_bond1])
-                new_curve['bond2'] = find_closest(ref_maturities[ref_bond2])
+                new_curve['bond1'] = find_closest(new_ns_df, ref_maturities[ref_bond1])
+                new_curve['bond2'] = find_closest(new_ns_df, ref_maturities[ref_bond2])
 
         st.session_state.curves.append(new_curve)
 
-    st.button("➕ Add Curve", on_click=add_curve, key="add_curve_btn_tab3")
+    st.button("➕ Add Curve", on_click=add_curve)
 
     # Ensure at least one curve exists
     if not st.session_state.curves:
         add_curve()
 
-    # Load issuer_signal data
-    @st.cache_data(ttl=300)
-    def load_issuer_signal() -> pd.DataFrame:
-        try:
-            df = pd.read_csv("issuer_signals.csv")  # replace with your B2 download if needed
-            return df
-        except Exception as e:
-            st.error(f"Failed to load issuer_signal: {e}")
-            return pd.DataFrame()
-
-    issuer_signal = load_issuer_signal()
-
     curves_to_keep = []
     curve_dfs = []
-
-    # Build global legend mapping for all ISINs (Name + Maturity + Signal)
     global_legend_labels = {}
+
+    # Build legend labels for all curves
     for curve in st.session_state.curves:
         selected_country = country_code_map[curve['country']]
         ns_df_tmp = load_full_ns_df(selected_country, zip_hash=zip_hash)
@@ -1261,8 +1257,8 @@ with tab3:
         for _, row in bond_options_tmp.iterrows():
             isin = row['ISIN']
             name = row['SECURITY_NAME']
-            maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
-            signal = row['SIGNAL'] if pd.notnull(row['SIGNAL']) else ""
+            maturity = row['Maturity'].strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
+            signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
             global_legend_labels[isin] = f"{name} ({maturity}) [{signal}]"
 
     # Process each curve
@@ -1280,7 +1276,7 @@ with tab3:
         with col_main:
             col1, col2 = st.columns(2)
             with col1:
-                prev_country = curve['country']  # remember previous
+                prev_country = curve['country']
                 curve['country'] = st.selectbox(
                     f"Select Country (Curve {i+1})",
                     country_options,
@@ -1291,50 +1287,34 @@ with tab3:
                 ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
                 ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
 
-                # Bond options with signal for dropdown
                 bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
                 bond_options = bond_options.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
                 bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
                 bond_options.sort_values('Maturity', inplace=True)
 
-                # --- Auto-select closest maturity bonds if country changed ---
-                if curve is not st.session_state.curves[0] and curve['country'] != prev_country:
-                    ref_curve = st.session_state.curves[0]  # always map against Curve A
-                    ref_country = country_code_map[ref_curve['country']]
-                    ref_ns_df = load_full_ns_df(ref_country, zip_hash=zip_hash)
-                    ref_ns_df['Maturity'] = pd.to_datetime(ref_ns_df['Maturity'], errors='coerce')
-                    ref_bonds = ref_ns_df[ref_ns_df['ISIN'].isin([ref_curve['bond1'], ref_curve['bond2']])]
-                    ref_maturities = dict(zip(ref_bonds['ISIN'], ref_bonds['Maturity']))
-
-                    def find_closest(target_maturity):
-                        if pd.isnull(target_maturity):
-                            return None
-                        diffs = (bond_options['Maturity'] - target_maturity).dt.days.abs()
-                        candidate = bond_options.loc[diffs.idxmin()]
-                        if abs(candidate['Maturity'] - target_maturity).days <= 365:
-                            return candidate['ISIN']
-                        return None
-
-                    if len(ref_maturities) == 2:
-                        ref_bond1, ref_bond2 = list(ref_maturities.keys())
-                        curve['bond1'] = find_closest(ref_maturities[ref_bond1])
-                        curve['bond2'] = find_closest(ref_maturities[ref_bond2])
+                bond_labels = {}
+                for _, row in bond_options.iterrows():
+                    isin = row['ISIN']
+                    name = row['SECURITY_NAME']
+                    maturity = row['Maturity'].strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
+                    signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
+                    bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
 
             with col2:
                 curve['bond1'] = st.selectbox(
                     f"Select Bond 1 (Curve {i+1})",
                     bond_options['ISIN'],
-                    format_func=lambda isin: global_legend_labels.get(isin, isin),
+                    format_func=lambda isin: bond_labels.get(isin, isin),
                     key=f"bond1_{curve['id']}"
                 )
                 curve['bond2'] = st.selectbox(
                     f"Select Bond 2 (Curve {i+1})",
                     bond_options['ISIN'],
-                    format_func=lambda isin: global_legend_labels.get(isin, isin),
+                    format_func=lambda isin: bond_labels.get(isin, isin),
                     key=f"bond2_{curve['id']}"
                 )
 
-            # Compute curve based on selected metric
+            # Compute curve
             if curve['bond1'] and curve['bond2']:
                 df1 = ns_df[ns_df['ISIN'] == curve['bond1']][['Date', selected_metric_col]].rename(columns={selected_metric_col:'B1'})
                 df2 = ns_df[ns_df['ISIN'] == curve['bond2']][['Date', selected_metric_col]].rename(columns={selected_metric_col:'B2'})
@@ -1347,21 +1327,14 @@ with tab3:
 
     st.session_state.curves = curves_to_keep
 
-    # --- Plot individual curves + combined curve ---
+    # --- Plotting ---
     if curve_dfs and len(curve_dfs) == 2:
-        # Merge the two curve DataFrames on Date
         combined_curve_df = curve_dfs[0][['Date', 'Curve']].merge(
-            curve_dfs[1][['Date', 'Curve']],
-            on='Date',
-            suffixes=('_1', '_2')
+            curve_dfs[1][['Date', 'Curve']], on='Date', suffixes=('_1', '_2')
         )
-
-        # Subtract Curve1 from Curve2
         combined_curve_df['Curve'] = combined_curve_df['Curve_2'] - combined_curve_df['Curve_1']
 
         fig = go.Figure()
-
-        # Plot individual curves
         for i, curve_df in enumerate(curve_dfs):
             curve = st.session_state.curves[i]
             bond1_label = global_legend_labels.get(curve['bond1'], curve['bond1'])
@@ -1375,7 +1348,6 @@ with tab3:
                 name=curve_name
             ))
 
-        # Plot combined curve (Curve2 − Curve1)
         fig.add_trace(go.Scatter(
             x=combined_curve_df['Date'],
             y=combined_curve_df['Curve'],
@@ -1384,7 +1356,6 @@ with tab3:
             line=dict(color='black', width=3, dash='dot')
         ))
 
-        # Layout
         fig.update_layout(
             title=f"Two-Curve {metric_option} Comparison",
             xaxis_title="Date",
