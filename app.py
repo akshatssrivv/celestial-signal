@@ -1278,6 +1278,7 @@ with tab1:
             with col_main:
                 col1, col2 = st.columns(2)
                 with col1:
+                    prev_country = curve['country']  # remember previous
                     curve['country'] = st.selectbox(
                         f"Select Country (Curve {i+1})",
                         country_options,
@@ -1287,21 +1288,36 @@ with tab1:
                     selected_country = country_code_map[curve['country']]
                     ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
                     ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
-    
+                
                     # Bond options with signal for dropdown
                     bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
                     bond_options = bond_options.merge(issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left')
                     bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
                     bond_options.sort_values('Maturity', inplace=True)
-    
-                    # Dropdown labels (with signal)
-                    bond_labels = {}
-                    for _, row in bond_options.iterrows():
-                        isin = row['ISIN']
-                        name = row['SECURITY_NAME']
-                        maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
-                        signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
-                        bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
+                
+                    # --- Auto-select closest maturity bonds if country changed ---
+                    if curve is not st.session_state.curves[0] and curve['country'] != prev_country:
+                        ref_curve = st.session_state.curves[0]  # always map against Curve A
+                        ref_country = country_code_map[ref_curve['country']]
+                        ref_ns_df = load_full_ns_df(ref_country, zip_hash=zip_hash)
+                        ref_ns_df['Maturity'] = pd.to_datetime(ref_ns_df['Maturity'], errors='coerce')
+                        ref_bonds = ref_ns_df[ref_ns_df['ISIN'].isin([ref_curve['bond1'], ref_curve['bond2']])]
+                        ref_maturities = dict(zip(ref_bonds['ISIN'], ref_bonds['Maturity']))
+                
+                        def find_closest(target_maturity):
+                            if pd.isnull(target_maturity):
+                                return None
+                            diffs = (bond_options['Maturity'] - target_maturity).dt.days.abs()
+                            candidates = bond_options.loc[diffs.idxmin()]
+                            if abs(candidates['Maturity'] - target_maturity).days <= 365:
+                                return candidates['ISIN']
+                            return None
+                
+                        ref_bond1, ref_bond2 = list(ref_maturities.keys())
+                        curve['bond1'] = find_closest(ref_maturities[ref_bond1])
+                        curve['bond2'] = find_closest(ref_maturities[ref_bond2])
+
+                        # bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
     
                 with col2:
                     curve['bond1'] = st.selectbox(
@@ -1382,6 +1398,7 @@ with tab1:
 
 
     
+
 
 
 
