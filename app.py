@@ -1311,21 +1311,32 @@ with tab3:
                     signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
                     bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
 
+
             with col2:
+                # bond1
+                bond1_idx = 0
+                if curve['bond1'] in bond_options['ISIN'].values:
+                    bond1_idx = int(bond_options[bond_options['ISIN'] == curve['bond1']].index[0])
                 curve['bond1'] = st.selectbox(
                     f"Select Bond 1 (Curve {i+1})",
                     bond_options['ISIN'],
                     format_func=lambda isin: bond_labels.get(isin, isin),
-                    index=bond_options[bond_options['ISIN'] == curve['bond1']].index[0] if curve['bond1'] in bond_options['ISIN'].values else 0,
+                    index=bond1_idx,
                     key=f"bond1_{curve['id']}"
                 )
+            
+                # bond2
+                bond2_idx = 0
+                if curve['bond2'] in bond_options['ISIN'].values:
+                    bond2_idx = int(bond_options[bond_options['ISIN'] == curve['bond2']].index[0])
                 curve['bond2'] = st.selectbox(
                     f"Select Bond 2 (Curve {i+1})",
                     bond_options['ISIN'],
                     format_func=lambda isin: bond_labels.get(isin, isin),
-                    index=bond_options[bond_options['ISIN'] == curve['bond2']].index[0] if curve['bond2'] in bond_options['ISIN'].values else 0,
+                    index=bond2_idx,
                     key=f"bond2_{curve['id']}"
                 )
+
 
             # Compute curve based on selected metric
             if curve['bond1'] and curve['bond2']:
@@ -1383,3 +1394,4 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
