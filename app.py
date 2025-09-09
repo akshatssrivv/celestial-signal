@@ -1186,13 +1186,47 @@ with tab1:
     
         # Function to add a new curve
         def add_curve():
-            st.session_state.curves.append({
+            new_curve = {
                 "id": str(uuid.uuid4()),
                 "country": country_options[0],
                 "bond1": None,
                 "bond2": None
-            })
-    
+            }
+        
+            # If we already have a curve, try to map maturities
+            if st.session_state.curves:
+                ref_curve = st.session_state.curves[0]  # use Curve A as reference
+                ref_country = country_code_map[ref_curve['country']]
+                ref_ns_df = load_full_ns_df(ref_country, zip_hash=zip_hash)
+                ref_ns_df['Maturity'] = pd.to_datetime(ref_ns_df['Maturity'], errors='coerce')
+                
+                # Get maturities of Curve A bonds
+                ref_bonds = ref_ns_df[ref_ns_df['ISIN'].isin([ref_curve['bond1'], ref_curve['bond2']])]
+                ref_maturities = dict(zip(ref_bonds['ISIN'], ref_bonds['Maturity']))
+        
+                # Load new curve's country bonds
+                new_country = country_code_map[new_curve['country']]
+                new_ns_df = load_full_ns_df(new_country, zip_hash=zip_hash)
+                new_ns_df['Maturity'] = pd.to_datetime(new_ns_df['Maturity'], errors='coerce')
+        
+                def find_closest(target_maturity):
+                    if pd.isnull(target_maturity):
+                        return None
+                    diffs = (new_ns_df['Maturity'] - target_maturity).dt.days.abs()
+                    # Prefer exact, else within ±365 days
+                    candidates = new_ns_df.loc[diffs.idxmin()]
+                    if abs(candidates['Maturity'] - target_maturity).days <= 365:
+                        return candidates['ISIN']
+                    return None
+        
+                # Try to assign closest matches
+                ref_bond1, ref_bond2 = list(ref_maturities.keys())
+                new_curve['bond1'] = find_closest(ref_maturities[ref_bond1])
+                new_curve['bond2'] = find_closest(ref_maturities[ref_bond2])
+        
+            st.session_state.curves.append(new_curve)
+
+       
         st.button("➕ Add Curve", on_click=add_curve)
     
         # Ensure at least one curve exists
@@ -1348,6 +1382,7 @@ with tab1:
 
 
     
+
 
 
 
