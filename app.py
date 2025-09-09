@@ -1228,7 +1228,7 @@ with tab3:
 
         st.session_state.curves.append(new_curve)
 
-    st.button("➕ Add Curve", on_click=add_curve)
+    st.button("➕ Add Curve", on_click=lambda: [add_curve(), st.session_state.update({"active_tab": "Multi-Curve Comparison"})])
 
     # Ensure at least one curve exists
     if not st.session_state.curves:
@@ -1398,3 +1398,4 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
