@@ -158,9 +158,17 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = "Analysis"
 
-tab1, tab2, tab3 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis"])
+tab_names = ["Nelson-Siegel Curves", "Signal Dashboard", "Analysis"]
+tab1, tab2, tab3 = st.tabs(tab_names)
 
+# Figure out which tab to show
+active_index = tab_names.index(st.session_state.active_tab)
+
+# Rerender tabs, force Streamlit to stay on the chosen one
+tab1, tab2, tab3 = st.tabs(tab_names, index=active_index)
 
 with tab2:
             
@@ -1377,3 +1385,4 @@ with tab3:
             legend_title="Curves"
         )
         st.plotly_chart(fig, use_container_width=True)
+
