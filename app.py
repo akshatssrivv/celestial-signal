@@ -418,15 +418,13 @@ with tab2:
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
     
-        # --- NEW: Add arrows/emojis next to SECURITY_NAME ---
+        # Yesterday's raw signals
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
-
-        # Use the original SIGNAL column (before we decorated it)
-        raw_signal_col = filtered_df['SIGNAL']
         
-        def security_label(row):
+        # Helper: decorate SECURITY_NAME
+        def decorate_name(row):
             name = row['SECURITY_NAME']
-            today_signal = row['Raw_Signal']       # use raw signal
+            today_signal = row['Raw_Signal']   # always raw, never decorated
             yesterday_signal = yesterday_signals.get(name, None)
         
             levels = {
@@ -438,12 +436,9 @@ with tab2:
         
             today_lvl = levels.get(today_signal, 0)
             yesterday_lvl = levels.get(yesterday_signal, 0) if yesterday_signal else 0
-            significant_today = today_lvl >= 2
-            significant_yesterday = yesterday_lvl >= 2
         
-            change = today_lvl - yesterday_lvl
-        
-            if (significant_today or significant_yesterday) and change != 0:
+            # Only care if today or yesterday is moderate/strong, and it changed
+            if (today_lvl >= 2 or yesterday_lvl >= 2) and today_lvl != yesterday_lvl:
                 emoji_map = {
                     'STRONG BUY': '🟢',
                     'MODERATE BUY': '💚',
@@ -451,18 +446,22 @@ with tab2:
                     'MODERATE SELL': '🟥'
                 }
                 emoji = emoji_map.get(today_signal, '')
-                if change > 0:
-                    return f'{emoji} ↑ {name}'  # promotion
+                if today_lvl > yesterday_lvl:
+                    return f'{emoji} ↑ {name}'  # moved up
                 else:
-                    return f'{emoji} ↓ {name}'  # demotion
+                    return f'{emoji} ↓ {name}'  # moved down
             else:
                 return name
         
-        # Add a helper column with the raw signal
+        # Add raw column (invisible to user)
         display_df['Raw_Signal'] = filtered_df['SIGNAL']
         
-        # Apply new label
-        display_df['SECURITY_NAME'] = display_df.apply(security_label, axis=1)
+        # Replace SECURITY_NAME with decorated one
+        display_df['SECURITY_NAME'] = display_df.apply(decorate_name, axis=1)
+        
+        # You can drop Raw_Signal if you don't want it in final table
+        display_df.drop(columns=['Raw_Signal'], inplace=True)
+
 
     
         
@@ -1336,6 +1335,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
