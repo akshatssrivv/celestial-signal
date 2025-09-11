@@ -252,6 +252,7 @@ with tab2:
     yesterday = today - pd.Timedelta(days=1)
 
     recent_signals = pd.read_csv("recent_signals.csv")
+    recent_signals['Date'] = pd.to_datetime(recent_signals['Date'])
     
     today_df = recent_signals[recent_signals['Date'] == today]
     yesterday_df = recent_signals[recent_signals['Date'] == yesterday]
@@ -1314,6 +1315,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
