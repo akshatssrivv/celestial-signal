@@ -1155,14 +1155,14 @@ with tab3:
     # --- Metric Selection ---
     metric_option = st.radio(
         "Select Metric for Curve Calculation",
-        options=["Residuals", "Z-Spread"],
+        options=["Z-Spread", "Residuals"],
         horizontal=True
     )
 
     # Map selected metric to column name in ns_df
     metric_col_map = {
-        "Residuals": "RESIDUAL_NS",
-        "Z-Spread": "Z_SPRD_VAL"  # replace with actual column name in your ns_df
+        "Z-Spread": "Z_SPRD_VAL",  
+        "Residuals": "RESIDUAL_NS"
     }
     selected_metric_col = metric_col_map[metric_option]
 
@@ -1349,5 +1349,6 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
