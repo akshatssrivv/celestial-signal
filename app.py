@@ -416,23 +416,6 @@ with tab2:
                 axis=1
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
-    
-        # --- Make sure Signal stays raw ---
-        yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
-        display_df['Signal'] = display_df['Signal'].str.replace(r'[↑↓🟢💚🔴🟥]', '', regex=True).str.strip()
-        display_df['SECURITY_NAME'] = display_df['SECURITY_NAME'].str.replace(r'[↑↓🟢💚🔴🟥]', '', regex=True).str.strip()
-
-        # Full reset: strip any emoji/arrow cruft from SECURITY_NAME and Signal
-        import re
-        
-        def strip_decorations(val):
-            if not isinstance(val, str):
-                return val
-            # remove arrows, emoji, colored squares/circles
-            return re.sub(r'[^\w\s/.-]', '', val).strip()
-        
-        display_df['Signal'] = display_df['Signal'].apply(strip_decorations)
-        display_df['SECURITY_NAME'] = display_df['SECURITY_NAME'].apply(strip_decorations)
 
 
 
@@ -1341,6 +1324,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
