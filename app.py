@@ -423,6 +423,19 @@ with tab2:
         display_df['Signal'] = display_df['Signal'].str.replace(r'[↑↓🟢💚🔴🟥]', '', regex=True).str.strip()
         display_df['SECURITY_NAME'] = display_df['SECURITY_NAME'].str.replace(r'[↑↓🟢💚🔴🟥]', '', regex=True).str.strip()
 
+        # Full reset: strip any emoji/arrow cruft from SECURITY_NAME and Signal
+        import re
+        
+        def strip_decorations(val):
+            if not isinstance(val, str):
+                return val
+            # remove arrows, emoji, colored squares/circles
+            return re.sub(r'[^\w\s/.-]', '', val).strip()
+        
+        display_df['Signal'] = display_df['Signal'].apply(strip_decorations)
+        display_df['SECURITY_NAME'] = display_df['SECURITY_NAME'].apply(strip_decorations)
+
+
 
         def decorate_name(row):
             name = row['SECURITY_NAME']
@@ -1329,6 +1342,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
