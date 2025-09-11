@@ -420,10 +420,13 @@ with tab2:
     
         # --- NEW: Add arrows/emojis next to SECURITY_NAME ---
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
-    
+
+        # Use the original SIGNAL column (before we decorated it)
+        raw_signal_col = filtered_df['SIGNAL']
+        
         def security_label(row):
             name = row['SECURITY_NAME']
-            today_signal = row['Signal']
+            today_signal = row['Raw_Signal']       # use raw signal
             yesterday_signal = yesterday_signals.get(name, None)
         
             levels = {
@@ -433,7 +436,6 @@ with tab2:
                 'STRONG SELL': 3, 'STRONG BUY': 3
             }
         
-            # Only consider moves to/from moderate or strong
             today_lvl = levels.get(today_signal, 0)
             yesterday_lvl = levels.get(yesterday_signal, 0) if yesterday_signal else 0
             significant_today = today_lvl >= 2
@@ -442,7 +444,6 @@ with tab2:
             change = today_lvl - yesterday_lvl
         
             if (significant_today or significant_yesterday) and change != 0:
-                # Only show arrows/emojis for meaningful moves
                 emoji_map = {
                     'STRONG BUY': '🟢',
                     'MODERATE BUY': '💚',
@@ -455,9 +456,16 @@ with tab2:
                 else:
                     return f'{emoji} ↓ {name}'  # demotion
             else:
-                return name  # leave unchanged
-    
+                return name
+        
+        # Add a helper column with the raw signal
+        display_df['Raw_Signal'] = filtered_df['SIGNAL']
+        
+        # Apply new label
         display_df['SECURITY_NAME'] = display_df.apply(security_label, axis=1)
+
+    
+        
     
         # Column config for tooltips + formatting
         HELP_TEXTS = {
@@ -1328,6 +1336,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
