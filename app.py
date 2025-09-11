@@ -420,8 +420,9 @@ with tab2:
     
         # --- Make sure Signal stays raw ---
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
-        # --- Clean up old decorations (arrows/emojis) ---
         display_df['Signal'] = display_df['Signal'].str.replace(r'[↑↓🟢💚🔴🟥]', '', regex=True).str.strip()
+        display_df['SECURITY_NAME'] = display_df['SECURITY_NAME'].str.replace(r'[↑↓🟢💚🔴🟥]', '', regex=True).str.strip()
+
 
         def decorate_name(row):
             name = row['SECURITY_NAME']
@@ -441,10 +442,10 @@ with tab2:
             # ✅ Only trigger decoration when moving into/out of MODERATE or STRONG
             if (today_lvl >= 2 or yesterday_lvl >= 2) and today_lvl != yesterday_lvl:
                 emoji_map = {
-                    'STRONG BUY': '🟢',
-                    'MODERATE BUY': '💚',
-                    'STRONG SELL': '🔴',
-                    'MODERATE SELL': '🟥'
+                    'STRONG BUY': '🟩',       # dark green square
+                    'MODERATE BUY': '💚',     # light green heart
+                    'STRONG SELL': '🟥',      # dark red square
+                    'MODERATE SELL': '💛'     # yellow heart
                 }
                 emoji = emoji_map.get(today_signal, '')
                 if today_lvl > yesterday_lvl:
@@ -1328,6 +1329,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
