@@ -418,12 +418,12 @@ with tab2:
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
     
-        # --- NEW CLEAN DECORATION LOGIC ---
+        # --- Make sure Signal stays raw ---
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
         
         def decorate_name(row):
             name = row['SECURITY_NAME']
-            today_signal = row['Signal']              # <- must be raw SIGNAL, not decorated
+            today_signal = row['Signal']              # raw signal (must be plain)
             yesterday_signal = yesterday_signals.get(name, None)
         
             levels = {
@@ -436,7 +436,7 @@ with tab2:
             today_lvl = levels.get(today_signal, 0)
             yesterday_lvl = levels.get(yesterday_signal, 0) if yesterday_signal else 0
         
-            # ✅ Only add emoji + arrow if moving into/out of MODERATE/STRONG
+            # ✅ Only trigger decoration when moving into/out of MODERATE or STRONG
             if (today_lvl >= 2 or yesterday_lvl >= 2) and today_lvl != yesterday_lvl:
                 emoji_map = {
                     'STRONG BUY': '🟢',
@@ -446,15 +446,15 @@ with tab2:
                 }
                 emoji = emoji_map.get(today_signal, '')
                 if today_lvl > yesterday_lvl:
-                    return f'{emoji} ↑ {name}'  # moved up
+                    return f'{emoji} ↑ {name}'  # upgrade
                 else:
-                    return f'{emoji} ↓ {name}'  # moved down
+                    return f'{emoji} ↓ {name}'  # downgrade
             else:
-                return name  # no emoji if weak/no action or unchanged
+                return name  # untouched for weak/no action or unchanged
         
-        # ⚠️ Make sure "Signal" is raw before this line (no arrows/decorations in it yet!)
+        # 👇 IMPORTANT: replace SECURITY_NAME, not Signal
         display_df['SECURITY_NAME'] = display_df.apply(decorate_name, axis=1)
-        # --- END CLEAN DECORATION ---
+
 
     
         # Column config for tooltips + formatting
@@ -1326,6 +1326,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
