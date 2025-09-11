@@ -418,46 +418,36 @@ with tab2:
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
     
-        # --- NEW: Add arrows/colours based on yesterday/today comparison ---
-        # Map yesterday's signals and add colored arrows
+        # --- NEW: Add arrows/emojis next to SECURITY_NAME ---
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
-        
-        def signal_arrow_html(row):
-            today_signal = row['Signal']  # already renamed
-            yesterday_signal = yesterday_signals.get(row['SECURITY_NAME'], None)
-        
-            levels = {
-                'NO ACTION': 0,
-                'WEAK SELL': 1, 'WEAK BUY': 1,
-                'MODERATE SELL': 2, 'MODERATE BUY': 2,
-                'STRONG SELL': 3, 'STRONG BUY': 3
+    
+        def security_label(row):
+            name = row['SECURITY_NAME']
+            today_signal = row['Signal']
+            yesterday_signal = yesterday_signals.get(name, None)
+    
+            levels = {'NO ACTION':0,'WEAK SELL':1,'WEAK BUY':1,'MODERATE SELL':2,'MODERATE BUY':2,'STRONG SELL':3,'STRONG BUY':3}
+            change = levels.get(today_signal,0) - levels.get(yesterday_signal,0)
+    
+            emoji_map = {
+                'STRONG BUY': '🟢',
+                'MODERATE BUY': '💚',
+                'WEAK BUY': '🔵',
+                'STRONG SELL': '🔴',
+                'MODERATE SELL': '🟥',
+                'WEAK SELL': '🟠',
+                'NO ACTION': '⚪'
             }
-        
-            change = levels.get(today_signal, 0) - levels.get(yesterday_signal, 0)
-        
-            # Color mapping
-            color_map = {
-                'STRONG BUY': '#28a745',
-                'MODERATE BUY': '#20c997',
-                'WEAK BUY': '#17a2b8',
-                'STRONG SELL': '#dc3545',
-                'MODERATE SELL': '#e55353',
-                'WEAK SELL': '#fd7e14',
-                'NO ACTION': '#6c757d'
-            }
-        
-            color = color_map.get(today_signal, '#6c757d')
-        
+            emoji = emoji_map.get(today_signal, '⚪')
+    
             if change > 0:
-                return f'<span style="color:{color}">↑ {today_signal}</span>'
+                return f'{emoji} ↑ {name}'
             elif change < 0:
-                return f'<span style="color:{color}">↓ {today_signal}</span>'
+                return f'{emoji} ↓ {name}'
             else:
-                return f'<span style="color:{color}">{today_signal}</span>'
-        
-        display_df['Signal'] = display_df.apply(signal_arrow_html, axis=1)
-
-        # ---------------------------------------------------------------------
+                return f'{emoji} {name}'
+    
+        display_df['SECURITY_NAME'] = display_df.apply(security_label, axis=1)
     
         # Column config for tooltips + formatting
         HELP_TEXTS = {
@@ -488,8 +478,8 @@ with tab2:
                 column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
     
         # Show the table
-        # Convert dataframe to HTML with escaped content turned off so colors render
-        st.markdown(display_df.to_html(escape=False, index=False), unsafe_allow_html=True)
+        st.dataframe(display_df, column_config=column_config)
+    
 
 
         # Download button
@@ -1328,6 +1318,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
