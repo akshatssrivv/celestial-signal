@@ -247,71 +247,44 @@ with tab2:
     # Get actual signal values from your data (case-sensitive and exact match)
     actual_signals = df['SIGNAL'].unique()
     
-    buy_count = len(df[df['SIGNAL'] == 'STRONG BUY'])
-    sell_count = len(df[df['SIGNAL'] == 'STRONG SELL'])
-    mod_buy_count = len(df[df['SIGNAL'] == 'MODERATE BUY'])
-    mod_sell_count = len(df[df['SIGNAL'] == 'MODERATE SELL'])
-    watch_buy_count = len(df[df['SIGNAL'] == 'WEAK BUY'])
-    watch_sell_count = len(df[df['SIGNAL'] == 'WEAK SELL'])
-    no_action_count = len(df[df['SIGNAL'] == 'NO ACTION'])
+    # Assuming you have recent_signals with today and yesterday
+    today = pd.Timestamp.today().normalize()
+    yesterday = today - pd.Timedelta(days=1)
+    
+    today_df = recent_signals[recent_signals['Date'] == today]
+    yesterday_df = recent_signals[recent_signals['Date'] == yesterday]
+    
+    signal_types = ['STRONG BUY','STRONG SELL','MODERATE BUY','MODERATE SELL','WEAK BUY','WEAK SELL','NO ACTION']
+    
+    signal_counts_today = today_df['SIGNAL'].value_counts().reindex(signal_types, fill_value=0)
+    signal_counts_yesterday = yesterday_df['SIGNAL'].value_counts().reindex(signal_types, fill_value=0)
+    
+    signal_deltas = signal_counts_today - signal_counts_yesterday
+    
+    def format_delta(val):
+        if val > 0:
+            return f'<span style="color:#28a745">+{val}</span>'
+        elif val < 0:
+            return f'<span style="color:#dc3545">{val}</span>'
+        else:
+            return f'<span style="color:#6c757d">{val}</span>'
 
     col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
+    boxes = [
+        'STRONG BUY', 'STRONG SELL', 'MODERATE BUY', 
+        'MODERATE SELL', 'WEAK BUY', 'WEAK SELL', 'NO ACTION'
+    ]
     
-    with col1:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-value buy">{buy_count}</div>
-            <div class="metric-label">STRONG BUY</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-value sell">{sell_count}</div>
-            <div class="metric-label">STRONG SELL</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-value mod-buy">{mod_buy_count}</div>
-            <div class="metric-label">MODERATE BUY</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-value mod-sell">{mod_sell_count}</div>
-            <div class="metric-label">MODERATE SELL</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col5:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-value watch-buy">{watch_buy_count}</div>
-            <div class="metric-label">WEAK BUY</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col6:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-value watch-sell">{watch_sell_count}</div>
-            <div class="metric-label">WEAK SELL</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col7:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-value no-action">{no_action_count}</div>
-            <div class="metric-label">NO ACTION</div>
-        </div>
-        """, unsafe_allow_html=True)
+    for i, sig in enumerate(boxes):
+        count = signal_counts_today[sig]
+        delta_html = format_delta(signal_deltas[sig])
+        with [col1, col2, col3, col4, col5, col6, col7][i]:
+            st.markdown(f"""
+            <div class="metric-box">
+                <div class="metric-value">{count} <small>{delta_html}</small></div>
+                <div class="metric-label">{sig}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -473,6 +446,32 @@ with tab2:
             else:
                 column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
 
+        # Map yesterday's signals
+        yesterday_signals = yesterday_df.set_index('ISIN')['SIGNAL'].to_dict()
+        
+        def signal_arrow(row):
+            isin = row['ISIN']
+            today_signal = row['Signal']  # Note: after renaming 'SIGNAL' -> 'Signal'
+            yesterday_signal = yesterday_signals.get(isin, None)
+            if yesterday_signal is None or today_signal == yesterday_signal:
+                return today_signal  # no change
+        
+            levels = {
+                'NO ACTION': 0,
+                'WEAK SELL': 1, 'WEAK BUY': 1,
+                'MODERATE SELL': 2, 'MODERATE BUY': 2,
+                'STRONG SELL': 3, 'STRONG BUY': 3
+            }
+        
+            change = levels.get(today_signal, 0) - levels.get(yesterday_signal, 0)
+            if change > 0:
+                return f'↑ {today_signal}'  # promotion
+            elif change < 0:
+                return f'↓ {today_signal}'  # demotion
+            else:
+                return today_signal
+        
+        display_df['Signal'] = display_df.apply(signal_arrow, axis=1)
     
         # Show the table
         st.dataframe(display_df, column_config=column_config)
@@ -1313,3 +1312,4 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
