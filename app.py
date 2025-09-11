@@ -418,13 +418,12 @@ with tab2:
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
     
-        # Yesterday's raw signals
+        # --- NEW CLEAN DECORATION LOGIC ---
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
         
-        # Helper: decorate SECURITY_NAME
         def decorate_name(row):
             name = row['SECURITY_NAME']
-            today_signal = row['Raw_Signal']   # always raw, never decorated
+            today_signal = row['Signal']              # <- must be raw SIGNAL, not decorated
             yesterday_signal = yesterday_signals.get(name, None)
         
             levels = {
@@ -437,7 +436,7 @@ with tab2:
             today_lvl = levels.get(today_signal, 0)
             yesterday_lvl = levels.get(yesterday_signal, 0) if yesterday_signal else 0
         
-            # Only care if today or yesterday is moderate/strong, and it changed
+            # ✅ Only add emoji + arrow if moving into/out of MODERATE/STRONG
             if (today_lvl >= 2 or yesterday_lvl >= 2) and today_lvl != yesterday_lvl:
                 emoji_map = {
                     'STRONG BUY': '🟢',
@@ -451,20 +450,12 @@ with tab2:
                 else:
                     return f'{emoji} ↓ {name}'  # moved down
             else:
-                return name
+                return name  # no emoji if weak/no action or unchanged
         
-        # Add raw column (invisible to user)
-        display_df['Raw_Signal'] = filtered_df['SIGNAL']
-        
-        # Replace SECURITY_NAME with decorated one
+        # ⚠️ Make sure "Signal" is raw before this line (no arrows/decorations in it yet!)
         display_df['SECURITY_NAME'] = display_df.apply(decorate_name, axis=1)
-        
-        # You can drop Raw_Signal if you don't want it in final table
-        display_df.drop(columns=['Raw_Signal'], inplace=True)
+        # --- END CLEAN DECORATION ---
 
-
-    
-        
     
         # Column config for tooltips + formatting
         HELP_TEXTS = {
@@ -1335,6 +1326,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
