@@ -360,112 +360,29 @@ with tab2:
             'SIGNAL': 'Signal'
         }, inplace=True)
     
-        # Convert numeric columns
-        numeric_cols = ['Residual', 'Z_Residual_Score', 'Stability_Score',
-                        'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
-        for col in numeric_cols:
-            if col in display_df.columns:
-                display_df[col] = pd.to_numeric(display_df[col], errors='coerce')
-
-        if "Stability_Score" in display_df.columns:
-            display_df["Stability_Score"] = display_df["Stability_Score"] * 100
+        # Strip spaces from SECURITY_NAME
+        display_df['SECURITY_NAME'] = display_df['SECURITY_NAME'].str.strip()
+        recent_signals['SECURITY_NAME'] = recent_signals['SECURITY_NAME'].str.strip()
     
-        # Extract maturity as datetime for sorting
-        def extract_maturity_dt(name):
-            if isinstance(name, str):
-                match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', name)
-                if match:
-                    date_str = match.group(1)
-                    for fmt in ("%m/%d/%y", "%m/%d/%Y"):
-                        try:
-                            return datetime.strptime(date_str, fmt)
-                        except ValueError:
-                            continue
-            return pd.NaT
-    
-        display_df['Maturity'] = display_df['SECURITY_NAME'].apply(extract_maturity_dt)
-    
-        # Create display column (optional format, still sortable)
-        display_df['Maturity'] = display_df['Maturity'].dt.strftime("%Y-%m-%d")
-        display_df['Maturity'] = display_df['Maturity'].fillna("N/A")
-    
-        # Reorder columns
-        cols_order = ['SECURITY_NAME', 'Maturity'] + [c for c in display_df.columns if c not in ['SECURITY_NAME', 'Maturity']]
-        display_df = display_df[cols_order]
-    
-        # Combine Top_Features + Top_Feature_Effects_Pct
-        FEATURE_NAME_MAP = {
-            "Cpn": "Coupon",
-            "YAS_RISK": "DV01",
-            "AMT_OUTSTANDING": "Amount Outstanding",
-            "Issue_Age": "Issue Age",
-            "REL_SPRD_STD": "Liquidity",
-            "GREEN_BOND_LOAN_INDICATOR": "Green Bond"
-        }
-    
-        if 'Top_Features' in display_df.columns and 'Top_Feature_Effects_Pct' in display_df.columns:
-            def combine_features(feats, pct):
-                try:
-                    feats_list = ast.literal_eval(feats) if isinstance(feats, str) else []
-                    feats_list = [FEATURE_NAME_MAP.get(f, f) for f in feats_list]
-                    pct_list = [int(round(float(v))) for v in pct.replace('[','').replace(']','').split()] if isinstance(pct, str) else []
-                    combined = [f"{f} ({p}%)" for f, p in zip(feats_list, pct_list)]
-                    return ', '.join(combined) if combined else 'N/A'
-                except:
-                    return 'N/A'
-    
-            display_df['Top_Features'] = display_df.apply(
-                lambda row: combine_features(row['Top_Features'], row['Top_Feature_Effects_Pct']),
-                axis=1
-            )
-            display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
-
-        
-        # Column config for tooltips + formatting
-        HELP_TEXTS = {
-            "Residual": "Residual mispricing (bps off curve)",
-            "Z_Residual_Score": "Z-score of residual. |Z| > 1.5 may indicate opportunities.",
-            "Stability_Score": "Inverse volatility. Higher = more stable pricing. Lower = riskier.",
-            "Market_Stress_Score": "Market stress factor. High = bond more exposed to stress.",
-            "Cluster_Score": "Deviation from peer cluster (bps). Absolute > 1.5, likely to mean-revert",
-            "Regression_Score": "Model-explained mispricing. Absolute > 1.5, strong signal; likely to mean-revert.",
-            "COMPOSITE_SCORE": "Overall mispricing score. Absolute > 1.5 = stronger trade signal.",
-            "Top_Features": "Most important drivers of mispricing. % shows relative impact."
-        }
-
-
-        column_config = {}
-        for col in display_df.columns:
-            label = col.replace('_', ' ')
-            if col in numeric_cols and pd.api.types.is_numeric_dtype(display_df[col]):
-                if col == "Stability_Score":
-                    column_config[col] = st.column_config.NumberColumn(
-                        label, format="%.2f%%", help=HELP_TEXTS.get(col)
-                    )
-                else:
-                    column_config[col] = st.column_config.NumberColumn(
-                        label, format="%.4f", help=HELP_TEXTS.get(col)
-                    )
-            else:
-                column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
-
         # Map yesterday's signals
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
-        
+    
         def signal_arrow(row):
-            isin = row['SECURITY_NAME']
-            today_signal = row['Signal']  # Note: after renaming 'SIGNAL' -> 'Signal'
-            yesterday_signal = yesterday_signals.get(isin, None)
-            if yesterday_signal is None or today_signal == yesterday_signal:
-                return today_signal  # no change
-        
+            name = row['SECURITY_NAME']
+            today_signal = row['Signal']
+            yesterday_signal = yesterday_signals.get(name, None)
+    
+            # Levels for promotion/demotion
             levels = {
                 'NO ACTION': 0,
                 'WEAK SELL': 1, 'WEAK BUY': 1,
                 'MODERATE SELL': 2, 'MODERATE BUY': 2,
                 'STRONG SELL': 3, 'STRONG BUY': 3
             }
-        
+    
+            if yesterday_signal is None or today_signal == yesterday_signal:
+                return today_signal
+    
             change = levels.get(today_signal, 0) - levels.get(yesterday_signal, 0)
             if change > 0:
                 return f'↑ {today_signal}'  # promotion
@@ -473,11 +390,23 @@ with tab2:
                 return f'↓ {today_signal}'  # demotion
             else:
                 return today_signal
-        
+    
         display_df['Signal'] = display_df.apply(signal_arrow, axis=1)
     
-        # Show the table
+        # Convert numeric columns
+        numeric_cols = ['Residual', 'Z_Residual_Score', 'Stability_Score',
+                        'Market_Stress_Score', 'Cluster_Score', 'Regression_Score', 'COMPOSITE_SCORE']
+        for col in numeric_cols:
+            if col in display_df.columns:
+                display_df[col] = pd.to_numeric(display_df[col], errors='coerce')
+        if "Stability_Score" in display_df.columns:
+            display_df["Stability_Score"] = display_df["Stability_Score"] * 100
+    
+        # ...rest of your maturity extraction, Top_Features, column_config etc...
+    
         st.dataframe(display_df, column_config=column_config)
+
+
         
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
@@ -1315,6 +1244,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
