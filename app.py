@@ -1215,37 +1215,75 @@ with tab3:
             global_legend_labels[isin] = f"{name} ({maturity})"
 
     # Process each of the 2 curves
-    for i, curve in enumerate(st.session_state.curves):
-        st.subheader(f"Curve {i+1}")
-        col1, col2 = st.columns(2)
-        with col1:
-            curve['country'] = st.selectbox(
-                f"Select Country (Curve {i+1})",
-                country_options,
-                index=country_options.index(curve['country']),
-                key=f"country_{curve['id']}"
+for i, curve in enumerate(st.session_state.curves):
+    st.subheader(f"Curve {i+1}")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        curve['country'] = st.selectbox(
+            f"Select Country (Curve {i+1})",
+            country_options,
+            index=country_options.index(curve['country']),
+            key=f"country_{curve['id']}"
+        )
+        selected_country = country_code_map[curve['country']]
+        ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
+        ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
+
+        # Bond options with signal
+        bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
+        bond_options = bond_options.merge(
+            issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left'
+        )
+        bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
+        bond_options.sort_values('Maturity', inplace=True)
+
+        # Prepare bond labels
+        bond_labels = {}
+        for _, row in bond_options.iterrows():
+            isin = row['ISIN']
+            name = row['SECURITY_NAME']
+            maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
+            signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
+            bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
+
+    with col2:
+        # --- Auto-match for Curve 2 ---
+        if i == 1:  # Curve 2
+            curve1 = st.session_state.curves[0]
+            selected_bonds_curve2 = []
+            for b in ['bond1', 'bond2']:
+                bond1_maturity = ns_df_tmp[ns_df_tmp['ISIN'] == curve1[b]]['Maturity'].values
+                if len(bond1_maturity) == 0 or pd.isnull(bond1_maturity[0]):
+                    selected_bonds_curve2.append(None)
+                    continue
+                bond1_maturity = pd.to_datetime(bond1_maturity[0])
+
+                # Find closest maturity in Curve 2 country
+                diffs = (bond_options['Maturity'] - bond1_maturity).abs()
+                closest_idx = diffs.idxmin()
+                selected_bonds_curve2.append(bond_options.loc[closest_idx, 'ISIN'])
+
+            curve['bond1'] = selected_bonds_curve2[0]
+            curve['bond2'] = selected_bonds_curve2[1]
+
+            # Show dropdowns for reference (but preselected)
+            curve['bond1'] = st.selectbox(
+                f"Select Bond 1 (Curve {i+1})",
+                bond_options['ISIN'],
+                index=bond_options[bond_options['ISIN'] == curve['bond1']].index[0],
+                format_func=lambda isin: bond_labels.get(isin, isin),
+                key=f"bond1_{curve['id']}"
             )
-            selected_country = country_code_map[curve['country']]
-            ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
-            ns_df['Date'] = pd.to_datetime(ns_df['Date']).dt.normalize()
-
-            # Bond options with signal
-            bond_options = ns_df[['ISIN', 'SECURITY_NAME', 'Maturity']].drop_duplicates()
-            bond_options = bond_options.merge(
-                issuer_signal[['ISIN', 'SIGNAL']], on='ISIN', how='left'
+            curve['bond2'] = st.selectbox(
+                f"Select Bond 2 (Curve {i+1})",
+                bond_options['ISIN'],
+                index=bond_options[bond_options['ISIN'] == curve['bond2']].index[0],
+                format_func=lambda isin: bond_labels.get(isin, isin),
+                key=f"bond2_{curve['id']}"
             )
-            bond_options['Maturity'] = pd.to_datetime(bond_options['Maturity'], errors='coerce')
-            bond_options.sort_values('Maturity', inplace=True)
 
-            bond_labels = {}
-            for _, row in bond_options.iterrows():
-                isin = row['ISIN']
-                name = row['SECURITY_NAME']
-                maturity = pd.to_datetime(row['Maturity']).strftime('%Y-%m-%d') if pd.notnull(row['Maturity']) else "N/A"
-                signal = row['SIGNAL'] if 'SIGNAL' in row and pd.notnull(row['SIGNAL']) else "No Signal"
-                bond_labels[isin] = f"{name} ({maturity}) [{signal}]"
-
-        with col2:
+        else:  # Curve 1 manual selection
             curve['bond1'] = st.selectbox(
                 f"Select Bond 1 (Curve {i+1})",
                 bond_options['ISIN'],
@@ -1314,3 +1352,4 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
