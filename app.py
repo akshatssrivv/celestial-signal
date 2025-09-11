@@ -449,10 +449,10 @@ with tab2:
                 column_config[col] = st.column_config.TextColumn(label, help=HELP_TEXTS.get(col))
 
         # Map yesterday's signals
-        yesterday_signals = yesterday_df.set_index('ISIN')['SIGNAL'].to_dict()
+        yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
         
         def signal_arrow(row):
-            isin = row['ISIN']
+            isin = row['SECURITY_NAME']
             today_signal = row['Signal']  # Note: after renaming 'SIGNAL' -> 'Signal'
             yesterday_signal = yesterday_signals.get(isin, None)
             if yesterday_signal is None or today_signal == yesterday_signal:
@@ -1314,5 +1314,6 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
