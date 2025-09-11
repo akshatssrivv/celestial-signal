@@ -392,6 +392,12 @@ with tab2:
                 return today_signal
     
         display_df['Signal'] = display_df.apply(signal_arrow, axis=1)
+
+        # Add/update column config for Signal
+        column_config['Signal'] = st.column_config.TextColumn(
+            "Signal",
+            help="Today's signal with promotion ↑ / demotion ↓",
+        )
     
         # Convert numeric columns
         numeric_cols = ['Residual', 'Z_Residual_Score', 'Stability_Score',
@@ -405,7 +411,6 @@ with tab2:
         # ...rest of your maturity extraction, Top_Features, column_config etc...
     
         st.dataframe(display_df, column_config=column_config)
-
 
         
         # Download button
@@ -1244,6 +1249,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
