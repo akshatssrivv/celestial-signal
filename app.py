@@ -425,27 +425,37 @@ with tab2:
             name = row['SECURITY_NAME']
             today_signal = row['Signal']
             yesterday_signal = yesterday_signals.get(name, None)
-    
-            levels = {'NO ACTION':0,'WEAK SELL':1,'WEAK BUY':1,'MODERATE SELL':2,'MODERATE BUY':2,'STRONG SELL':3,'STRONG BUY':3}
-            change = levels.get(today_signal,0) - levels.get(yesterday_signal,0)
-    
-            emoji_map = {
-                'STRONG BUY': '🟢',
-                'MODERATE BUY': '💚',
-                'WEAK BUY': '🔵',
-                'STRONG SELL': '🔴',
-                'MODERATE SELL': '🟥',
-                'WEAK SELL': '🟠',
-                'NO ACTION': '⚪'
+        
+            levels = {
+                'NO ACTION': 0,
+                'WEAK SELL': 1, 'WEAK BUY': 1,
+                'MODERATE SELL': 2, 'MODERATE BUY': 2,
+                'STRONG SELL': 3, 'STRONG BUY': 3
             }
-            emoji = emoji_map.get(today_signal, '⚪')
-    
-            if change > 0:
-                return f'{emoji} ↑ {name}'
-            elif change < 0:
-                return f'{emoji} ↓ {name}'
+        
+            # Only consider moves to/from moderate or strong
+            today_lvl = levels.get(today_signal, 0)
+            yesterday_lvl = levels.get(yesterday_signal, 0) if yesterday_signal else 0
+            significant_today = today_lvl >= 2
+            significant_yesterday = yesterday_lvl >= 2
+        
+            change = today_lvl - yesterday_lvl
+        
+            if (significant_today or significant_yesterday) and change != 0:
+                # Only show arrows/emojis for meaningful moves
+                emoji_map = {
+                    'STRONG BUY': '🟢',
+                    'MODERATE BUY': '💚',
+                    'STRONG SELL': '🔴',
+                    'MODERATE SELL': '🟥'
+                }
+                emoji = emoji_map.get(today_signal, '')
+                if change > 0:
+                    return f'{emoji} ↑ {name}'  # promotion
+                else:
+                    return f'{emoji} ↓ {name}'  # demotion
             else:
-                return f'{emoji} {name}'
+                return name  # leave unchanged
     
         display_df['SECURITY_NAME'] = display_df.apply(security_label, axis=1)
     
@@ -1318,6 +1328,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
