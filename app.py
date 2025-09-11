@@ -420,7 +420,9 @@ with tab2:
     
         # --- Make sure Signal stays raw ---
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
-        
+        # --- Clean up old decorations (arrows/emojis) ---
+        display_df['Signal'] = display_df['Signal'].str.replace(r'[↑↓🟢💚🔴🟥]', '', regex=True).str.strip()
+
         def decorate_name(row):
             name = row['SECURITY_NAME']
             today_signal = row['Signal']              # raw signal (must be plain)
@@ -1326,6 +1328,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
