@@ -1149,7 +1149,6 @@ with tab1:
                 st.plotly_chart(fig_velocity, use_container_width=True)
 
 
-
 import streamlit as st
 import pandas as pd
 import uuid
@@ -1250,22 +1249,33 @@ with tab3:
         with col2:
             if i == 1:  # Curve 2 auto-match
                 curve1 = st.session_state.curves[0]
-                selected_bonds_curve2 = []
+                curve1_country_code = country_code_map[curve1['country']]
+                curve1_ns_df = load_full_ns_df(curve1_country_code, zip_hash=zip_hash)
+                curve1_ns_df['Date'] = pd.to_datetime(curve1_ns_df['Date']).dt.normalize()
 
+                # Get maturities for Curve1 bonds
+                curve1_bonds_maturity = {}
                 for b in ['bond1', 'bond2']:
-                    bond1_maturity = ns_df_tmp[ns_df_tmp['ISIN'] == curve1[b]]['Maturity'].values
-                    if len(bond1_maturity) == 0 or pd.isnull(bond1_maturity[0]):
+                    mat = curve1_ns_df.loc[curve1_ns_df['ISIN'] == curve1[b], 'Maturity']
+                    curve1_bonds_maturity[b] = pd.to_datetime(mat.values[0]) if not mat.empty else None
+
+                # Find closest maturity bonds in Curve2
+                selected_bonds_curve2 = []
+                for b in ['bond1', 'bond2']:
+                    target_mat = curve1_bonds_maturity[b]
+                    if target_mat is None or bond_options['Maturity'].isna().all():
                         selected_bonds_curve2.append(None)
                         continue
-                    bond1_maturity = pd.to_datetime(bond1_maturity[0])
 
-                    # Find closest maturity in Curve 2 country
-                    diffs = (bond_options['Maturity'] - bond1_maturity).abs()
-                    if diffs.empty:
-                        selected_bonds_curve2.append(None)
+                    # Optional ±1 year filter
+                    diff_days = (bond_options['Maturity'] - target_mat).abs()
+                    diff_days_filtered = diff_days[diff_days <= pd.Timedelta(days=365)]
+                    if diff_days_filtered.empty:
+                        closest_idx = diff_days.idxmin()
                     else:
-                        closest_idx = diffs.idxmin()
-                        selected_bonds_curve2.append(bond_options.loc[closest_idx, 'ISIN'])
+                        closest_idx = diff_days_filtered.idxmin()
+
+                    selected_bonds_curve2.append(bond_options.loc[closest_idx, 'ISIN'])
 
                 # Safe selectboxes
                 for k, bond_key in enumerate(['bond1', 'bond2']):
@@ -1273,15 +1283,16 @@ with tab3:
                         default_idx = bond_options[bond_options['ISIN'] == selected_bonds_curve2[k]].index[0]
                     else:
                         default_idx = 0  # fallback
+
                     curve[bond_key] = st.selectbox(
-                        f"Select Bond {k+1} (Curve {i+1})",
+                        f"Select Bond {k+1} (Curve 2)",
                         bond_options['ISIN'],
                         index=default_idx,
                         format_func=lambda isin: bond_labels.get(isin, isin),
                         key=f"{bond_key}_{curve['id']}"
                     )
 
-            else:  # Curve 1 manual
+            else:  # Curve 1 manual selection
                 curve['bond1'] = st.selectbox(
                     f"Select Bond 1 (Curve {i+1})",
                     bond_options['ISIN'],
