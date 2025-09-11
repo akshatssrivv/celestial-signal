@@ -416,31 +416,32 @@ with tab2:
                 axis=1
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
-
-
-
+    
+        # --- NEW: decorate SECURITY_NAME with arrows/emojis for moderate/strong moves ---
+        yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
+    
         def decorate_name(row):
             name = row['SECURITY_NAME']
-            today_signal = row['Signal']              # raw signal (must be plain)
+            today_signal = row['Signal']              # raw signal
             yesterday_signal = yesterday_signals.get(name, None)
-        
+    
             levels = {
                 'NO ACTION': 0,
                 'WEAK SELL': 1, 'WEAK BUY': 1,
                 'MODERATE SELL': 2, 'MODERATE BUY': 2,
                 'STRONG SELL': 3, 'STRONG BUY': 3
             }
-        
+    
             today_lvl = levels.get(today_signal, 0)
             yesterday_lvl = levels.get(yesterday_signal, 0) if yesterday_signal else 0
-        
-            # ✅ Only trigger decoration when moving into/out of MODERATE or STRONG
+    
+            # Only decorate if moving into/out of MODERATE or STRONG
             if (today_lvl >= 2 or yesterday_lvl >= 2) and today_lvl != yesterday_lvl:
                 emoji_map = {
-                    'STRONG BUY': '🟩',       # dark green square
-                    'MODERATE BUY': '💚',     # light green heart
-                    'STRONG SELL': '🟥',      # dark red square
-                    'MODERATE SELL': '💛'     # yellow heart
+                    'STRONG BUY': '🟩',
+                    'MODERATE BUY': '💚',
+                    'STRONG SELL': '🟥',
+                    'MODERATE SELL': '💛'
                 }
                 emoji = emoji_map.get(today_signal, '')
                 if today_lvl > yesterday_lvl:
@@ -448,12 +449,9 @@ with tab2:
                 else:
                     return f'{emoji} ↓ {name}'  # downgrade
             else:
-                return name  # untouched for weak/no action or unchanged
-        
-        # 👇 IMPORTANT: replace SECURITY_NAME, not Signal
+                return name  # unchanged for weak/no action or same level
+    
         display_df['SECURITY_NAME'] = display_df.apply(decorate_name, axis=1)
-
-
     
         # Column config for tooltips + formatting
         HELP_TEXTS = {
@@ -465,7 +463,7 @@ with tab2:
             "Regression_Score": "Model-explained mispricing. Absolute > 1.5, strong signal; likely to mean-revert.",
             "COMPOSITE_SCORE": "Overall mispricing score. Absolute > 1.5 = stronger trade signal.",
             "Top_Features": "Most important drivers of mispricing. % shows relative impact.",
-            "Signal": "Trade signal with arrows indicating change from yesterday."
+            "Signal": "Trade signal (raw). Arrows/emojis are only shown next to SECURITY_NAME."
         }
     
         column_config = {}
@@ -485,7 +483,6 @@ with tab2:
     
         # Show the table
         st.dataframe(display_df, column_config=column_config)
-    
 
 
         # Download button
@@ -1324,6 +1321,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 
