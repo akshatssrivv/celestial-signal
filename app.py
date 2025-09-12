@@ -15,6 +15,7 @@ import requests
 import boto3
 from scipy.interpolate import interp1d
 import uuid
+from curve_trade_agent1 import chat_with_trades
 
 # -------------------
 # B2 Configuration
@@ -1322,6 +1323,34 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
+    # --- AI Assistant for Top Trades ---
+    st.markdown("## 💬 Bond Trading AI Assistant")
+    
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+    
+    user_question = st.text_input("Ask a question about the top trades:")
+    
+    if st.button("Send", key="send_agent_tab3"):
+        if user_question:
+            answer, st.session_state.chat_history = chat_with_trades(
+                user_question, st.session_state.chat_history
+            )
+            st.text_area("Assistant Response", value=answer, height=150)
+        else:
+            st.warning("Please enter a question.")
+    
+    # Display full conversation history
+    if st.session_state.chat_history:
+        st.markdown("### Conversation History")
+        for msg in st.session_state.chat_history[1:]:  # skip system prompt
+            role = "You" if msg["role"] == "user" else "Assistant"
+            st.write(f"**{role}:** {msg['content']}")
+
+
+
+
 
 
 
