@@ -1325,7 +1325,7 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
     # --- AI Assistant for Top Trades ---
-    st.markdown("## 💬 Bond Trading AI Assistant")
+    st.markdown("## AI Assistant")
     
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
@@ -1347,6 +1347,7 @@ with tab3:
         for msg in st.session_state.chat_history[1:]:  # skip system prompt
             role = "You" if msg["role"] == "user" else "Assistant"
             st.write(f"**{role}:** {msg['content']}")
+
 
 
 
