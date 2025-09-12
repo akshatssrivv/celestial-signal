@@ -1327,7 +1327,13 @@ with tab3:
 
 
 with tab4: 
-    st.markdown("## Ask about top trades 🤖")
+    st.markdown("## Ask anything")
+
+    # Initialize chat history if it doesn't exist
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = [
+            {"role": "system", "content": "You are a helpful assistant for trade analysis."}
+        ]
 
     # Display conversation (skip system prompt)
     for i, msg in enumerate(st.session_state.chat_history[1:]):
@@ -1354,7 +1360,6 @@ with tab4:
 
             # Clear input for next round
             st.session_state.chat_input = ""
-
 
 
 
