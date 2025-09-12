@@ -18,7 +18,7 @@ top_trades_agent = load_trades()
 # -------------------------
 # Initialize OpenAI client
 # -------------------------
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+client = OpenAI()
 
 # -------------------------
 # Build system prompt
