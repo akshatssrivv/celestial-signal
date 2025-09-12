@@ -1325,21 +1325,22 @@ with tab3:
 
         st.plotly_chart(fig, use_container_width=True)
 
+
+# -------------------------
+# Initialize chat history if not already
+# -------------------------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [{"role": "system", "content": get_system_prompt()}]
+
 with tab4:
-    st.markdown("## Ask about Top Trades 🤖")
+    st.markdown("## Ask about top trades 🤖")
 
-    # Initialize chat history
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [
-            {"role": "system", "content": "You are a bond trading assistant for a hedge fund."}
-        ]
-
-    # Display previous messages
+    # --- Display conversation ---
     for i, msg in enumerate(st.session_state.chat_history[1:]):  # skip system prompt
         is_user = msg["role"] == "user"
-        message(msg["content"], is_user=is_user, key=f"msg_{i}")
+        message(msg["content"], is_user=is_user, key=f"chat_msg_{i}")
 
-    # Use a form to handle input + button together
+    # --- Input form ---
     with st.form(key="chat_form", clear_on_submit=True):
         user_input = st.text_input("Your question:", key="chat_input")
         submit_button = st.form_submit_button("Send")
@@ -1349,7 +1350,11 @@ with tab4:
             st.session_state.chat_history.append({"role": "user", "content": user_input})
 
             # Generate assistant response
-            assistant_msg, st.session_state.chat_history = chat_with_trades(
-                user_input, st.session_state.chat_history
-            )
-            st.session_state.chat_history.append({"role": "assistant", "content": assistant_msg})
+            assistant_msg, updated_history = chat_with_trades(user_input, st.session_state.chat_history)
+            st.session_state.chat_history = updated_history
+
+            # Display the assistant message immediately
+            message(assistant_msg, is_user=False, key=f"chat_msg_{len(st.session_state.chat_history)}")
+
+            # Optional: scroll to bottom
+            st.experimental_rerun()
