@@ -1327,7 +1327,7 @@ with tab3:
 
     
 with tab4: 
-    st.markdown("## Ask anything")
+    st.markdown("## Ask about top trades 🤖")
 
     # Initialize chat history if not exists
     if "chat_history" not in st.session_state:
@@ -1338,8 +1338,9 @@ with tab4:
         is_user = msg["role"] == "user"
         message(msg["content"], is_user=is_user)
 
-    # Input box
+    # Input box bound to session state
     user_input = st.text_input("Your question:", key="chat_input")
+
     if st.button("Send", key="chat_send"):
         if user_input:
             # Call GPT with full history
@@ -1349,11 +1350,9 @@ with tab4:
             )
             st.session_state.chat_history = updated_history
 
-            # Reset input
-            st.session_state.chat_input = ""
+            # Clear the input safely
+            st.session_state["chat_input"] = ""
             st.rerun()
-
-
 
 
 
