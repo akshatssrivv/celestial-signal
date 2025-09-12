@@ -1329,7 +1329,7 @@ with tab3:
 with tab4:
     st.markdown("## Ask about Top Trades 🤖")
 
-    # Initialize chat history if not exists
+    # Initialize chat history
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
             {"role": "system", "content": "You are a bond trading assistant for a hedge fund."}
@@ -1340,20 +1340,18 @@ with tab4:
         is_user = msg["role"] == "user"
         message(msg["content"], is_user=is_user, key=f"msg_{i}")
 
-    # Input box — let Streamlit handle session state internally
+    # Input box
     user_input = st.text_input("Your question:", key="chat_input")
 
-    if st.button("Send", key="chat_send"):
-        user_input = user_input.strip()
-        if user_input:
-            # Append user message
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
+    if user_input and st.button("Send", key="chat_send"):
+        # Append user message
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
 
-            # Generate assistant response
-            assistant_msg, st.session_state.chat_history = chat_with_trades(
-                user_input, st.session_state.chat_history
-            )
-            st.session_state.chat_history.append({"role": "assistant", "content": assistant_msg})
+        # Generate assistant response
+        assistant_msg, st.session_state.chat_history = chat_with_trades(
+            user_input, st.session_state.chat_history
+        )
+        st.session_state.chat_history.append({"role": "assistant", "content": assistant_msg})
 
-            # Clear input safely by rerunning
-            st.experimental_rerun()
+        # Clear the input safely
+        st.session_state.chat_input = ""
