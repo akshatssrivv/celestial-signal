@@ -1324,7 +1324,9 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
-        
+
+
+
 # --- Initialize session state ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{"role": "system", "content": get_system_prompt()}]
@@ -1383,6 +1385,10 @@ with tab4:
         
         # Update last processed input to prevent re-processing
         st.session_state.last_processed_input = current_input
+        
+        # Clear the input box by deleting and recreating the key
+        if "chat_input_box" in st.session_state:
+            del st.session_state.chat_input_box
         
         # Rerun to update the display and clear the input
         st.rerun()
