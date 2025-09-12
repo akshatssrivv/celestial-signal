@@ -1325,7 +1325,6 @@ with tab3:
 
         st.plotly_chart(fig, use_container_width=True)
 
-
 with tab4:
     st.markdown("## Ask about Top Trades 🤖")
 
@@ -1340,18 +1339,17 @@ with tab4:
         is_user = msg["role"] == "user"
         message(msg["content"], is_user=is_user, key=f"msg_{i}")
 
-    # Input box
-    user_input = st.text_input("Your question:", key="chat_input")
+    # Use a form to handle input + button together
+    with st.form(key="chat_form", clear_on_submit=True):
+        user_input = st.text_input("Your question:", key="chat_input")
+        submit_button = st.form_submit_button("Send")
 
-    if user_input and st.button("Send", key="chat_send"):
-        # Append user message
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        if submit_button and user_input:
+            # Append user message
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
 
-        # Generate assistant response
-        assistant_msg, st.session_state.chat_history = chat_with_trades(
-            user_input, st.session_state.chat_history
-        )
-        st.session_state.chat_history.append({"role": "assistant", "content": assistant_msg})
-
-        # Clear the input safely
-        st.session_state.chat_input = ""
+            # Generate assistant response
+            assistant_msg, st.session_state.chat_history = chat_with_trades(
+                user_input, st.session_state.chat_history
+            )
+            st.session_state.chat_history.append({"role": "assistant", "content": assistant_msg})
