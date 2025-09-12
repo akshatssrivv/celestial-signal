@@ -1337,7 +1337,7 @@ if "last_processed_input" not in st.session_state:
 
 # --- Tab 4: Chat with bond trading assistant ---
 with tab4:
-    st.markdown("## Ask anything 🤖")
+    st.markdown("## Ask anything")
     
     # Display conversation (skip system prompt)
     for i, msg in enumerate(st.session_state.chat_history[1:]):
@@ -1392,3 +1392,4 @@ with tab4:
         
         # Rerun to update the display and clear the input
         st.rerun()
+
