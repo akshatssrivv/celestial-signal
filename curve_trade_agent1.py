@@ -68,7 +68,7 @@ def chat_with_trades(user_input, history):
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=messages,
-        temperature=0.7
+        temperature=0
     )
     
     answer = response.choices[0].message.content
