@@ -15,7 +15,7 @@ import requests
 import boto3
 from scipy.interpolate import interp1d
 import uuid
-from curve_trade_agent1 import chat_with_trades
+from curve_trade_agent1 import chat_with_trades, get_system_prompt
 from streamlit_chat import message
 
 # -------------------
@@ -1358,3 +1358,4 @@ with tab4:
 
             # Optional: scroll to bottom
             st.experimental_rerun()
+
