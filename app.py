@@ -1326,36 +1326,32 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
 
-# -------------------------
-# Initialize chat history if not already
-# -------------------------
+
+# --- Initialize session state ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{"role": "system", "content": get_system_prompt()}]
 
+if "chat_input" not in st.session_state:
+    st.session_state.chat_input = ""
+
+# --- Tab 4: Chat with bond trading assistant ---
 with tab4:
-    st.markdown("## Ask about top trades 🤖")
+    st.markdown("## Ask anything")
 
-    # --- Display conversation ---
-    for i, msg in enumerate(st.session_state.chat_history[1:]):  # skip system prompt
+    # Display conversation
+    for i, msg in enumerate(st.session_state.chat_history):
         is_user = msg["role"] == "user"
-        message(msg["content"], is_user=is_user, key=f"chat_msg_{i}")
+        message(msg["content"], is_user=is_user, key=f"msg_{i}")
 
-    # --- Input form ---
-    with st.form(key="chat_form", clear_on_submit=True):
-        user_input = st.text_input("Your question:", key="chat_input")
-        submit_button = st.form_submit_button("Send")
+    # Input box for user question
+    user_input = st.text_input("Your question:", value=st.session_state.chat_input, key="chat_input_box")
 
-        if submit_button and user_input:
-            # Append user message
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
-
-            # Generate assistant response
-            assistant_msg, updated_history = chat_with_trades(user_input, st.session_state.chat_history)
-            st.session_state.chat_history = updated_history
-
-            # Display the assistant message immediately
-            message(assistant_msg, is_user=False, key=f"chat_msg_{len(st.session_state.chat_history)}")
-
-            # Optional: scroll to bottom
-            st.experimental_rerun()
-
+    # Send button
+    if st.button("Send") and user_input.strip():
+        # Send question to agent
+        answer, st.session_state.chat_history = chat_with_trades(
+            user_input=user_input,
+            history=st.session_state.chat_history
+        )
+        # Clear input
+        st.session_state.chat_input = ""
