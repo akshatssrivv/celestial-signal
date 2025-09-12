@@ -1327,30 +1327,24 @@ with tab3:
 
 
 with tab4:
-    st.markdown("## Ask anything")
+    st.markdown("## Ask about Top Trades 🤖")
 
-    # 1️⃣ Initialize session state safely
+    # Initialize chat history if not exists
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
             {"role": "system", "content": "You are a bond trading assistant for a hedge fund."}
         ]
 
-    if "chat_input" not in st.session_state:
-        st.session_state.chat_input = ""
-
-    # 2️⃣ Display conversation
+    # Display previous messages
     for i, msg in enumerate(st.session_state.chat_history[1:]):  # skip system prompt
         is_user = msg["role"] == "user"
         message(msg["content"], is_user=is_user, key=f"msg_{i}")
 
-    # 3️⃣ Input box
-    st.session_state.chat_input = st.text_input(
-        "Your question:", value=st.session_state.chat_input, key="chat_input"
-    )
+    # Input box — let Streamlit handle session state internally
+    user_input = st.text_input("Your question:", key="chat_input")
 
-    # 4️⃣ Send button
     if st.button("Send", key="chat_send"):
-        user_input = st.session_state.chat_input.strip()
+        user_input = user_input.strip()
         if user_input:
             # Append user message
             st.session_state.chat_history.append({"role": "user", "content": user_input})
@@ -1361,13 +1355,5 @@ with tab4:
             )
             st.session_state.chat_history.append({"role": "assistant", "content": assistant_msg})
 
-            # Clear input safely
-            st.session_state.chat_input = ""
+            # Clear input safely by rerunning
             st.experimental_rerun()
-
-
-
-
-
-
-
