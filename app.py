@@ -160,9 +160,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [{"role": "system", "content": system_prompt}]
-
 
 tab1, tab2, tab3, tab4 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis", "AI Assisstant"])
 
@@ -1355,6 +1352,7 @@ with tab4:
             # Reset input
             st.session_state.chat_input = ""
             st.rerun()
+
 
 
 
