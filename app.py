@@ -1345,21 +1345,13 @@ with tab4:
 
     if st.button("Send", key="chat_send"):
         if user_input:
-            # Append user message
-            st.session_state.chat_history.append(
-                {"role": "user", "content": user_input}
+            assistant_msg, st.session_state.chat_history = chat_with_trades(
+                user_input, st.session_state.chat_history
             )
-
-            # Generate assistant response
-            assistant_msg = chat_with_trades(
-                top_trades_agent, user_input
-            )
-            st.session_state.chat_history.append(
-                {"role": "assistant", "content": assistant_msg}
-            )
-
             # Clear input for next round
             st.session_state.chat_input = ""
+
+
 
 
 
