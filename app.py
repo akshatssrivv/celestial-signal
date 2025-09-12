@@ -1324,9 +1324,7 @@ with tab3:
         )
 
         st.plotly_chart(fig, use_container_width=True)
-
-
-
+        
 # --- Initialize session state ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{"role": "system", "content": get_system_prompt()}]
@@ -1334,25 +1332,42 @@ if "chat_history" not in st.session_state:
 if "chat_input" not in st.session_state:
     st.session_state.chat_input = ""
 
+if "chat_entered" not in st.session_state:
+    st.session_state.chat_entered = False
+
 # --- Tab 4: Chat with bond trading assistant ---
 with tab4:
-    st.markdown("## Ask anything")
+    st.markdown("## Ask anything 🤖")
 
-    # Display conversation
+    # Display conversation (skip system prompt)
     for i, msg in enumerate(st.session_state.chat_history[1:]):
         is_user = msg["role"] == "user"
         message(msg["content"], is_user=is_user, key=f"msg_{i}")
 
-    # Input box for user question
-    user_input = st.text_input("Your question:", value=st.session_state.chat_input, key="chat_input_box")
+    # Callback for Enter key
+    def submit_enter():
+        st.session_state.chat_entered = True
 
-    # Send button
-    if st.button("Send") and user_input.strip():
-        # Send question to agent
-        answer, st.session_state.chat_history = chat_with_trades(
-            user_input=user_input,
-            history=st.session_state.chat_history
-        )
-        # Clear input
+    # Input box
+    user_input = st.text_input(
+        "Your question:",
+        value=st.session_state.chat_input,
+        key="chat_input_box",
+        on_change=submit_enter
+    )
+
+    # Send if Enter pressed or button clicked
+    if (st.session_state.chat_entered or st.button("Send")) and user_input.strip():
+        # Append user message
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+
+        # Get assistant response
+        answer, _ = chat_with_trades(user_input, st.session_state.chat_history)
+        st.session_state.chat_history.append({"role": "assistant", "content": answer})
+
+        # Clear input and reset flag
         st.session_state.chat_input = ""
+        st.session_state.chat_entered = False
 
+        # Rerun to refresh chat
+        st.experimental_rerun()
