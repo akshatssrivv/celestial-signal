@@ -1329,25 +1329,32 @@ with tab3:
 with tab4: 
     st.markdown("## Ask about top trades 🤖")
 
-    # Display conversation
-    for msg in st.session_state.chat_history[1:]:  # skip system prompt
+    # Display conversation (skip system prompt)
+    for i, msg in enumerate(st.session_state.chat_history[1:]):
         is_user = msg["role"] == "user"
-        message(msg["content"], is_user=is_user)
+        message(msg["content"], is_user=is_user, key=f"chat_{i}")
 
     # Input box
     user_input = st.text_input("Your question:", key="chat_input")
+
     if st.button("Send", key="chat_send"):
         if user_input:
             # Append user message
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
+            st.session_state.chat_history.append(
+                {"role": "user", "content": user_input}
+            )
 
             # Generate assistant response
-            assistant_msg, updated_history = chat_with_trades(user_input, st.session_state.chat_history)
-            st.session_state.chat_history = updated_history
+            assistant_msg = explain_trades_with_gpt(
+                top_trades_agent, user_input
+            )
+            st.session_state.chat_history.append(
+                {"role": "assistant", "content": assistant_msg}
+            )
 
-            # Clear the input for next message safely
-            st.session_state.chat_input = ""   # ✅ THIS is fine now, since we’re not overwriting the widget’s definition
-            st.rerun()  # <- cleaner alias of experimental_rerun
+            # Clear input for next round
+            st.session_state.chat_input = ""
+
 
 
 
