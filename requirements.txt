@@ -7,6 +7,7 @@ streamlit-autocomplete
 boto3
 pyarrow        
 scipy>=1.10.0
+streamlit-chat
 
 dash
 dash-bootstrap-components
