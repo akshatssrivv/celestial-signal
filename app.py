@@ -16,6 +16,7 @@ import boto3
 from scipy.interpolate import interp1d
 import uuid
 from curve_trade_agent1 import chat_with_trades
+from streamlit_chat import message
 
 # -------------------
 # B2 Configuration
@@ -159,8 +160,11 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [{"role": "system", "content": system_prompt}]
 
-tab1, tab2, tab3 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis"])
+
+tab1, tab2, tab3, tab4 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis", "AI Assisstant"])
 
 
 with tab2:
@@ -1347,6 +1351,29 @@ with tab3:
         for msg in st.session_state.chat_history[1:]:  # skip system prompt
             role = "You" if msg["role"] == "user" else "Assistant"
             st.write(f"**{role}:** {msg['content']}")
+
+with tab4: 
+    st.markdown("## Ask about top trades 🤖")
+
+    # Display conversation
+    for msg in st.session_state.chat_history[1:]:  # skip system prompt
+        is_user = msg["role"] == "user"
+        message(msg["content"], is_user=is_user)
+
+    # Input box
+    user_input = st.text_input("Your question:", key="chat_input")
+    if st.button("Send", key="chat_send"):
+        if user_input:
+            # Append user message
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
+
+            # Generate assistant response
+            assistant_msg = explain_trades_with_gpt(top_trades_agent, user_input)  # update fn to accept question
+            st.session_state.chat_history.append({"role": "assistant", "content": assistant_msg})
+
+            # Clear input for next
+            st.session_state.chat_input = ""
+            st.experimental_rerun()
 
 
 
