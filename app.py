@@ -1327,7 +1327,7 @@ with tab3:
 
 
 with tab4: 
-    st.markdown("## Ask anything")
+    st.markdown("## Ask about top trades 🤖")
 
     # Display conversation
     for msg in st.session_state.chat_history[1:]:  # skip system prompt
@@ -1345,8 +1345,11 @@ with tab4:
             assistant_msg, updated_history = chat_with_trades(user_input, st.session_state.chat_history)
             st.session_state.chat_history = updated_history
 
-            # Instead of resetting session state manually, just rerun
-            st.experimental_rerun()
+            # Clear the input for next message safely
+            st.session_state.chat_input = ""   # ✅ THIS is fine now, since we’re not overwriting the widget’s definition
+            st.rerun()  # <- cleaner alias of experimental_rerun
+
+
 
 
 
