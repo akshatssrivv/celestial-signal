@@ -1345,7 +1345,7 @@ with tab4:
             )
 
             # Generate assistant response
-            assistant_msg = explain_trades_with_gpt(
+            assistant_msg = chat_with_trades(
                 top_trades_agent, user_input
             )
             st.session_state.chat_history.append(
@@ -1354,27 +1354,6 @@ with tab4:
 
             # Clear input for next round
             st.session_state.chat_input = ""
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
