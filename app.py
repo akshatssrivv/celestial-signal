@@ -1328,35 +1328,16 @@ with tab3:
 
         st.plotly_chart(fig, use_container_width=True)
 
-    # --- AI Assistant for Top Trades ---
-    st.markdown("## AI Assistant")
     
+with tab4: 
+    st.markdown("## Ask anything")
+
+    # Initialize chat history if not exists
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
-    
-    user_question = st.text_input("Ask a question about the top trades:")
-    
-    if st.button("Send", key="send_agent_tab3"):
-        if user_question:
-            answer, st.session_state.chat_history = chat_with_trades(
-                user_question, st.session_state.chat_history
-            )
-            st.text_area("Assistant Response", value=answer, height=150)
-        else:
-            st.warning("Please enter a question.")
-    
-    # Display full conversation history
-    if st.session_state.chat_history:
-        st.markdown("### Conversation History")
-        for msg in st.session_state.chat_history[1:]:  # skip system prompt
-            role = "You" if msg["role"] == "user" else "Assistant"
-            st.write(f"**{role}:** {msg['content']}")
-
-with tab4: 
-    st.markdown("## Ask about top trades 🤖")
 
     # Display conversation
-    for msg in st.session_state.chat_history[1:]:  # skip system prompt
+    for msg in st.session_state.chat_history:
         is_user = msg["role"] == "user"
         message(msg["content"], is_user=is_user)
 
@@ -1364,20 +1345,16 @@ with tab4:
     user_input = st.text_input("Your question:", key="chat_input")
     if st.button("Send", key="chat_send"):
         if user_input:
-            # Append user message
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
+            # Call GPT with full history
+            assistant_msg, updated_history = chat_with_trades(
+                user_input,
+                st.session_state.chat_history
+            )
+            st.session_state.chat_history = updated_history
 
-            # Generate assistant response
-            assistant_msg = explain_trades_with_gpt(top_trades_agent, user_input)  # update fn to accept question
-            st.session_state.chat_history.append({"role": "assistant", "content": assistant_msg})
-
-            # Clear input for next
+            # Reset input
             st.session_state.chat_input = ""
-            st.experimental_rerun()
-
-
-
-
+            st.rerun()
 
 
 
