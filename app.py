@@ -1326,16 +1326,18 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
 
-with tab4: 
-    st.markdown("## Ask anything")
+with tab4:
+    st.markdown("## Ask about top trades 🤖")
 
-    # Initialize chat history if it doesn't exist
+    # Initialize session state
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
             {"role": "system", "content": "You are a helpful assistant for trade analysis."}
         ]
+    if "chat_input" not in st.session_state:
+        st.session_state["chat_input"] = ""
 
-    # Display conversation (skip system prompt)
+    # Display conversation
     for i, msg in enumerate(st.session_state.chat_history[1:]):
         is_user = msg["role"] == "user"
         message(msg["content"], is_user=is_user, key=f"chat_{i}")
@@ -1348,8 +1350,9 @@ with tab4:
             assistant_msg, st.session_state.chat_history = chat_with_trades(
                 user_input, st.session_state.chat_history
             )
-            # Clear input for next round
-            st.session_state.chat_input = ""
+            # Clear input safely
+            st.session_state["chat_input"] = ""
+
 
 
 
