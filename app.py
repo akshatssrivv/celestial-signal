@@ -1339,7 +1339,7 @@ with tab4:
     st.markdown("## Ask anything")
 
     # Display conversation
-    for i, msg in enumerate(st.session_state.chat_history):
+    for i, msg in enumerate(st.session_state.chat_history[1:]):
         is_user = msg["role"] == "user"
         message(msg["content"], is_user=is_user, key=f"msg_{i}")
 
@@ -1355,3 +1355,4 @@ with tab4:
         )
         # Clear input
         st.session_state.chat_input = ""
+
