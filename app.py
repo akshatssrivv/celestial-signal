@@ -1368,6 +1368,3 @@ with tab4:
         # Clear input and reset flag
         st.session_state.chat_input = ""
         st.session_state.chat_entered = False
-
-        # Rerun to refresh chat
-        st.experimental_rerun()
