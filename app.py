@@ -1328,43 +1328,61 @@ with tab3:
 # --- Initialize session state ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{"role": "system", "content": get_system_prompt()}]
-
 if "chat_input" not in st.session_state:
     st.session_state.chat_input = ""
-
-if "chat_entered" not in st.session_state:
-    st.session_state.chat_entered = False
+if "last_processed_input" not in st.session_state:
+    st.session_state.last_processed_input = ""
 
 # --- Tab 4: Chat with bond trading assistant ---
 with tab4:
     st.markdown("## Ask anything 🤖")
-
+    
     # Display conversation (skip system prompt)
     for i, msg in enumerate(st.session_state.chat_history[1:]):
         is_user = msg["role"] == "user"
         message(msg["content"], is_user=is_user, key=f"msg_{i}")
-
-    # Callback for Enter key
-    def submit_enter():
-        st.session_state.chat_entered = True
-
-    # Input box
-    user_input = st.text_input(
-        "Your question:",
-        value=st.session_state.chat_input,
-        key="chat_input_box",
-        on_change=submit_enter
-    )
-
-    # Send if Enter pressed or button clicked
-    if (st.session_state.chat_entered or st.button("Send")) and user_input.strip():
+    
+    # Create columns for input and button
+    col1, col2 = st.columns([4, 1])
+    
+    with col1:
+        # Input box with on_change callback
+        user_input = st.text_input(
+            "Your question:",
+            key="chat_input_box",
+            placeholder="Type your message and press Enter or click Send..."
+        )
+    
+    with col2:
+        # Send button
+        send_clicked = st.button("Send", key="send_button")
+    
+    # Check if we should process the input
+    should_process = False
+    current_input = user_input.strip()
+    
+    # Process if:
+    # 1. Send button was clicked and there's input
+    # 2. Input has changed (Enter was pressed) and there's input
+    # 3. And we haven't already processed this exact input
+    if current_input and current_input != st.session_state.last_processed_input:
+        if send_clicked or (current_input != st.session_state.get("previous_input", "")):
+            should_process = True
+    
+    # Store current input for next comparison
+    st.session_state.previous_input = current_input
+    
+    # Process the message if conditions are met
+    if should_process:
         # Append user message
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-
+        st.session_state.chat_history.append({"role": "user", "content": current_input})
+        
         # Get assistant response
-        answer, _ = chat_with_trades(user_input, st.session_state.chat_history)
+        answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
-
-        # Clear input and reset flag
-        st.session_state.chat_input = ""
-        st.session_state.chat_entered = False
+        
+        # Update last processed input to prevent re-processing
+        st.session_state.last_processed_input = current_input
+        
+        # Rerun to update the display and clear the input
+        st.rerun()
