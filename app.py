@@ -1327,31 +1327,43 @@ with tab3:
 
 
 with tab4:
-    st.markdown("## Ask about top trades 🤖")
+    st.markdown("## Ask anything")
 
-    # Initialize session state
+    # 1️⃣ Initialize session state safely
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "system", "content": "You are a helpful assistant for trade analysis."}
+            {"role": "system", "content": "You are a bond trading assistant for a hedge fund."}
         ]
+
     if "chat_input" not in st.session_state:
-        st.session_state["chat_input"] = ""
+        st.session_state.chat_input = ""
 
-    # Display conversation
-    for i, msg in enumerate(st.session_state.chat_history[1:]):
+    # 2️⃣ Display conversation
+    for i, msg in enumerate(st.session_state.chat_history[1:]):  # skip system prompt
         is_user = msg["role"] == "user"
-        message(msg["content"], is_user=is_user, key=f"chat_{i}")
+        message(msg["content"], is_user=is_user, key=f"msg_{i}")
 
-    # Input box
-    user_input = st.text_input("Your question:", key="chat_input")
+    # 3️⃣ Input box
+    st.session_state.chat_input = st.text_input(
+        "Your question:", value=st.session_state.chat_input, key="chat_input"
+    )
 
+    # 4️⃣ Send button
     if st.button("Send", key="chat_send"):
+        user_input = st.session_state.chat_input.strip()
         if user_input:
+            # Append user message
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
+
+            # Generate assistant response
             assistant_msg, st.session_state.chat_history = chat_with_trades(
                 user_input, st.session_state.chat_history
             )
+            st.session_state.chat_history.append({"role": "assistant", "content": assistant_msg})
+
             # Clear input safely
-            st.session_state["chat_input"] = ""
+            st.session_state.chat_input = ""
+            st.experimental_rerun()
 
 
 
