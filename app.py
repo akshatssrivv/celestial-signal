@@ -420,13 +420,29 @@ with tab2:
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
     
-        # --- NEW: decorate SECURITY_NAME with arrows/emojis for moderate/strong moves ---
-        yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
+        # --- DEBUG: Check yesterday_df ---
+        print(f"Debug: yesterday_df shape: {yesterday_df.shape}")
+        print(f"Debug: yesterday_df empty: {yesterday_df.empty}")
+        if not yesterday_df.empty:
+            print(f"Debug: yesterday_df dates: {yesterday_df['Date'].unique() if 'Date' in yesterday_df.columns else 'No Date column'}")
+            print(f"Debug: yesterday_df securities count: {len(yesterday_df['SECURITY_NAME'].unique()) if 'SECURITY_NAME' in yesterday_df.columns else 'No SECURITY_NAME column'}")
+    
+        # --- UPDATED: Handle empty yesterday_df gracefully ---
+        if not yesterday_df.empty and 'SECURITY_NAME' in yesterday_df.columns and 'SIGNAL' in yesterday_df.columns:
+            yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
+            print(f"Debug: yesterday_signals count: {len(yesterday_signals)}")
+        else:
+            yesterday_signals = {}
+            print("Debug: No yesterday signals available - using empty dict")
     
         def decorate_name(row):
             name = row['SECURITY_NAME']
             today_signal = row['Signal']              # raw signal
             yesterday_signal = yesterday_signals.get(name, None)
+    
+            # DEBUG: Print some examples
+            if len(yesterday_signals) > 0 and name in list(yesterday_signals.keys())[:3]:  # First 3 securities
+                print(f"Debug: {name} - Today: {today_signal}, Yesterday: {yesterday_signal}")
     
             levels = {
                 'NO ACTION': 0,
@@ -448,8 +464,10 @@ with tab2:
                 }
                 emoji = emoji_map.get(today_signal, '')
                 if today_lvl > yesterday_lvl:
+                    print(f"Debug: UPGRADE - {name}: {yesterday_signal} -> {today_signal}")
                     return f'{emoji} ↑ {name}'  # upgrade
                 else:
+                    print(f"Debug: DOWNGRADE - {name}: {yesterday_signal} -> {today_signal}")
                     return f'{emoji} ↓ {name}'  # downgrade
             else:
                 return name  # unchanged for weak/no action or same level
@@ -486,8 +504,7 @@ with tab2:
     
         # Show the table
         st.dataframe(display_df, column_config=column_config)
-
-
+    
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
     
@@ -1392,6 +1409,7 @@ with tab4:
         
         # Rerun to update the display and clear the input
         st.rerun()
+
 
 
 
