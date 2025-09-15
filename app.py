@@ -423,21 +423,30 @@ with tab2:
         # --- NEW: decorate SECURITY_NAME with arrows/emojis for moderate/strong moves ---
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
     
+        # Add this at the beginning of your decoration logic, before the decorate_name function
+        # Check if today is a weekend
+        today = datetime.now()
+        is_weekend = today.weekday() >= 5  # 5 = Saturday, 6 = Sunday
+        
         def decorate_name(row):
+            # Skip decoration entirely on weekends
+            if is_weekend:
+                return row['SECURITY_NAME']
+            
             name = row['SECURITY_NAME']
-            today_signal = row['Signal']              # raw signal
+            today_signal = row['Signal']
             yesterday_signal = yesterday_signals.get(name, None)
-    
+        
             levels = {
                 'NO ACTION': 0,
                 'WEAK SELL': 1, 'WEAK BUY': 1,
                 'MODERATE SELL': 2, 'MODERATE BUY': 2,
                 'STRONG SELL': 3, 'STRONG BUY': 3
             }
-    
+        
             today_lvl = levels.get(today_signal, 0)
             yesterday_lvl = levels.get(yesterday_signal, 0) if yesterday_signal else 0
-    
+        
             # Only decorate if moving into/out of MODERATE or STRONG
             if (today_lvl >= 2 or yesterday_lvl >= 2) and today_lvl != yesterday_lvl:
                 emoji_map = {
@@ -452,9 +461,7 @@ with tab2:
                 else:
                     return f'{emoji} ↓ {name}'  # downgrade
             else:
-                return name  # unchanged for weak/no action or same level
-    
-        display_df['SECURITY_NAME'] = display_df.apply(decorate_name, axis=1)
+                return name
     
         # Column config for tooltips + formatting
         HELP_TEXTS = {
@@ -1392,5 +1399,6 @@ with tab4:
         
         # Rerun to update the display and clear the input
         st.rerun()
+
 
 
