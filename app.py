@@ -245,16 +245,20 @@ with tab2:
 
     # Title
     st.title("Bond Analytics Dashboard")
-
+    
     # Get actual signal values from your data (case-sensitive and exact match)
     actual_signals = df['SIGNAL'].unique()
     
-    # Assuming you have recent_signals with today and yesterday
-    today = pd.Timestamp.today().normalize()
-    yesterday = today - pd.Timedelta(days=1)
-
+    # Load recent signals
     recent_signals = pd.read_csv("recent_signals.csv")
     recent_signals['Date'] = pd.to_datetime(recent_signals['Date'])
+    recent_signals = recent_signals.sort_values('Date')  # ensure sorted
+    
+    # Determine today and yesterday (last available date)
+    today = recent_signals['Date'].max()  # latest available date
+    # yesterday is the second latest date
+    yesterday_series = recent_signals[recent_signals['Date'] < today]['Date']
+    yesterday = yesterday_series.max() if not yesterday_series.empty else today
     
     today_df = recent_signals[recent_signals['Date'] == today]
     yesterday_df = recent_signals[recent_signals['Date'] == yesterday]
@@ -273,7 +277,7 @@ with tab2:
             return f'<span style="color:#dc3545">{val}</span>'
         else:
             return f'<span style="color:#6c757d">{val}</span>'
-
+    
     col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
     boxes = [
         'STRONG BUY', 'STRONG SELL', 'MODERATE BUY', 
@@ -290,8 +294,9 @@ with tab2:
                 <div class="metric-label">{sig}</div>
             </div>
             """, unsafe_allow_html=True)
-
+    
     st.markdown("---")
+
 
     # Horizontal filters
     col1, col2, col3 = st.columns([2, 2, 3])
@@ -1417,6 +1422,7 @@ with tab4:
         
         # Rerun to update the display and clear the input
         st.rerun()
+
 
 
 
