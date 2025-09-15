@@ -435,14 +435,13 @@ with tab2:
             yesterday_signals = {}
             print("Debug: No yesterday signals available - using empty dict")
     
+        # Track changes for debugging
+        changes_detected = []
+        
         def decorate_name(row):
             name = row['SECURITY_NAME']
             today_signal = row['Signal']              # raw signal
             yesterday_signal = yesterday_signals.get(name, None)
-    
-            # DEBUG: Print some examples
-            if len(yesterday_signals) > 0 and name in list(yesterday_signals.keys())[:3]:  # First 3 securities
-                print(f"Debug: {name} - Today: {today_signal}, Yesterday: {yesterday_signal}")
     
             levels = {
                 'NO ACTION': 0,
@@ -464,15 +463,25 @@ with tab2:
                 }
                 emoji = emoji_map.get(today_signal, '')
                 if today_lvl > yesterday_lvl:
-                    print(f"Debug: UPGRADE - {name}: {yesterday_signal} -> {today_signal}")
+                    change_info = f"UPGRADE - {name}: {yesterday_signal} -> {today_signal}"
+                    changes_detected.append(change_info)
                     return f'{emoji} ↑ {name}'  # upgrade
                 else:
-                    print(f"Debug: DOWNGRADE - {name}: {yesterday_signal} -> {today_signal}")
+                    change_info = f"DOWNGRADE - {name}: {yesterday_signal} -> {today_signal}"
+                    changes_detected.append(change_info)
                     return f'{emoji} ↓ {name}'  # downgrade
             else:
                 return name  # unchanged for weak/no action or same level
     
         display_df['SECURITY_NAME'] = display_df.apply(decorate_name, axis=1)
+        
+        # Show detected changes
+        if changes_detected:
+            st.write("**Signal Changes Detected:**")
+            for change in changes_detected:
+                st.write(f"• {change}")
+        else:
+            st.write("**No signal changes detected**")
     
         # Column config for tooltips + formatting
         HELP_TEXTS = {
@@ -521,7 +530,6 @@ with tab2:
             if st.button("Refresh Data"):
                 st.cache_data.clear()
                 st.rerun()
-
 with tab1:
     st.set_page_config(
         page_title="The Curves",
@@ -1409,6 +1417,7 @@ with tab4:
         
         # Rerun to update the display and clear the input
         st.rerun()
+
 
 
 
