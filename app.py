@@ -24,7 +24,7 @@ from streamlit_chat import message
 B2_KEY_ID = os.getenv("B2_KEY_ID")
 B2_APP_KEY = os.getenv("B2_APP_KEY")
 BUCKET_NAME = "Celestial-Signal"
-LOCAL_ZIP = "ns_curves_20251209.zip"
+LOCAL_ZIP = "ns_curves_20251509.zip"
 LOCAL_FOLDER = "ns_curves"
 
 
@@ -65,7 +65,7 @@ def file_hash(filepath: str) -> str:
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
     """Unzip NS curves from B2 and return (folder, zip_hash)."""
     # Download latest zip from B2
-    zip_path = download_from_b2(file_key="ns_curves_1209.zip", local_path=zip_path, force=force)
+    zip_path = download_from_b2(file_key="ns_curves_1509.zip", local_path=zip_path, force=force)
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
@@ -245,16 +245,20 @@ with tab2:
 
     # Title
     st.title("Bond Analytics Dashboard")
-
+    
     # Get actual signal values from your data (case-sensitive and exact match)
     actual_signals = df['SIGNAL'].unique()
     
-    # Assuming you have recent_signals with today and yesterday
-    today = pd.Timestamp.today().normalize()
-    yesterday = today - pd.Timedelta(days=1)
-
+    # Load recent signals
     recent_signals = pd.read_csv("recent_signals.csv")
     recent_signals['Date'] = pd.to_datetime(recent_signals['Date'])
+    recent_signals = recent_signals.sort_values('Date')  # ensure sorted
+    
+    # Determine today and yesterday (last available date)
+    today = recent_signals['Date'].max()  # latest available date
+    # yesterday is the second latest date
+    yesterday_series = recent_signals[recent_signals['Date'] < today]['Date']
+    yesterday = yesterday_series.max() if not yesterday_series.empty else today
     
     today_df = recent_signals[recent_signals['Date'] == today]
     yesterday_df = recent_signals[recent_signals['Date'] == yesterday]
@@ -273,7 +277,7 @@ with tab2:
             return f'<span style="color:#dc3545">{val}</span>'
         else:
             return f'<span style="color:#6c757d">{val}</span>'
-
+    
     col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
     boxes = [
         'STRONG BUY', 'STRONG SELL', 'MODERATE BUY', 
@@ -290,8 +294,9 @@ with tab2:
                 <div class="metric-label">{sig}</div>
             </div>
             """, unsafe_allow_html=True)
-
+    
     st.markdown("---")
+
 
     # Horizontal filters
     col1, col2, col3 = st.columns([2, 2, 3])
@@ -504,7 +509,7 @@ with tab2:
             if st.button("Refresh Data"):
                 st.cache_data.clear()
                 st.rerun()
-
+                
 with tab1:
     st.set_page_config(
         page_title="The Curves",
@@ -517,7 +522,7 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves", "New Bond Prediction")
     )
 
-    B2_BUCKET_FILE = "ns_curves_1209.zip"
+    B2_BUCKET_FILE = "ns_curves_1509.zip"
     try:
         zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
         if not os.path.exists(zip_path):
@@ -1392,4 +1397,15 @@ with tab4:
         
         # Rerun to update the display and clear the input
         st.rerun()
+
+
+
+
+
+
+
+
+
+
+
 
