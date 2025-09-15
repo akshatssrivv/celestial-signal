@@ -422,17 +422,36 @@ with tab2:
     
         # --- NEW: decorate SECURITY_NAME with arrows/emojis for moderate/strong moves ---
         yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
-    
-        # Add this at the beginning of your decoration logic, before the decorate_name function
-        # Check if today is a weekend
-        today = datetime.now()
-        is_weekend = today.weekday() >= 5  # 5 = Saturday, 6 = Sunday
+
+        from datetime import datetime, timedelta
+        
+        def get_last_business_day():
+            """Get the last business day (Monday-Friday)"""
+            today = datetime.now()
+            
+            # If today is Monday (0), last business day was Friday (3 days ago)
+            # If today is Tuesday-Friday (1-4), last business day was yesterday
+            # If today is Saturday (5), last business day was Friday (1 day ago)  
+            # If today is Sunday (6), last business day was Friday (2 days ago)
+            
+            if today.weekday() == 0:  # Monday
+                days_back = 3
+            elif today.weekday() == 6:  # Sunday
+                days_back = 2
+            else:  # Tuesday-Saturday
+                days_back = 1
+            
+            return today - timedelta(days=days_back)
+        
+        # Then modify how you get yesterday's signals
+        # Instead of using yesterday_df directly, you might need to filter it by date
+        # This assumes your dataframe has a date column - adjust accordingly
+        
+        last_business_day = get_last_business_day()
+        # You'll need to filter your yesterday_df based on this date
+        # For example: yesterday_df = df[df['DATE'] == last_business_day.strftime('%Y-%m-%d')]
         
         def decorate_name(row):
-            # Skip decoration entirely on weekends
-            if is_weekend:
-                return row['SECURITY_NAME']
-            
             name = row['SECURITY_NAME']
             today_signal = row['Signal']
             yesterday_signal = yesterday_signals.get(name, None)
@@ -1399,6 +1418,7 @@ with tab4:
         
         # Rerun to update the display and clear the input
         st.rerun()
+
 
 
 
