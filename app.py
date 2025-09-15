@@ -425,24 +425,9 @@ with tab2:
             )
             display_df.drop(columns=['Top_Feature_Effects_Pct'], inplace=True)
     
-        # --- DEBUG: Check yesterday_df ---
-        print(f"Debug: yesterday_df shape: {yesterday_df.shape}")
-        print(f"Debug: yesterday_df empty: {yesterday_df.empty}")
-        if not yesterday_df.empty:
-            print(f"Debug: yesterday_df dates: {yesterday_df['Date'].unique() if 'Date' in yesterday_df.columns else 'No Date column'}")
-            print(f"Debug: yesterday_df securities count: {len(yesterday_df['SECURITY_NAME'].unique()) if 'SECURITY_NAME' in yesterday_df.columns else 'No SECURITY_NAME column'}")
+        # --- NEW: decorate SECURITY_NAME with arrows/emojis for moderate/strong moves ---
+        yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
     
-        # --- UPDATED: Handle empty yesterday_df gracefully ---
-        if not yesterday_df.empty and 'SECURITY_NAME' in yesterday_df.columns and 'SIGNAL' in yesterday_df.columns:
-            yesterday_signals = yesterday_df.set_index('SECURITY_NAME')['SIGNAL'].to_dict()
-            print(f"Debug: yesterday_signals count: {len(yesterday_signals)}")
-        else:
-            yesterday_signals = {}
-            print("Debug: No yesterday signals available - using empty dict")
-    
-        # Track changes for debugging
-        changes_detected = []
-        
         def decorate_name(row):
             name = row['SECURITY_NAME']
             today_signal = row['Signal']              # raw signal
@@ -468,25 +453,13 @@ with tab2:
                 }
                 emoji = emoji_map.get(today_signal, '')
                 if today_lvl > yesterday_lvl:
-                    change_info = f"UPGRADE - {name}: {yesterday_signal} -> {today_signal}"
-                    changes_detected.append(change_info)
                     return f'{emoji} ↑ {name}'  # upgrade
                 else:
-                    change_info = f"DOWNGRADE - {name}: {yesterday_signal} -> {today_signal}"
-                    changes_detected.append(change_info)
                     return f'{emoji} ↓ {name}'  # downgrade
             else:
                 return name  # unchanged for weak/no action or same level
     
         display_df['SECURITY_NAME'] = display_df.apply(decorate_name, axis=1)
-        
-        # Show detected changes
-        if changes_detected:
-            st.write("**Signal Changes Detected:**")
-            for change in changes_detected:
-                st.write(f"• {change}")
-        else:
-            st.write("**No signal changes detected**")
     
         # Column config for tooltips + formatting
         HELP_TEXTS = {
@@ -518,7 +491,8 @@ with tab2:
     
         # Show the table
         st.dataframe(display_df, column_config=column_config)
-    
+
+
         # Download button
         col1, col2, col3 = st.columns([1, 1, 4])
     
@@ -535,6 +509,7 @@ with tab2:
             if st.button("Refresh Data"):
                 st.cache_data.clear()
                 st.rerun()
+                
 with tab1:
     st.set_page_config(
         page_title="The Curves",
@@ -1422,6 +1397,7 @@ with tab4:
         
         # Rerun to update the display and clear the input
         st.rerun()
+
 
 
 
