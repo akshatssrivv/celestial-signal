@@ -1332,81 +1332,49 @@ with tab3:
 
 
 
-# --- Initialize session state ---
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [{"role": "system", "content": get_system_prompt()}]
-if "chat_input" not in st.session_state:
-    st.session_state.chat_input = ""
-if "last_processed_input" not in st.session_state:
-    st.session_state.last_processed_input = ""
-
 # --- Tab 4: Chat with bond trading assistant ---
 with tab4:
-    st.markdown("## Ask anything")
+    st.markdown("## Ask anything about top trades")
     
-    # Display conversation (skip system prompt)
-    for i, msg in enumerate(st.session_state.chat_history[1:]):
-        is_user = msg["role"] == "user"
-        message(msg["content"], is_user=is_user, key=f"msg_{i}")
+    # Initialize session state for chat history
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []  # only user + assistant messages
     
-    # Create columns for input and button
+    # Container for chat messages
+    chat_container = st.container()
+    
+    # Display conversation
+    with chat_container:
+        for i, msg in enumerate(st.session_state.chat_history):
+            is_user = msg["role"] == "user"
+            message(msg["content"], is_user=is_user, key=f"msg_{i}")
+
+    # Input row: text area + send button
     col1, col2 = st.columns([4, 1])
-    
     with col1:
-        # Input box with on_change callback
-        user_input = st.text_input(
+        user_input = st.text_area(
             "Your question:",
             key="chat_input_box",
-            placeholder="Type your message and press Enter or click Send..."
+            height=80,
+            placeholder="Ask about top trades, e.g., top 3 trades or trade details..."
         )
-    
     with col2:
-        # Send button
-        send_clicked = st.button("Send", key="send_button")
-    
-    # Check if we should process the input
-    should_process = False
+        send_clicked = st.button("Send")
+
+    # Process input if Send clicked and non-empty
     current_input = user_input.strip()
-    
-    # Process if:
-    # 1. Send button was clicked and there's input
-    # 2. Input has changed (Enter was pressed) and there's input
-    # 3. And we haven't already processed this exact input
-    if current_input and current_input != st.session_state.last_processed_input:
-        if send_clicked or (current_input != st.session_state.get("previous_input", "")):
-            should_process = True
-    
-    # Store current input for next comparison
-    st.session_state.previous_input = current_input
-    
-    # Process the message if conditions are met
-    if should_process:
-        # Append user message
+    if send_clicked and current_input:
+        # Append user message to history
         st.session_state.chat_history.append({"role": "user", "content": current_input})
+
+        # Get assistant response, always include system prompt first
+        answer, *_ = chat_with_trades(current_input, [{"role": "system", "content": get_system_prompt()}] + st.session_state.chat_history)
         
-        # Get assistant response
-        answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
+        # Append assistant response to history
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
         
-        # Update last processed input to prevent re-processing
-        st.session_state.last_processed_input = current_input
+        # Clear input box
+        st.session_state.chat_input_box = ""
         
-        # Clear the input box by deleting and recreating the key
-        if "chat_input_box" in st.session_state:
-            del st.session_state.chat_input_box
-        
-        # Rerun to update the display and clear the input
-        st.rerun()
-
-
-
-
-
-
-
-
-
-
-
-
-
+        # Scroll to bottom (automatic on rerun)
+        st.experimental_rerun()
