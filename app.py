@@ -1394,4 +1394,5 @@ with tab4:
             del st.session_state["chat_input_box"]
         
         # Rerun to update display
-        st.experimental_rerun()
+        st.rerun()
+
