@@ -161,6 +161,21 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
+# -------------------------
+# Load top trades
+# -------------------------
+@st.cache_data
+def load_trades():
+    df = pd.read_pickle("top_trades_agent.pkl")
+    # Convert datetime columns to string
+    for col in df.select_dtypes(include=['datetime64[ns]']).columns:
+        df[col] = df[col].astype(str)
+    return df
+
+# Load trades into memory
+top_trades_agent = load_trades()
+
+
 tab1, tab2, tab3, tab4 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis", "AI Assisstant"])
 
 
@@ -1378,3 +1393,4 @@ with tab4:
         
         # Rerun to refresh UI and scroll to bottom
         st.experimental_rerun()
+
