@@ -24,7 +24,7 @@ from streamlit_chat import message
 B2_KEY_ID = os.getenv("B2_KEY_ID")
 B2_APP_KEY = os.getenv("B2_APP_KEY")
 BUCKET_NAME = "Celestial-Signal"
-LOCAL_ZIP = "ns_curves_20251609.zip"
+LOCAL_ZIP = "ns_curves_20251709.zip"
 LOCAL_FOLDER = "ns_curves"
 
 
@@ -65,7 +65,7 @@ def file_hash(filepath: str) -> str:
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
     """Unzip NS curves from B2 and return (folder, zip_hash)."""
     # Download latest zip from B2
-    zip_path = download_from_b2(file_key="ns_curves_1609.zip", local_path=zip_path, force=force)
+    zip_path = download_from_b2(file_key="ns_curves_1709.zip", local_path=zip_path, force=force)
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
@@ -159,6 +159,21 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
+
+
+# -------------------------
+# Load top trades
+# -------------------------
+@st.cache_data
+def load_trades():
+    df = pd.read_pickle("top_trades_agent.pkl")
+    # Convert datetime columns to string
+    for col in df.select_dtypes(include=['datetime64[ns]']).columns:
+        df[col] = df[col].astype(str)
+    return df
+
+# Load trades into memory
+top_trades_agent = load_trades()
 
 
 tab1, tab2, tab3, tab4 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis", "AI Assisstant"])
@@ -522,7 +537,7 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves", "New Bond Prediction")
     )
 
-    B2_BUCKET_FILE = "ns_curves_1609.zip"
+    B2_BUCKET_FILE = "ns_curves_1709.zip"
     try:
         zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
         if not os.path.exists(zip_path):
@@ -1331,82 +1346,54 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
 
-
-# --- Initialize session state ---
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [{"role": "system", "content": get_system_prompt()}]
-if "chat_input" not in st.session_state:
-    st.session_state.chat_input = ""
-if "last_processed_input" not in st.session_state:
-    st.session_state.last_processed_input = ""
-
-# --- Tab 4: Chat with bond trading assistant ---
+# -------------------------
+# Tab 4: Chat with bond trading assistant
+# -------------------------
 with tab4:
-    st.markdown("## Ask anything")
+    st.markdown("## Ask anything about top trades")
+
+    # Initialize session state for chat history
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = [{"role": "system", "content": get_system_prompt(top_trades_agent)}]
+
+    # Container for chat messages
+    chat_container = st.container()
     
-    # Display conversation (skip system prompt)
-    for i, msg in enumerate(st.session_state.chat_history[1:]):
-        is_user = msg["role"] == "user"
-        message(msg["content"], is_user=is_user, key=f"msg_{i}")
-    
-    # Create columns for input and button
+    # Display conversation
+    with chat_container:
+        for i, msg in enumerate(st.session_state.chat_history[1:]):  # skip system prompt
+            is_user = msg["role"] == "user"
+            st.markdown(f"**You:** {msg['content']}" if is_user else f"**AI:** {msg['content']}")
+
+    # Input row: text area + send button
     col1, col2 = st.columns([4, 1])
-    
     with col1:
-        # Input box with on_change callback
-        user_input = st.text_input(
+        user_input = st.text_area(
             "Your question:",
             key="chat_input_box",
-            placeholder="Type your message and press Enter or click Send..."
+            height=80,
+            placeholder="Ask about top trades, e.g., top 3 trades or trade details..."
         )
-    
     with col2:
-        # Send button
-        send_clicked = st.button("Send", key="send_button")
-    
-    # Check if we should process the input
-    should_process = False
+        send_clicked = st.button("Send")
+
+    # Process input if Send clicked and non-empty
     current_input = user_input.strip()
-    
-    # Process if:
-    # 1. Send button was clicked and there's input
-    # 2. Input has changed (Enter was pressed) and there's input
-    # 3. And we haven't already processed this exact input
-    if current_input and current_input != st.session_state.last_processed_input:
-        if send_clicked or (current_input != st.session_state.get("previous_input", "")):
-            should_process = True
-    
-    # Store current input for next comparison
-    st.session_state.previous_input = current_input
-    
-    # Process the message if conditions are met
-    if should_process:
-        # Append user message
+    if send_clicked and current_input:
+        # Append user message to history
         st.session_state.chat_history.append({"role": "user", "content": current_input})
-        
-        # Get assistant response
+
+        # Get assistant response (prepend system prompt always)
         answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
+        
+        # Append assistant response
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
         
-        # Update last processed input to prevent re-processing
-        st.session_state.last_processed_input = current_input
-        
-        # Clear the input box by deleting and recreating the key
+        # Safely clear the input box
         if "chat_input_box" in st.session_state:
-            del st.session_state.chat_input_box
+            del st.session_state["chat_input_box"]
         
-        # Rerun to update the display and clear the input
+        # Rerun to update display
         st.rerun()
-
-
-
-
-
-
-
-
-
-
-
 
 
