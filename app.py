@@ -1347,7 +1347,6 @@ with tab3:
 
         st.plotly_chart(fig, use_container_width=True)
 
-
 # -------------------------
 # Tab 4: Chat with Bond AI Trade Assistant
 # -------------------------
@@ -1357,7 +1356,7 @@ with tab4:
     # --- Ensure required columns exist ---
     if 'Leg_Direction' not in top_trades_agent.columns:
         top_trades_agent['Leg_Direction'] = top_trades_agent.apply(
-            lambda row: f"{row['LEG_1']} vs {row['LEG_2']}", axis=1
+            lambda row: f"{row.get('LEG_1','')} vs {row.get('LEG_2','')}", axis=1
         )
     if 'Confidence' not in top_trades_agent.columns:
         top_trades_agent['Confidence'] = 'Medium'  # default placeholder
@@ -1376,7 +1375,7 @@ with tab4:
     if "chat_history" not in st.session_state:
         system_prompt = """
         You are a Bond Trading Assistant.
-        Your job is to act like a junior trading analyst:
+        Act like a junior trading analyst:
         - Summarize why the trade makes sense intuitively.
         - Highlight risks, catalysts, and what could go wrong.
         - Use Ranking_Score, Z-diff, Actionable_Direction, and Confidence to argue.
@@ -1406,29 +1405,26 @@ with tab4:
             else:
                 content = msg['content']
                 # Highlight confidence mentions
-                content = content.replace("High", ":green[High]").replace(
-                    "Medium", ":orange[Medium]").replace("Low", ":red[Low]"
+                content = (
+                    content.replace("High", ":green[High]")
+                           .replace("Medium", ":orange[Medium]")
+                           .replace("Low", ":red[Low]")
                 )
                 st.markdown(f"**AI:** {content}")
 
     # --- Quick question buttons ---
     st.markdown("#### Quick Questions")
     qcol1, qcol2, qcol3 = st.columns(3)
+    quick_question = None
     with qcol1:
         if st.button("Summarize top trades"):
-            st.session_state.chat_history.append(
-                {"role": "user", "content": "Summarize the top 3 trades"}
-            )
+            quick_question = "Summarize the top 3 trades"
     with qcol2:
         if st.button("Which trade is riskiest?"):
-            st.session_state.chat_history.append(
-                {"role": "user", "content": "Which trade carries the most risk and why?"}
-            )
+            quick_question = "Which trade carries the most risk and why?"
     with qcol3:
         if st.button("Safest trade?"):
-            st.session_state.chat_history.append(
-                {"role": "user", "content": "Which trade looks safest right now?"}
-            )
+            quick_question = "Which trade looks safest right now?"
 
     # --- Chat input row ---
     col1, col2 = st.columns([4, 1])
@@ -1444,14 +1440,14 @@ with tab4:
 
     # --- Process input ---
     current_input = user_input.strip()
-    if (send_clicked and current_input) or any([b for b in [qcol1, qcol2, qcol3]]):
-        # Add current trade snapshot context
+    if (send_clicked and current_input) or quick_question:
+        query = quick_question if quick_question else current_input
         snapshot = top_trades_agent.head(10).to_dict(orient="records")
         st.session_state.chat_history.append({
             "role": "user",
-            "content": f"{current_input}\n\nHere’s the latest trades snapshot:\n{snapshot}"
+            "content": f"{query}\n\nHere’s the latest trades snapshot:\n{snapshot}"
         })
-        answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
+        answer, *_ = chat_with_trades(query, st.session_state.chat_history)
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
         if "chat_input_box" in st.session_state:
             del st.session_state["chat_input_box"]
@@ -1468,9 +1464,15 @@ with tab4:
 
     # --- 30-day Z-diff heatmap ---
     st.subheader("🔥 Trade Z-Diff 30D Heatmap")
-    z_diff_chart = alt.Chart(top_trades_agent.head(50).reset_index()).mark_rect().encode(
-        x=alt.X('Ranking_Score:O', title="Ranking Score"),
-        y=alt.Y('index:O', title="Trade Index"),
-        color=alt.Color('Trade_ZDiff_30D_Pct', scale=alt.Scale(scheme='redblue'))
-    ).properties(height=500, width=800)
-    st.altair_chart(z_diff_chart, use_container_width=True)
+    try:
+        import altair as alt
+        z_diff_chart = alt.Chart(
+            top_trades_agent.head(50).reset_index()
+        ).mark_rect().encode(
+            x=alt.X('Ranking_Score:O', title="Ranking Score"),
+            y=alt.Y('index:O', title="Trade Index"),
+            color=alt.Color('Trade_ZDiff_30D_Pct', scale=alt.Scale(scheme='redblue'))
+        ).properties(height=500, width=800)
+        st.altair_chart(z_diff_chart, use_container_width=True)
+    except ModuleNotFoundError:
+        st.warning("⚠️ Altair not installed. Skipping heatmap. Run `pip install altair` to enable it.")
