@@ -1365,7 +1365,7 @@ with tab4:
 
     # --- Prepare top 3 summary safely ---
     cols_for_summary = [
-        'A_ISIN','B_ISIN','C_ISIN','D_ISIN','LEG_1','LEG_2','Leg_Direction',
+        'A_Name','B_Name','C_Name','D_Name','LEG_1','LEG_2','Leg_Direction',
         'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today','Ranking_Score','Actionable_Direction','Confidence'
     ]
     cols_present = [c for c in cols_for_summary if c in top_trades_agent.columns]
@@ -1439,3 +1439,4 @@ with tab4:
         color=alt.Color('Trade_ZDiff_30D_Pct', scale=alt.Scale(scheme='redblue'))
     ).properties(height=500, width=800)
     st.altair_chart(z_diff_chart)
+
