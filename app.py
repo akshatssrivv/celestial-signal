@@ -1346,17 +1346,30 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
 
+
 # -------------------------
 # Tab 4: Chat with Bond AI Trade Assistant
 # -------------------------
 with tab4:
     st.markdown("## Ask anything about top trades")
 
-    # --- Prepare top 3 summary for GPT ---
-    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')[[
-        'A_ISIN','B_ISIN','C_ISIN','D_ISIN','LEG_1','LEG_2',
-        'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today','Ranking_Score','Actionable_Direction'
-    ]]
+    # --- Ensure required columns exist ---
+    if 'Leg_Direction' not in top_trades_agent.columns:
+        # Simple placeholder; can later enhance to Steepener/Flattener logic
+        top_trades_agent['Leg_Direction'] = top_trades_agent.apply(
+            lambda row: f"{row['LEG_1']}, {row['LEG_2']}", axis=1
+        )
+
+    if 'Confidence' not in top_trades_agent.columns:
+        top_trades_agent['Confidence'] = 'Medium'  # default placeholder
+
+    # --- Prepare top 3 summary safely ---
+    cols_for_summary = [
+        'A_ISIN','B_ISIN','C_ISIN','D_ISIN','LEG_1','LEG_2','Leg_Direction',
+        'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today','Ranking_Score','Actionable_Direction','Confidence'
+    ]
+    cols_present = [c for c in cols_for_summary if c in top_trades_agent.columns]
+    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')[cols_present]
     top3_summary = top3_trades.to_dict(orient='records')
 
     # --- Initialize chat history ---
@@ -1374,7 +1387,8 @@ with tab4:
             else:
                 # Highlight confidence levels
                 content = msg['content']
-                content = content.replace("High", ":green[High]").replace("Medium", ":orange[Medium]").replace("Low", ":red[Low]")
+                content = content.replace("High", ":green[High]").replace(
+                    "Medium", ":orange[Medium]").replace("Low", ":red[Low]")
                 st.markdown(f"**AI:** {content}")
 
     # --- Chat input row ---
@@ -1410,11 +1424,11 @@ with tab4:
             color = 'red'
         return f'background-color: {color}; color: white'
 
+    cols_for_table = [c for c in cols_for_summary if c in top_trades_agent.columns]
     st.dataframe(
-        top_trades_agent.head(50)[[
-            'A_ISIN','B_ISIN','C_ISIN','D_ISIN','LEG_1','LEG_2','Leg_Direction',
-            'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today','Ranking_Score','Actionable_Direction','Confidence'
-        ]].style.applymap(color_confidence, subset=['Confidence'])
+        top_trades_agent.head(50)[cols_for_table].style.applymap(
+            color_confidence, subset=['Confidence']
+        )
     )
 
     # --- 30-day Z-diff heatmap ---
@@ -1425,5 +1439,3 @@ with tab4:
         color=alt.Color('Trade_ZDiff_30D_Pct', scale=alt.Scale(scheme='redblue'))
     ).properties(height=500, width=800)
     st.altair_chart(z_diff_chart)
-
-
