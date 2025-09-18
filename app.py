@@ -1352,20 +1352,34 @@ with tab3:
 with tab4:
     st.markdown("## Ask anything about top trades")
 
-    # Initialize session state for chat history
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [{"role": "system", "content": get_system_prompt(top_trades_agent)}]
+    # --- Prepare top 3 summary ---
+    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')[[
+        'A_ISIN','B_ISIN','C_ISIN','D_ISIN','LEG_1','LEG_2','Leg_Direction',
+        'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today','Ranking_Score','Actionable_Direction','Confidence'
+    ]]
+    top3_summary = top3_trades.to_dict(orient='records')
 
-    # Container for chat messages
+    # --- Initialize chat history with enhanced system prompt ---
+    if "chat_history" not in st.session_state:
+        system_prompt = get_system_prompt(top_trades_agent)
+        # Append top 3 summary
+        system_prompt += f"\n\nTop 3 trades summary:\n{top3_summary}"
+        st.session_state.chat_history = [{"role": "system", "content": system_prompt}]
+
+    # --- Container for chat messages ---
     chat_container = st.container()
     
-    # Display conversation
     with chat_container:
         for i, msg in enumerate(st.session_state.chat_history[1:]):  # skip system prompt
-            is_user = msg["role"] == "user"
-            st.markdown(f"**You:** {msg['content']}" if is_user else f"**AI:** {msg['content']}")
+            if msg["role"] == "user":
+                st.markdown(f"**You:** {msg['content']}")
+            else:
+                # Highlight confidence levels if present
+                content = msg['content']
+                content = content.replace("High", ":green[High]").replace("Medium", ":orange[Medium]").replace("Low", ":red[Low]")
+                st.markdown(f"**AI:** {content}")
 
-    # Input row: text area + send button
+    # --- Input row: text area + send button ---
     col1, col2 = st.columns([4, 1])
     with col1:
         user_input = st.text_area(
@@ -1377,23 +1391,21 @@ with tab4:
     with col2:
         send_clicked = st.button("Send")
 
-    # Process input if Send clicked and non-empty
+    # --- Process input if Send clicked ---
     current_input = user_input.strip()
     if send_clicked and current_input:
-        # Append user message to history
+        # Append user message
         st.session_state.chat_history.append({"role": "user", "content": current_input})
 
-        # Get assistant response (prepend system prompt always)
+        # Get AI response
         answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
-        
+
         # Append assistant response
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
-        
-        # Safely clear the input box
+
+        # Clear input box safely
         if "chat_input_box" in st.session_state:
             del st.session_state["chat_input_box"]
-        
-        # Rerun to update display
+
+        # Rerun to update chat display
         st.rerun()
-
-
