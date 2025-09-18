@@ -17,6 +17,8 @@ from scipy.interpolate import interp1d
 import uuid
 from curve_trade_agent1 import chat_with_trades, get_system_prompt
 from streamlit_chat import message
+import altair as alt
+
 
 # -------------------
 # B2 Configuration
@@ -1439,4 +1441,5 @@ with tab4:
         color=alt.Color('Trade_ZDiff_30D_Pct', scale=alt.Scale(scheme='redblue'))
     ).properties(height=500, width=800)
     st.altair_chart(z_diff_chart)
+
 
