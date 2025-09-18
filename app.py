@@ -1348,78 +1348,68 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
 
-
 # -------------------------
 # Tab 4: Chat with Bond AI Trade Assistant
 # -------------------------
-import pandas as pd
-
 with tab4:
     st.markdown("## Bond AI Trade Assistant")
 
     # --- Ensure required columns exist ---
     if 'Leg_Direction' not in top_trades_agent.columns:
         top_trades_agent['Leg_Direction'] = top_trades_agent.apply(
-            lambda row: f"{row['LEG_1']} vs {row['LEG_2']}", axis=1
+            lambda row: f"{row['A_Name']} vs {row['B_Name']} vs {row['C_Name']} vs {row['D_Name']}", axis=1
+        )
+    if 'Trade_Type' not in top_trades_agent.columns:
+        top_trades_agent['Trade_Type'] = top_trades_agent.apply(
+            lambda row: row.get('Steepener_Flattener', 'Unknown'), axis=1
         )
     if 'Confidence' not in top_trades_agent.columns:
         top_trades_agent['Confidence'] = 'Medium'  # default placeholder
 
-    # --- Auto-detect Flattener/Steepener ---
-    def detect_trade_type(row):
-        try:
-            a_m = pd.to_datetime(row['A_Maturity'])
-            b_m = pd.to_datetime(row['B_Maturity'])
-            c_m = pd.to_datetime(row['C_Maturity'])
-            d_m = pd.to_datetime(row['D_Maturity'])
-
-            avg_ab = (a_m + (b_m - a_m)/2).toordinal()
-            avg_cd = (c_m + (d_m - c_m)/2).toordinal()
-
-            if avg_ab < avg_cd:
-                return "Flattener (long short-end, short long-end)"
-            else:
-                return "Steepener (long long-end, short short-end)"
-        except Exception:
-            return "Unknown"
-
-    top_trades_agent['Trade_Type'] = top_trades_agent.apply(detect_trade_type, axis=1)
-
-    # --- Prepare top 3 summary safely ---
-    cols_for_summary = [
-        'A_Name','B_Name','C_Name','D_Name','Leg_Direction','Trade_Type',
-        'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today',
-        'Ranking_Score','Actionable_Direction','Confidence'
-    ]
-    cols_present = [c for c in cols_for_summary if c in top_trades_agent.columns]
-    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')[cols_present]
-    top3_summary = top3_trades.to_dict(orient='records')
+    # --- Prepare top 3 structured snapshot ---
+    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')
+    top3_snapshot = []
+    for _, row in top3_trades.iterrows():
+        top3_snapshot.append({
+            "Legs": row['Leg_Direction'],
+            "Trade_Type": row['Trade_Type'],
+            "Actionable": f"A: {row.get('A_Signal','')} B: {row.get('B_Signal','')} "
+                          f"C: {row.get('C_Signal','')} D: {row.get('D_Signal','')}",
+            "Ranking_Score": row['Ranking_Score'],
+            "Z_Diff_30D": row.get('Trade_ZDiff_30D_Pct','N/A'),
+            "Confidence": row['Confidence'],
+            "Key_Risks": row.get('Risks','Economic data, rates, market volatility')
+        })
 
     # --- Initialize chat history ---
     if "chat_history" not in st.session_state:
         system_prompt = """
         You are a Bond Trading Assistant.
-
-        - Trades are A+B vs C+D.
-        - Always reference Trade_Type (Flattener/Steepener).
-        - Explain rationale in curve terms.
-        - Use Ranking_Score, Z-Diff, Actionable_Direction, and Confidence.
-        - Highlight risks/catalysts curve-specific.
-        - Output in trader-style bullets, concise and actionable.
+        Act like a junior trading analyst:
+        - Summarize top trades clearly.
+        - Highlight risks, catalysts, and what could go wrong.
+        - Use Ranking_Score, Z-Diff, Actionable, and Confidence to argue.
+        - Speak in short, bullet points, trader-style language.
+        - Compare trades if asked.
         """
-        system_prompt += f"\n\nHere are the current top 3 trades:\n{top3_summary}"
+        system_prompt += f"\n\nCurrent top 3 trades snapshot:\n{top3_snapshot}"
         st.session_state.chat_history = [{"role": "system", "content": system_prompt}]
 
     # --- Top 3 trades expander ---
     with st.expander("🔝 Top 3 Trade Ideas", expanded=True):
-        for i, trade in enumerate(top3_summary, 1):
-            st.markdown(f"""
-            **#{i}: {trade.get('Leg_Direction','')} ({trade.get('Trade_Type','')})**
-            - Action: **{trade.get('Actionable_Direction','')}**
-            - Confidence: {trade.get('Confidence','') }
-            - Z-diff 30D: {trade.get('Trade_ZDiff_30D_Pct','')}
-            - Ranking Score: {trade.get('Ranking_Score','')}
-            """)
+        for i, trade in enumerate(top3_snapshot, 1):
+            st.markdown(f"### Trade #{i} ({trade['Trade_Type']})")
+            st.markdown(f"- **Legs:** {trade['Legs']}")
+            st.markdown(f"- **Actionable:** {trade['Actionable']}")
+            st.markdown(f"- **Ranking Score:** {trade['Ranking_Score']:.2f}")
+            st.markdown(f"- **Z-Diff 30D:** {trade['Z_Diff_30D']}")
+            conf_color = {
+                "High": ":green[High]",
+                "Medium": ":orange[Medium]",
+                "Low": ":red[Low]"
+            }.get(trade['Confidence'], trade['Confidence'])
+            st.markdown(f"- **Confidence:** {conf_color}")
+            st.markdown(f"- **Key Risks / Catalysts:** {trade['Key_Risks']}")
 
     # --- Chat container ---
     chat_container = st.container()
@@ -1429,10 +1419,8 @@ with tab4:
                 st.markdown(f"**You:** {msg['content']}")
             else:
                 content = msg['content']
-                # Highlight confidence mentions
                 content = content.replace("High", ":green[High]").replace(
-                    "Medium", ":orange[Medium]").replace("Low", ":red[Low]"
-                )
+                    "Medium", ":orange[Medium]").replace("Low", ":red[Low]")
                 st.markdown(f"**AI:** {content}")
 
     # --- Quick question buttons ---
@@ -1454,7 +1442,7 @@ with tab4:
                 {"role": "user", "content": "Which trade looks safest right now?"}
             )
 
-    # --- Chat input row ---
+    # --- Chat input ---
     col1, col2 = st.columns([4, 1])
     with col1:
         user_input = st.text_area(
@@ -1466,25 +1454,13 @@ with tab4:
     with col2:
         send_clicked = st.button("Send")
 
-    # --- Process input ---
+    # --- Process user input ---
     current_input = user_input.strip()
-    if send_clicked and current_input:
-        # Add current trade snapshot context
-        snapshot_records = []
-        for _, row in top_trades_agent.head(10).iterrows():
-            snapshot_records.append({
-                "Trade": row.get("Leg_Direction",""),
-                "Type": row.get("Trade_Type",""),
-                "Action": row.get("Actionable_Direction",""),
-                "Ranking_Score": row.get("Ranking_Score",""),
-                "Z-Diff 30D": row.get("Trade_ZDiff_30D_Pct",""),
-                "Confidence": row.get("Confidence","")
-            })
-        snapshot = "\n".join([str(rec) for rec in snapshot_records])
-
+    if (send_clicked and current_input):
+        # Pass structured top trades to the AI
         st.session_state.chat_history.append({
             "role": "user",
-            "content": f"{current_input}\n\nHere’s the latest trades snapshot:\n{snapshot}"
+            "content": f"{current_input}\n\nSnapshot:\n{top3_snapshot}"
         })
         answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
@@ -1492,21 +1468,10 @@ with tab4:
             del st.session_state["chat_input_box"]
         st.rerun()
 
-    # --- Top 50 trades interactive grid ---
+    # --- Top 50 trades interactive table ---
     st.subheader("📊 Top 50 Trades Overview")
-    cols_for_table = [c for c in cols_for_summary if c in top_trades_agent.columns]
     st.data_editor(
-        top_trades_agent.head(50)[cols_for_table],
+        top_trades_agent.head(50)[['Leg_Direction','Trade_Type','Ranking_Score','Z_Diff_30D','Actionable','Confidence']],
         use_container_width=True,
         hide_index=True
     )
-
-    # --- 30-day Z-diff heatmap ---
-    st.subheader("🔥 Trade Z-Diff 30D Heatmap")
-    import altair as alt
-    z_diff_chart = alt.Chart(top_trades_agent.head(50).reset_index()).mark_rect().encode(
-        x=alt.X('Ranking_Score:O', title="Ranking Score"),
-        y=alt.Y('index:O', title="Trade Index"),
-        color=alt.Color('Trade_ZDiff_30D_Pct', scale=alt.Scale(scheme='redblue'))
-    ).properties(height=500, width=800)
-    st.altair_chart(z_diff_chart, use_container_width=True)
