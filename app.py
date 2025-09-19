@@ -1352,126 +1352,91 @@ with tab3:
 # Tab 4: Chat with Bond AI Trade Assistant
 # -------------------------
 with tab4:
-    st.markdown("## Bond AI Trade Assistant")
+    st.markdown("## Ask anything about top trades")
 
-    # --- Ensure required columns exist ---
-    if 'Leg_Direction' not in top_trades_agent.columns:
-        top_trades_agent['Leg_Direction'] = top_trades_agent.apply(
-            lambda row: f"{row['A_Name']} vs {row['B_Name']} vs {row['C_Name']} vs {row['D_Name']}", axis=1
-        )
-    if 'Trade_Type' not in top_trades_agent.columns:
-        top_trades_agent['Trade_Type'] = top_trades_agent.apply(
-            lambda row: row.get('Steepener_Flattener', 'Unknown'), axis=1
-        )
-    if 'Confidence' not in top_trades_agent.columns:
-        top_trades_agent['Confidence'] = 'Medium'  # default placeholder
-
-    # --- Prepare top 3 structured snapshot ---
-    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')
-    top3_snapshot = []
-    for _, row in top3_trades.iterrows():
-        top3_snapshot.append({
-            "Legs": row['Leg_Direction'],
-            "Trade_Type": row['Trade_Type'],
-            "Actionable": f"A: {row.get('A_Signal','')} B: {row.get('B_Signal','')} "
-                          f"C: {row.get('C_Signal','')} D: {row.get('D_Signal','')}",
-            "Ranking_Score": row['Ranking_Score'],
-            "Z_Diff_30D": row.get('Trade_ZDiff_30D_Pct','N/A'),
-            "Confidence": row['Confidence'],
-            "Key_Risks": row.get('Risks','Economic data, rates, market volatility')
-        })
+    # --- Prepare top 3 summary for GPT ---
+    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')[[
+        'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
+        'LEG_1','LEG_2','Leg_Direction',
+        'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today',
+        'Ranking_Score','Actionable_Direction','Confidence'
+    ]]
+    top3_summary = top3_trades.to_dict(orient='records')
 
     # --- Initialize chat history ---
     if "chat_history" not in st.session_state:
-        system_prompt = """
-        You are a Bond Trading Assistant.
-        Act like a junior trading analyst:
-        - Summarize top trades clearly.
-        - Highlight risks, catalysts, and what could go wrong.
-        - Use Ranking_Score, Z-Diff, Actionable, and Confidence to argue.
-        - Speak in short, bullet points, trader-style language.
-        - Compare trades if asked.
-        """
-        system_prompt += f"\n\nCurrent top 3 trades snapshot:\n{top3_snapshot}"
+        system_prompt = get_system_prompt(top_trades_agent)
+        system_prompt += f"\n\nTop 3 trades summary:\n{top3_summary}"
         st.session_state.chat_history = [{"role": "system", "content": system_prompt}]
-
-    # --- Top 3 trades expander ---
-    with st.expander("🔝 Top 3 Trade Ideas", expanded=True):
-        for i, trade in enumerate(top3_snapshot, 1):
-            st.markdown(f"### Trade #{i} ({trade['Trade_Type']})")
-            st.markdown(f"- **Legs:** {trade['Legs']}")
-            st.markdown(f"- **Actionable:** {trade['Actionable']}")
-            st.markdown(f"- **Ranking Score:** {trade['Ranking_Score']:.2f}")
-            st.markdown(f"- **Z-Diff 30D:** {trade['Z_Diff_30D']}")
-            conf_color = {
-                "High": ":green[High]",
-                "Medium": ":orange[Medium]",
-                "Low": ":red[Low]"
-            }.get(trade['Confidence'], trade['Confidence'])
-            st.markdown(f"- **Confidence:** {conf_color}")
-            st.markdown(f"- **Key Risks / Catalysts:** {trade['Key_Risks']}")
 
     # --- Chat container ---
     chat_container = st.container()
     with chat_container:
-        for i, msg in enumerate(st.session_state.chat_history[1:]):  # skip system prompt
+        for msg in st.session_state.chat_history[1:]:  # skip system prompt
             if msg["role"] == "user":
                 st.markdown(f"**You:** {msg['content']}")
             else:
+                # Highlight confidence levels for readability
                 content = msg['content']
-                content = content.replace("High", ":green[High]").replace(
-                    "Medium", ":orange[Medium]").replace("Low", ":red[Low]")
+                content = (
+                    content.replace("High", ":green[High]")
+                           .replace("Medium", ":orange[Medium]")
+                           .replace("Low", ":red[Low]")
+                )
                 st.markdown(f"**AI:** {content}")
 
-    # --- Quick question buttons ---
-    st.markdown("#### Quick Questions")
-    qcol1, qcol2, qcol3 = st.columns(3)
-    with qcol1:
-        if st.button("Summarize top trades"):
-            st.session_state.chat_history.append(
-                {"role": "user", "content": "Summarize the top 3 trades"}
-            )
-    with qcol2:
-        if st.button("Which trade is riskiest?"):
-            st.session_state.chat_history.append(
-                {"role": "user", "content": "Which trade carries the most risk and why?"}
-            )
-    with qcol3:
-        if st.button("Safest trade?"):
-            st.session_state.chat_history.append(
-                {"role": "user", "content": "Which trade looks safest right now?"}
-            )
-
-    # --- Chat input ---
+    # --- Chat input row ---
     col1, col2 = st.columns([4, 1])
     with col1:
         user_input = st.text_area(
             "Your question:",
             key="chat_input_box",
             height=80,
-            placeholder="Ask about top trades, e.g., why is Trade #1 attractive?"
+            placeholder="Ask about top trades, e.g., top 3 trades or trade details..."
         )
     with col2:
         send_clicked = st.button("Send")
 
-    # --- Process user input ---
+    # --- Process input ---
     current_input = user_input.strip()
-    if (send_clicked and current_input):
-        # Pass structured top trades to the AI
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": f"{current_input}\n\nSnapshot:\n{top3_snapshot}"
-        })
+    if send_clicked and current_input:
+        st.session_state.chat_history.append({"role": "user", "content": current_input})
         answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
         if "chat_input_box" in st.session_state:
             del st.session_state["chat_input_box"]
-        st.rerun()
+        st.experimental_rerun()
 
-    # --- Top 50 trades interactive table ---
-    st.subheader("📊 Top 50 Trades Overview")
-    st.data_editor(
-        top_trades_agent.head(50)[['Leg_Direction','Trade_Type','Ranking_Score','Z_Diff_30D','Actionable','Confidence']],
-        use_container_width=True,
-        hide_index=True
+    # --- Top 50 trades table ---
+    st.subheader("Top 50 Trades Overview")
+    def color_confidence(val):
+        if val == 'High':
+            color = 'green'
+        elif val == 'Medium':
+            color = 'orange'
+        else:
+            color = 'red'
+        return f'background-color: {color}; color: white'
+
+    st.dataframe(
+        top_trades_agent.head(50)[[
+            'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
+            'LEG_1','LEG_2','Leg_Direction',
+            'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today',
+            'Ranking_Score','Actionable_Direction','Confidence'
+        ]].style.applymap(color_confidence, subset=['Confidence'])
     )
+
+    # --- 30-day Z-diff heatmap ---
+    try:
+        import altair as alt
+        st.subheader("Trade Z-Diff 30D Heatmap")
+        z_diff_chart = alt.Chart(top_trades_agent.reset_index().head(50)).mark_rect().encode(
+            x='Ranking_Score:O',
+            y='index:O',
+            color=alt.Color('Trade_ZDiff_30D_Pct', scale=alt.Scale(scheme='redblue'))
+        ).properties(height=500, width=800)
+        st.altair_chart(z_diff_chart)
+    except Exception as e:
+        st.warning(f"Heatmap unavailable: {e}")
+
