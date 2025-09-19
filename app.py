@@ -17,6 +17,8 @@ from scipy.interpolate import interp1d
 import uuid
 from curve_trade_agent1 import chat_with_trades, get_system_prompt
 from streamlit_chat import message
+import altair as alt
+
 
 # -------------------
 # B2 Configuration
@@ -1347,25 +1349,43 @@ with tab3:
 
 
 # -------------------------
-# Tab 4: Chat with bond trading assistant
+# Tab 4: Chat with Bond AI Trade Assistant
 # -------------------------
 with tab4:
     st.markdown("## Ask anything about top trades")
 
-    # Initialize session state for chat history
+    # --- Prepare top 3 summary for GPT ---
+    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')[[
+        'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
+        'LEG_1','LEG_2','Leg_Direction',
+        'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today',
+        'Ranking_Score','Actionable_Direction','Confidence'
+    ]]
+    top3_summary = top3_trades.to_dict(orient='records')
+
+    # --- Initialize chat history ---
     if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [{"role": "system", "content": get_system_prompt(top_trades_agent)}]
+        system_prompt = get_system_prompt(top_trades_agent)
+        system_prompt += f"\n\nTop 3 trades summary:\n{top3_summary}"
+        st.session_state.chat_history = [{"role": "system", "content": system_prompt}]
 
-    # Container for chat messages
+    # --- Chat container ---
     chat_container = st.container()
-    
-    # Display conversation
     with chat_container:
-        for i, msg in enumerate(st.session_state.chat_history[1:]):  # skip system prompt
-            is_user = msg["role"] == "user"
-            st.markdown(f"**You:** {msg['content']}" if is_user else f"**AI:** {msg['content']}")
+        for msg in st.session_state.chat_history[1:]:  # skip system prompt
+            if msg["role"] == "user":
+                st.markdown(f"**You:** {msg['content']}")
+            else:
+                # Highlight confidence levels for readability
+                content = msg['content']
+                content = (
+                    content.replace("High", ":green[High]")
+                           .replace("Medium", ":orange[Medium]")
+                           .replace("Low", ":red[Low]")
+                )
+                st.markdown(f"**AI:** {content}")
 
-    # Input row: text area + send button
+    # --- Chat input row ---
     col1, col2 = st.columns([4, 1])
     with col1:
         user_input = st.text_area(
@@ -1377,23 +1397,46 @@ with tab4:
     with col2:
         send_clicked = st.button("Send")
 
-    # Process input if Send clicked and non-empty
+    # --- Process input ---
     current_input = user_input.strip()
     if send_clicked and current_input:
-        # Append user message to history
         st.session_state.chat_history.append({"role": "user", "content": current_input})
-
-        # Get assistant response (prepend system prompt always)
         answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
-        
-        # Append assistant response
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
-        
-        # Safely clear the input box
         if "chat_input_box" in st.session_state:
             del st.session_state["chat_input_box"]
-        
-        # Rerun to update display
-        st.rerun()
+        st.experimental_rerun()
 
+    # --- Top 50 trades table ---
+    st.subheader("Top 50 Trades Overview")
+    def color_confidence(val):
+        if val == 'High':
+            color = 'green'
+        elif val == 'Medium':
+            color = 'orange'
+        else:
+            color = 'red'
+        return f'background-color: {color}; color: white'
+
+    st.dataframe(
+        top_trades_agent.head(50)[[
+            'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
+            'LEG_1','LEG_2','Leg_Direction',
+            'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today',
+            'Ranking_Score','Actionable_Direction','Confidence'
+        ]].style.applymap(color_confidence, subset=['Confidence'])
+    )
+
+    # --- 30-day Z-diff heatmap ---
+    try:
+        import altair as alt
+        st.subheader("Trade Z-Diff 30D Heatmap")
+        z_diff_chart = alt.Chart(top_trades_agent.reset_index().head(50)).mark_rect().encode(
+            x='Ranking_Score:O',
+            y='index:O',
+            color=alt.Color('Trade_ZDiff_30D_Pct', scale=alt.Scale(scheme='redblue'))
+        ).properties(height=500, width=800)
+        st.altair_chart(z_diff_chart)
+    except Exception as e:
+        st.warning(f"Heatmap unavailable: {e}")
 

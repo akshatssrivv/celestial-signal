@@ -8,6 +8,7 @@ boto3
 pyarrow        
 scipy>=1.10.0
 streamlit-chat
+altair>=5.0.0
 
 dash
 dash-bootstrap-components
