@@ -1352,6 +1352,7 @@ with tab3:
 
         st.plotly_chart(fig, use_container_width=True)
 
+st.write(top_trades_agent.columns.tolist())
 
 # -------------------------
 # Tab 4: Chat with Bond AI Trade Assistant
@@ -1444,6 +1445,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
