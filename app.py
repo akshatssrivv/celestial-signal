@@ -21,33 +21,33 @@ import altair as alt
 
 
 # -------------------
-# B2 Configuration
+# AWS S3 Configuration
 # -------------------
-B2_KEY_ID = os.getenv("B2_KEY_ID")
-B2_APP_KEY = os.getenv("B2_APP_KEY")
-BUCKET_NAME = "Celestial-Signal"
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")      # Your Access Key ID
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")  # Your Secret Access Key
+BUCKET_NAME = "celestial-signal"    # The S3 bucket you created
 LOCAL_ZIP = "ns_curves_20252209.zip"
-LOCAL_FOLDER = "ns_curves"
+LOCAL_FOLDER = "ns_curves_2209"
 
 
 # -------------------
-# Download from B2
+# Download from S3
 # -------------------
-def download_from_b2(file_key: str, local_path: str, force: bool = False):
-    """Download a file from B2 bucket."""
+def download_from_s3(file_key: str, local_path: str, force: bool = False):
+    """Download a file from S3 bucket."""
     if not force and os.path.exists(local_path):
         return local_path
 
-    with st.spinner(f"Downloading {file_key} from B2..."):
+    with st.spinner(f"Downloading {file_key} from S3..."):
         s3 = boto3.client(
             "s3",
-            endpoint_url="https://s3.eu-central-003.backblazeb2.com", 
-            aws_access_key_id=B2_KEY_ID,
-            aws_secret_access_key=B2_APP_KEY
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
         )
         s3.download_file(BUCKET_NAME, file_key, local_path)
 
     return local_path
+
 
 
 # -------------------
@@ -65,9 +65,11 @@ def file_hash(filepath: str) -> str:
 # Unzip NS curves
 # -------------------
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
-    """Unzip NS curves from B2 and return (folder, zip_hash)."""
-    # Download latest zip from B2
-    zip_path = download_from_b2(file_key="ns_curves_2209.zip", local_path=zip_path, force=force)
+    """Unzip NS curves from S3 and return (folder, zip_hash)."""
+    # Download latest zip from S3
+    zip_path = download_from_s3(file_key="ns_curves_2209.zip", local_path=zip_path, force=force)
+    
+    # Compute file hash
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
 
@@ -215,16 +217,18 @@ with tab2:
 
     @st.cache_data(ttl=300)
     def load_data(force: bool = False) -> pd.DataFrame:
-        """Load issuer_signals.csv from B2 with caching."""
+        """Load issuer_signals.csv from S3 with caching."""
         local_path = "issuer_signals.csv"
         file_key = "issuer_signals.csv"
     
         try:
-            local_path = download_from_b2(file_key=file_key, local_path=local_path, force=force)
+            # Download from S3 instead of B2
+            local_path = download_from_s3(file_key=file_key, local_path=local_path, force=force)
             df = pd.read_csv(local_path)
             return df
         except Exception as e:
-            st.error(f"Error loading data from B2: {e}")
+            st.error(f"Error loading data from S3: {e}")
+            # Fallback to local CSV if download fails
             if os.path.exists(local_path):
                 try:
                     df = pd.read_csv(local_path)
@@ -539,9 +543,10 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves", "New Bond Prediction")
     )
 
-    B2_BUCKET_FILE = "ns_curves_2209.zip"
+    S3_BUCKET_FILE = "ns_curves_2209.zip"
     try:
-        zip_path = download_from_b2(file_key=B2_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
+        # Download from S3 instead of B2
+        zip_path = download_from_s3(file_key=S3_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
         if not os.path.exists(zip_path):
             raise FileNotFoundError(f"Downloaded file not found: {zip_path}")
         zip_hash = file_hash(zip_path)
@@ -1439,5 +1444,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
+
 
 
