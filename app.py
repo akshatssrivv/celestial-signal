@@ -1404,7 +1404,7 @@ with tab4:
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
         if "chat_input_box" in st.session_state:
             del st.session_state["chat_input_box"]
-        st.experimental_rerun()
+        st.rerun()
 
     # --- Top 50 trades table ---
     st.subheader("Top 50 Trades Overview")
@@ -1429,6 +1429,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
