@@ -1352,7 +1352,6 @@ with tab3:
 
         st.plotly_chart(fig, use_container_width=True)
 
-st.write(top_trades_agent.columns.tolist())
 
 # -------------------------
 # Tab 4: Chat with Bond AI Trade Assistant
@@ -1363,9 +1362,9 @@ with tab4:
     # --- Prepare top 3 summary for GPT ---
     top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')[[
         'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
-        'LEG_1','LEG_2','Leg_Direction',
+        'LEG_1','LEG_2',  # <-- missing
         'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today',
-        'Ranking_Score','Actionable_Direction','Confidence'
+        'Ranking_Score','Actionable_Direction'  # <-- missing
     ]]
     top3_summary = top3_trades.to_dict(orient='records')
 
@@ -1445,6 +1444,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
