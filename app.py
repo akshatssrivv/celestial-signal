@@ -25,9 +25,9 @@ import altair as alt
 # -------------------
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")      # Your Access Key ID
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")  # Your Secret Access Key
-BUCKET_NAME = "my-ns-curves"    # The S3 bucket you created
+BUCKET_NAME = "celestial-signal"    # The S3 bucket you created
 LOCAL_ZIP = "ns_curves_20252209.zip"
-LOCAL_FOLDER = "ns_curves"
+LOCAL_FOLDER = "ns_curves_2209"
 
 
 # -------------------
@@ -1444,6 +1444,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
