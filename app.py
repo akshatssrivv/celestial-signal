@@ -811,8 +811,7 @@ with tab1:
                 historical_offsets.append(offset)
 
         st.write("historical_offsets:", historical_offsets)
-
-        mean_offset = np.mean(historical_offsets) if historical_offsets else 0
+        mean_offset = np.nanmean(historical_offsets) if len(historical_offsets) > 0 else 0
     
         # Interpolate/extrapolate new bond Z-spread
         f_new = interp1d(ns_smooth['YearsToMaturity'], ns_smooth['Z_SPRD_VAL'],
@@ -1451,6 +1450,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
