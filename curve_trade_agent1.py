@@ -73,7 +73,7 @@ def get_system_prompt(top_trades):
     trade_summaries = []
     for i, row in top_trades.head(50).iterrows():
         summary = f"""
-Trade {i+1} | Rank: {row['Ranking_Score']} | Actionable: {row['Actionable_Direction']}
+Trade {i+1} | Rank: {row['Ranking_Score']}
 Leg1 ({row['LEG_1']}):
   - A: {row['A_ISIN']}, {row['A_Name']}, Mat: {row['A_Maturity']}, Signal: {row['A_Signal']}
     DV01: {row['Target_DV01_A']}, Notional: {row['Notional_A']}, Z: {row['Z_A']}, YAS_RISK_1M: {row['A_YAS_RISK_1M']}
