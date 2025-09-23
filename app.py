@@ -1311,18 +1311,28 @@ with tab3:
                 key=f"bond2_{curve['id']}"
             )
 
-        # Compute curve as bond2 − bond1
+        # Compute curve using short − long logic for Z-spread
         if curve['bond1'] and curve['bond2']:
             df1 = ns_df[ns_df['ISIN'] == curve['bond1']][['Date', selected_metric_col]].rename(columns={selected_metric_col: 'B1'})
             df2 = ns_df[ns_df['ISIN'] == curve['bond2']][['Date', selected_metric_col]].rename(columns={selected_metric_col: 'B2'})
-            df_curve = df2.merge(df1, on='Date', how='outer').sort_values('Date')  # bond2 - bond1
-            df_curve['Curve'] = df_curve['B2'] - df_curve['B1']
+            df_curve = df1.merge(df2, on='Date', how='outer').sort_values('Date')
+        
+            # Determine which bond is short-term / long-term
+            b1_maturity = pd.to_datetime(ns_df.loc[ns_df['ISIN'] == curve['bond1'], 'Maturity'].iloc[0])
+            b2_maturity = pd.to_datetime(ns_df.loc[ns_df['ISIN'] == curve['bond2'], 'Maturity'].iloc[0])
+            
+            if b1_maturity <= b2_maturity:
+                df_curve['Curve'] = df_curve['B1'] - df_curve['B2']  # short − long
+            else:
+                df_curve['Curve'] = df_curve['B2'] - df_curve['B1']  # short − long
+        
             df_curve['Curve_Name'] = f"Curve {i+1}"
             df_curve['Bond1_ISIN'] = curve['bond1']
             df_curve['Bond2_ISIN'] = curve['bond2']
             curve_dfs.append(df_curve)
 
-    # --- Plot individual curves + combined curve ---
+
+    # --- Plot individual curves + differenced curve ---
     if len(curve_dfs) == 2:
         combined_curve_df = curve_dfs[1][['Date', 'Curve']].merge(
             curve_dfs[0][['Date', 'Curve']],
@@ -1330,6 +1340,7 @@ with tab3:
             suffixes=('_2', '_1')
         )
         combined_curve_df['Curve'] = combined_curve_df['Curve_2'] - combined_curve_df['Curve_1']
+
 
         fig = go.Figure()
 
@@ -1465,6 +1476,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
