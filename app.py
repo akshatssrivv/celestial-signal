@@ -764,10 +764,8 @@ with tab1:
     
         # Smooth NS: mean Z-spread per YearsToMaturity
         ns_smooth = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].mean().reset_index()
-        st.write("ns_smooth:", ns_smooth.head())
 
         ns_std = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].std().reset_index()
-        st.write("ns_std:", ns_std.head())
 
     
         # Parse new bond maturity
@@ -1446,6 +1444,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
