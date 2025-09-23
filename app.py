@@ -1360,10 +1360,10 @@ with tab3:
 
         # Plot combined curve
         fig.add_trace(go.Scatter(
-            x=combined_curve_df['Date'],
-            y=combined_curve_df['Curve'],
+            x=differenced_curve_df['Date'],
+            y=differenced_curve_df['Curve'],
             mode='lines',
-            name="Combined Curve (Curve2 − Curve1)",
+            name="Differenced Curve (Curve2 − Curve1)",
             line=dict(color='black', width=3, dash='dot')
         ))
 
@@ -1476,6 +1476,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
