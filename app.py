@@ -764,7 +764,11 @@ with tab1:
     
         # Smooth NS: mean Z-spread per YearsToMaturity
         ns_smooth = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].mean().reset_index()
+        st.write("ns_smooth:", ns_smooth.head())
+
         ns_std = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].std().reset_index()
+        st.write("ns_std:", ns_std.head())
+
     
         # Parse new bond maturity
         try:
@@ -805,6 +809,9 @@ with tab1:
                 ns_val = f_interp(row['YearsToMaturity'])
                 offset = row['Z_SPRD_VAL'] - ns_val
                 historical_offsets.append(offset)
+
+        st.write("historical_offsets:", historical_offsets)
+
         mean_offset = np.mean(historical_offsets) if historical_offsets else 0
     
         # Interpolate/extrapolate new bond Z-spread
@@ -915,10 +922,8 @@ with tab1:
             delta=f"Range: {z_min:.1f} – {z_max:.1f} bps"
         )
 
-        st.write("ns_smooth:", ns_smooth.head())
         st.write("ns_std:", ns_std.head())
         st.write("new_years_to_maturity:", new_years_to_maturity)
-        st.write("historical_offsets:", historical_offsets)
         st.write("predicted_z (pre-NaN check):", predicted_z)
         
 
@@ -1446,6 +1451,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
