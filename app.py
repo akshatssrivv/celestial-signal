@@ -1368,12 +1368,12 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
 # -------------------------
-# Tab 4: Chat with Bond AI Trade Assistant
+# Tab 4: Chat with Bond AI Trade Assistant (ChatGPT-style UI)
 # -------------------------
 with tab4:
     st.markdown("## Ask anything about top trades")
 
-    # --- Prepare top 3 summary for GPT ---
+    # --- Prepare top 3 summary for GPT (unchanged) ---
     cols_top3 = [
         'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
         'LEG_1','LEG_2',
@@ -1390,14 +1390,34 @@ with tab4:
         system_prompt += f"\n\nTop 3 trades summary:\n{top3_summary}"
         st.session_state.chat_history = [{"role": "system", "content": system_prompt}]
 
-    # --- Chat container ---
-    chat_container = st.container()
-    with chat_container:
-        for msg in st.session_state.chat_history[1:]:  # skip system prompt
-            if msg["role"] == "user":
-                st.markdown(f"**You:** {msg['content']}")
-            else:
-                st.markdown(f"**AI:** {msg['content']}")
+    # --- Chat container (scrollable, bubble-style) ---
+    st.subheader("Bond AI Chat")
+    chat_html = '<div style="height:400px; overflow-y:auto; padding:10px; border:1px solid #ccc; border-radius:10px;">'
+    for msg in st.session_state.chat_history[1:]:  # skip system prompt
+        if msg["role"] == "user":
+            chat_html += f"""
+            <div style="
+                background-color:#DCF8C6; 
+                padding:10px; 
+                border-radius:10px; 
+                margin:5px 0px;
+                text-align:right;">
+                <b>You:</b> {msg['content']}
+            </div>
+            """
+        else:
+            chat_html += f"""
+            <div style="
+                background-color:#F1F0F0; 
+                padding:10px; 
+                border-radius:10px; 
+                margin:5px 0px;
+                text-align:left;">
+                <b>Bond AI:</b> {msg['content']}
+            </div>
+            """
+    chat_html += "</div>"
+    st.markdown(chat_html, unsafe_allow_html=True)
 
     # --- Chat input row ---
     col1, col2 = st.columns([4, 1])
@@ -1411,17 +1431,18 @@ with tab4:
     with col2:
         send_clicked = st.button("Send")
 
-    # --- Process input ---
+    # --- Process input (unchanged AI logic) ---
     current_input = user_input.strip()
     if send_clicked and current_input:
         st.session_state.chat_history.append({"role": "user", "content": current_input})
-        answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
+        answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)  # your existing agent
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
+        # clear input box
         if "chat_input_box" in st.session_state:
             del st.session_state["chat_input_box"]
-        st.rerun()
+        st.experimental_rerun()
 
-    # --- Top 50 trades table ---
+    # --- Top 50 trades table (unchanged) ---
     st.subheader("Top 50 Trades Overview")
     cols_top50 = [
         'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
@@ -1432,7 +1453,7 @@ with tab4:
     existing_cols_top50 = [c for c in cols_top50 if c in top_trades_agent.columns]
     st.dataframe(top_trades_agent.head(50)[existing_cols_top50])
 
-    # --- 30-day Z-diff heatmap ---
+    # --- 30-day Z-diff heatmap (unchanged) ---
     try:
         import altair as alt
         st.subheader("Trade Z-Diff 30D Heatmap")
@@ -1444,20 +1465,5 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
