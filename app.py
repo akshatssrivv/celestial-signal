@@ -810,7 +810,6 @@ with tab1:
                 offset = row['Z_SPRD_VAL'] - ns_val
                 historical_offsets.append(offset)
 
-        st.write("historical_offsets:", historical_offsets)
         mean_offset = np.nanmean(historical_offsets) if len(historical_offsets) > 0 else 0
     
         # Interpolate/extrapolate new bond Z-spread
@@ -921,9 +920,6 @@ with tab1:
             delta=f"Range: {z_min:.1f} – {z_max:.1f} bps"
         )
 
-        st.write("ns_std:", ns_std.head())
-        st.write("new_years_to_maturity:", new_years_to_maturity)
-        st.write("predicted_z (pre-NaN check):", predicted_z)
         
 
         
@@ -1450,6 +1446,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
