@@ -1334,12 +1334,12 @@ with tab3:
 
     # --- Plot individual curves + differenced curve ---
     if len(curve_dfs) == 2:
-        combined_curve_df = curve_dfs[1][['Date', 'Curve']].merge(
+        differenced_curve_df = curve_dfs[1][['Date', 'Curve']].merge(
             curve_dfs[0][['Date', 'Curve']],
             on='Date',
             suffixes=('_2', '_1')
         )
-        combined_curve_df['Curve'] = combined_curve_df['Curve_2'] - combined_curve_df['Curve_1']
+        differenced_curve_df['Curve'] = differenced_curve_df['Curve_2'] - differenced_curve_df['Curve_1']
 
 
         fig = go.Figure()
@@ -1476,6 +1476,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
