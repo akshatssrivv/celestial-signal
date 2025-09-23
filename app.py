@@ -897,14 +897,24 @@ with tab1:
             except Exception as e:
                 st.error(f"Error plotting NS curve: {e}")
     
-        # New bond vertical line
+        # Add predicted Z-spread point
         fig.add_trace(go.Scatter(
-            x=[new_years_to_maturity, new_years_to_maturity],
-            y=[0, z_min],
-            mode='lines',
-            line=dict(color='purple', dash='dot', width=1),
-            name=f"New Bond {new_bond_input}"
+            x=[new_years_to_maturity],
+            y=[predicted_z],
+            mode='markers+text',
+            marker=dict(size=12, color='purple', symbol='star'),
+            text=[f"Predicted Z: {predicted_z:.1f}bps"],
+            textposition="top center",
+            name="Predicted Z-Spread"
         ))
+        
+        # Also print it clearly in Streamlit
+        st.metric(
+            label=f"Predicted Z-Spread for {new_bond_input}",
+            value=f"{predicted_z:.1f} bps",
+            delta=f"Range: {z_min:.1f} – {z_max:.1f} bps"
+        )
+
         
         # Shaded prediction band from z_min to z_max
         fig.add_trace(go.Scatter(
@@ -1429,6 +1439,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
