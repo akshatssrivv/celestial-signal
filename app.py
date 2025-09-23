@@ -915,6 +915,13 @@ with tab1:
             delta=f"Range: {z_min:.1f} – {z_max:.1f} bps"
         )
 
+        st.write("ns_smooth:", ns_smooth.head())
+        st.write("ns_std:", ns_std.head())
+        st.write("new_years_to_maturity:", new_years_to_maturity)
+        st.write("historical_offsets:", historical_offsets)
+        st.write("predicted_z (pre-NaN check):", predicted_z)
+        
+
         
         # Shaded prediction band from z_min to z_max
         fig.add_trace(go.Scatter(
@@ -1439,6 +1446,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
