@@ -73,7 +73,7 @@ def get_system_prompt(top_trades):
     trade_summaries = []
     for i, row in top_trades.head(50).iterrows():
         summary = f"""
-Trade {i+1} | Rank: {row['Ranking_Score']} | Confidence: {row['Confidence']} | Actionable: {row['Actionable_Direction']}
+Trade {i+1} | Rank: {row['Ranking_Score']} | Actionable: {row['Actionable_Direction']}
 Leg1 ({row['LEG_1']}):
   - A: {row['A_ISIN']}, {row['A_Name']}, Mat: {row['A_Maturity']}, Signal: {row['A_Signal']}
     DV01: {row['Target_DV01_A']}, Notional: {row['Notional_A']}, Z: {row['Z_A']}, YAS_RISK_1M: {row['A_YAS_RISK_1M']}
@@ -86,7 +86,6 @@ Leg2 ({row['LEG_2']}):
   - D: {row['D_ISIN']}, {row['D_Name']}, Mat: {row['D_Maturity']}, Signal: {row['D_Signal']}
     DV01: {row['Target_DV01_D']}, Notional: {row['Notional_D']}, Z: {row['Z_D']}, YAS_RISK_1M: {row['D_YAS_RISK_1M']}
 
-Leg_Direction: {row['Leg_Direction']}
 Diagnostics:
   Trade_ZDiff_30D_Pct: {row['Trade_ZDiff_30D_Pct']}
   Diff_of_Diffs_Today: {row['Diff_of_Diffs_Today']}
@@ -103,7 +102,6 @@ You are a bond trading assistant. When explaining trades:
 - Divide into Leg1 and Leg2, and give Analyst Notes for each bond.
 - Explain curve logic: Steepener / Flattener / Complex.
 - Summarize with 2–3 actionable bullets.
-- Include confidence (High/Medium/Low).
 - Never hallucinate numbers. Only use provided fields.
 
 Top trades:
