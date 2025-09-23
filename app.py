@@ -764,7 +764,9 @@ with tab1:
     
         # Smooth NS: mean Z-spread per YearsToMaturity
         ns_smooth = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].mean().reset_index()
+
         ns_std = ns_full.groupby('YearsToMaturity')['Z_SPRD_VAL'].std().reset_index()
+
     
         # Parse new bond maturity
         try:
@@ -805,7 +807,8 @@ with tab1:
                 ns_val = f_interp(row['YearsToMaturity'])
                 offset = row['Z_SPRD_VAL'] - ns_val
                 historical_offsets.append(offset)
-        mean_offset = np.mean(historical_offsets) if historical_offsets else 0
+
+        mean_offset = np.nanmean(historical_offsets) if len(historical_offsets) > 0 else 0
     
         # Interpolate/extrapolate new bond Z-spread
         f_new = interp1d(ns_smooth['YearsToMaturity'], ns_smooth['Z_SPRD_VAL'],
@@ -897,14 +900,26 @@ with tab1:
             except Exception as e:
                 st.error(f"Error plotting NS curve: {e}")
     
-        # New bond vertical line
+        # Add predicted Z-spread point
         fig.add_trace(go.Scatter(
-            x=[new_years_to_maturity, new_years_to_maturity],
-            y=[0, z_min],
-            mode='lines',
-            line=dict(color='purple', dash='dot', width=1),
-            name=f"New Bond {new_bond_input}"
+            x=[new_years_to_maturity],
+            y=[predicted_z],
+            mode='markers+text',
+            marker=dict(size=12, color='purple', symbol='star'),
+            text=[f"Predicted Z: {predicted_z:.1f}bps"],
+            textposition="top center",
+            name="Predicted Z-Spread"
         ))
+        
+        # Also print it clearly in Streamlit
+        st.metric(
+            label=f"Predicted Z-Spread for {new_bond_input}",
+            value=f"{predicted_z:.1f} bps",
+            delta=f"Range: {z_min:.1f} – {z_max:.1f} bps"
+        )
+
+        
+
         
         # Shaded prediction band from z_min to z_max
         fig.add_trace(go.Scatter(
@@ -1352,7 +1367,6 @@ with tab3:
 
         st.plotly_chart(fig, use_container_width=True)
 
-
 # -------------------------
 # Tab 4: Chat with Bond AI Trade Assistant
 # -------------------------
@@ -1360,12 +1374,14 @@ with tab4:
     st.markdown("## Ask anything about top trades")
 
     # --- Prepare top 3 summary for GPT ---
-    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')[[
+    cols_top3 = [
         'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
-        'LEG_1','LEG_2','Leg_Direction',
+        'LEG_1','LEG_2',
         'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today',
-        'Ranking_Score','Actionable_Direction','Confidence'
-    ]]
+        'Ranking_Score','Actionable_Direction'
+    ]
+    existing_cols_top3 = [c for c in cols_top3 if c in top_trades_agent.columns]
+    top3_trades = top_trades_agent.nlargest(3, 'Ranking_Score')[existing_cols_top3]
     top3_summary = top3_trades.to_dict(orient='records')
 
     # --- Initialize chat history ---
@@ -1381,14 +1397,7 @@ with tab4:
             if msg["role"] == "user":
                 st.markdown(f"**You:** {msg['content']}")
             else:
-                # Highlight confidence levels for readability
-                content = msg['content']
-                content = (
-                    content.replace("High", ":green[High]")
-                           .replace("Medium", ":orange[Medium]")
-                           .replace("Low", ":red[Low]")
-                )
-                st.markdown(f"**AI:** {content}")
+                st.markdown(f"**AI:** {msg['content']}")
 
     # --- Chat input row ---
     col1, col2 = st.columns([4, 1])
@@ -1410,27 +1419,18 @@ with tab4:
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
         if "chat_input_box" in st.session_state:
             del st.session_state["chat_input_box"]
-        st.experimental_rerun()
+        st.rerun()
 
     # --- Top 50 trades table ---
     st.subheader("Top 50 Trades Overview")
-    def color_confidence(val):
-        if val == 'High':
-            color = 'green'
-        elif val == 'Medium':
-            color = 'orange'
-        else:
-            color = 'red'
-        return f'background-color: {color}; color: white'
-
-    st.dataframe(
-        top_trades_agent.head(50)[[
-            'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
-            'LEG_1','LEG_2','Leg_Direction',
-            'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today',
-            'Ranking_Score','Actionable_Direction','Confidence'
-        ]].style.applymap(color_confidence, subset=['Confidence'])
-    )
+    cols_top50 = [
+        'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
+        'LEG_1','LEG_2',
+        'Trade_ZDiff_30D_Pct','Diff_of_Diffs_Today',
+        'Ranking_Score','Actionable_Direction'
+    ]
+    existing_cols_top50 = [c for c in cols_top50 if c in top_trades_agent.columns]
+    st.dataframe(top_trades_agent.head(50)[existing_cols_top50])
 
     # --- 30-day Z-diff heatmap ---
     try:
@@ -1444,6 +1444,18 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
