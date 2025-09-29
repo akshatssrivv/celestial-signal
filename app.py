@@ -26,8 +26,8 @@ import altair as alt
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")      # Your Access Key ID
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")  # Your Secret Access Key
 BUCKET_NAME = "celestial-signal"    # The S3 bucket you created
-LOCAL_ZIP = "ns_curves_20252309.zip"
-LOCAL_FOLDER = "ns_curves_2309"
+LOCAL_ZIP = "ns_curves_20252909.zip"
+LOCAL_FOLDER = "ns_curves_2909"
 
 
 # -------------------
@@ -67,7 +67,7 @@ def file_hash(filepath: str) -> str:
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
     """Unzip NS curves from S3 and return (folder, zip_hash)."""
     # Download latest zip from S3
-    zip_path = download_from_s3(file_key="ns_curves_2309.zip", local_path=zip_path, force=force)
+    zip_path = download_from_s3(file_key="ns_curves_2909.zip", local_path=zip_path, force=force)
     
     # Compute file hash
     zip_hash = file_hash(zip_path)
@@ -543,7 +543,7 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves", "New Bond Prediction")
     )
 
-    S3_BUCKET_FILE = "ns_curves_2309.zip"
+    S3_BUCKET_FILE = "ns_curves_2909.zip"
     try:
         # Download from S3 instead of B2
         zip_path = download_from_s3(file_key=S3_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
@@ -1311,25 +1311,36 @@ with tab3:
                 key=f"bond2_{curve['id']}"
             )
 
-        # Compute curve as bond2 − bond1
+        # Compute curve using short − long logic for Z-spread
         if curve['bond1'] and curve['bond2']:
             df1 = ns_df[ns_df['ISIN'] == curve['bond1']][['Date', selected_metric_col]].rename(columns={selected_metric_col: 'B1'})
             df2 = ns_df[ns_df['ISIN'] == curve['bond2']][['Date', selected_metric_col]].rename(columns={selected_metric_col: 'B2'})
-            df_curve = df2.merge(df1, on='Date', how='outer').sort_values('Date')  # bond2 - bond1
-            df_curve['Curve'] = df_curve['B2'] - df_curve['B1']
+            df_curve = df1.merge(df2, on='Date', how='outer').sort_values('Date')
+        
+            # Determine which bond is short-term / long-term
+            b1_maturity = pd.to_datetime(ns_df.loc[ns_df['ISIN'] == curve['bond1'], 'Maturity'].iloc[0])
+            b2_maturity = pd.to_datetime(ns_df.loc[ns_df['ISIN'] == curve['bond2'], 'Maturity'].iloc[0])
+            
+            if b1_maturity <= b2_maturity:
+                df_curve['Curve'] = df_curve['B1'] - df_curve['B2']  # short − long
+            else:
+                df_curve['Curve'] = df_curve['B2'] - df_curve['B1']  # short − long
+        
             df_curve['Curve_Name'] = f"Curve {i+1}"
             df_curve['Bond1_ISIN'] = curve['bond1']
             df_curve['Bond2_ISIN'] = curve['bond2']
             curve_dfs.append(df_curve)
 
-    # --- Plot individual curves + combined curve ---
+
+    # --- Plot individual curves + differenced curve ---
     if len(curve_dfs) == 2:
-        combined_curve_df = curve_dfs[1][['Date', 'Curve']].merge(
+        differenced_curve_df = curve_dfs[1][['Date', 'Curve']].merge(
             curve_dfs[0][['Date', 'Curve']],
             on='Date',
             suffixes=('_2', '_1')
         )
-        combined_curve_df['Curve'] = combined_curve_df['Curve_2'] - combined_curve_df['Curve_1']
+        differenced_curve_df['Curve'] = differenced_curve_df['Curve_2'] - differenced_curve_df['Curve_1']
+
 
         fig = go.Figure()
 
@@ -1349,10 +1360,10 @@ with tab3:
 
         # Plot combined curve
         fig.add_trace(go.Scatter(
-            x=combined_curve_df['Date'],
-            y=combined_curve_df['Curve'],
+            x=differenced_curve_df['Date'],
+            y=differenced_curve_df['Curve'],
             mode='lines',
-            name="Combined Curve (Curve2 − Curve1)",
+            name="Differenced Curve (Curve2 − Curve1)",
             line=dict(color='black', width=3, dash='dot')
         ))
 
@@ -1368,12 +1379,12 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
 # -------------------------
-# Tab 4: Chat with Bond AI Trade Assistant
+# Tab 4: Chat with Bond AI Trade Assistant (ChatGPT-style UI)
 # -------------------------
 with tab4:
     st.markdown("## Ask anything about top trades")
 
-    # --- Prepare top 3 summary for GPT ---
+    # --- Prepare top 3 summary for GPT (unchanged) ---
     cols_top3 = [
         'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
         'LEG_1','LEG_2',
@@ -1390,14 +1401,34 @@ with tab4:
         system_prompt += f"\n\nTop 3 trades summary:\n{top3_summary}"
         st.session_state.chat_history = [{"role": "system", "content": system_prompt}]
 
-    # --- Chat container ---
-    chat_container = st.container()
-    with chat_container:
-        for msg in st.session_state.chat_history[1:]:  # skip system prompt
-            if msg["role"] == "user":
-                st.markdown(f"**You:** {msg['content']}")
-            else:
-                st.markdown(f"**AI:** {msg['content']}")
+    # --- Chat container (scrollable, bubble-style) ---
+    st.subheader("Bond AI Chat")
+    chat_html = '<div style="height:400px; overflow-y:auto; padding:10px; border:1px solid #ccc; border-radius:10px;">'
+    for msg in st.session_state.chat_history[1:]:  # skip system prompt
+        if msg["role"] == "user":
+            chat_html += f"""
+            <div style="
+                background-color:#DCF8C6; 
+                padding:10px; 
+                border-radius:10px; 
+                margin:5px 0px;
+                text-align:right;">
+                <b>You:</b> {msg['content']}
+            </div>
+            """
+        else:
+            chat_html += f"""
+            <div style="
+                background-color:#F1F0F0; 
+                padding:10px; 
+                border-radius:10px; 
+                margin:5px 0px;
+                text-align:left;">
+                <b>Bond AI:</b> {msg['content']}
+            </div>
+            """
+    chat_html += "</div>"
+    st.markdown(chat_html, unsafe_allow_html=True)
 
     # --- Chat input row ---
     col1, col2 = st.columns([4, 1])
@@ -1411,17 +1442,18 @@ with tab4:
     with col2:
         send_clicked = st.button("Send")
 
-    # --- Process input ---
+    # --- Process input (unchanged AI logic) ---
     current_input = user_input.strip()
     if send_clicked and current_input:
         st.session_state.chat_history.append({"role": "user", "content": current_input})
-        answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)
+        answer, *_ = chat_with_trades(current_input, st.session_state.chat_history)  # your existing agent
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
+        # clear input box
         if "chat_input_box" in st.session_state:
             del st.session_state["chat_input_box"]
         st.rerun()
 
-    # --- Top 50 trades table ---
+    # --- Top 50 trades table (unchanged) ---
     st.subheader("Top 50 Trades Overview")
     cols_top50 = [
         'A_ISIN','B_ISIN','C_ISIN','D_ISIN',
@@ -1432,7 +1464,7 @@ with tab4:
     existing_cols_top50 = [c for c in cols_top50 if c in top_trades_agent.columns]
     st.dataframe(top_trades_agent.head(50)[existing_cols_top50])
 
-    # --- 30-day Z-diff heatmap ---
+    # --- 30-day Z-diff heatmap (unchanged) ---
     try:
         import altair as alt
         st.subheader("Trade Z-Diff 30D Heatmap")
@@ -1444,15 +1476,6 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
-
-
-
-
-
-
-
-
-
 
 
 
