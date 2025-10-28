@@ -586,8 +586,10 @@ with tab1:
         date_str = date_input.strftime("%Y-%m-%d")
         
         ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
+        st.write("🔎 ns_df columns:", ns_df.columns.tolist())
+        st.write("🔎 has ISIN?", "ISIN" in ns_df.columns)
+        st.write("🔎 ns_df['ISIN'] sample:", ns_df["ISIN"].head(5).tolist() if "ISIN" in ns_df.columns else "MISSING")
 
-        ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
 
         if ns_df is not None and not ns_df.empty:
             # --- Normalize column names for consistency ---
@@ -1477,6 +1479,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
