@@ -134,11 +134,6 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     # Sort chronologically
     ns_df.sort_values("Date", inplace=True)
 
-    # 🧩 Debug output (can remove later)
-    st.write("🧩 DEBUG inside load_full_ns_df:")
-    st.write("columns:", ns_df.columns.tolist())
-    st.write("sample ISINs:", ns_df["ISIN"].head().tolist() if "ISIN" in ns_df.columns else "MISSING")
-
     return ns_df
 
 
@@ -671,18 +666,39 @@ with tab1:
                     ))
         
             # Nelson-Siegel fit
-            if 'NS_PARAMS' in ns_df.columns:
+            if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
-                    ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
-                    if isinstance(ns_params_raw, str):
-                        import ast
-                        ns_params = ast.literal_eval(ns_params_raw)
-                    else:
-                        ns_params = ns_params_raw
-        
+                    ns_params = None
+            
+                    # 🩹 Handle NS_PARAMS column if it exists
+                    if 'NS_PARAMS' in ns_df.columns:
+                        ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
+            
+                        if isinstance(ns_params_raw, str):
+                            import ast
+                            parsed = ast.literal_eval(ns_params_raw)
+                            if isinstance(parsed, (list, tuple, np.ndarray)):
+                                ns_params = parsed
+                        elif isinstance(ns_params_raw, (list, tuple, np.ndarray)):
+                            ns_params = ns_params_raw
+            
+                    # 🩹 Fallback: read individual NS_PARAM_* columns if tuple not parsed
+                    if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
+                        ns_params = [
+                            ns_df["NS_PARAM_1"].iloc[0],
+                            ns_df["NS_PARAM_2"].iloc[0],
+                            ns_df["NS_PARAM_3"].iloc[0],
+                            ns_df["NS_PARAM_4"].iloc[0],
+                        ]
+            
+                    # 🧩 sanity check
+                    if not isinstance(ns_params, (list, tuple, np.ndarray)):
+                        raise ValueError(f"Invalid NS parameters: {ns_params}")
+            
+                    # --- Compute NS curve
                     maturity_range = np.linspace(ns_df['YTM'].min(), ns_df['YTM'].max(), 100)
                     ns_curve = nelson_siegel(maturity_range, *ns_params)
-        
+            
                     fig.add_trace(go.Scatter(
                         x=maturity_range,
                         y=ns_curve,
@@ -690,8 +706,10 @@ with tab1:
                         name='Nelson-Siegel Fit',
                         line=dict(color='deepskyblue', width=3)
                     ))
+            
                 except Exception as e:
                     st.error(f"Error plotting Nelson-Siegel curve: {e}")
+
         
             fig.update_layout(
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
@@ -1491,6 +1509,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
