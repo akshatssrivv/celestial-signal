@@ -124,6 +124,14 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
         return ns_df
 
     st.warning(f"No parquet files found for country code '{country_code}' in folder '{folder}'.")
+
+    if dfs:
+        ns_df = pd.concat(dfs, ignore_index=True)
+
+        st.write("🧩 DEBUG inside load_full_ns_df:")
+        st.write("columns:", ns_df.columns.tolist())
+        st.write("sample ISINs:", ns_df["ISIN"].head().tolist() if "ISIN" in ns_df.columns else "MISSING")
+
     return pd.DataFrame()
 
 # -------------------
@@ -1479,6 +1487,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
