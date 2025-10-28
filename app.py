@@ -49,7 +49,6 @@ def download_from_s3(file_key: str, local_path: str, force: bool = False):
     return local_path
 
 
-
 # -------------------
 # Compute MD5 hash
 # -------------------
@@ -60,6 +59,7 @@ def file_hash(filepath: str) -> str:
         for chunk in iter(lambda: f.read(8192), b""):
             hasher.update(chunk)
     return hasher.hexdigest()
+
 
 # -------------------
 # Unzip NS curves
@@ -83,6 +83,7 @@ def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force
 
     return folder, zip_hash
 
+
 # -------------------
 # Load full NS DF
 # -------------------
@@ -100,56 +101,59 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     for f in all_files:
         try:
             df = pd.read_parquet(os.path.join(folder, f))
+
+            # 🩹 Ensure ISIN and Date survive correctly
+            if "ISIN" in df.columns:
+                df["ISIN"] = df["ISIN"].astype(str).str.strip()
+            if "Date" in df.columns:
+                df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+
+            # 🩹 Ensure Country info exists
+            if "Country" not in df.columns:
+                df["Country"] = country_code
+
             dfs.append(df)
+
         except Exception as e:
             st.warning(f"Error loading file {f}: {e}")
             continue
 
-    if dfs:
-        ns_df = pd.concat(dfs, ignore_index=True)
+    if not dfs:
+        st.warning(f"No parquet files found for country code '{country_code}' in folder '{folder}'.")
+        return pd.DataFrame()
 
-        # Ensure residuals column exists
-        if 'RESIDUAL' in ns_df.columns:
-            ns_df.rename(columns={'RESIDUAL': 'RESIDUAL_NS'}, inplace=True)
-        if 'RESIDUAL_NS' not in ns_df.columns:
-            ns_df['RESIDUAL_NS'] = pd.NA
+    # ✅ Concatenate everything
+    ns_df = pd.concat(dfs, ignore_index=True)
 
-        if "Date" in ns_df.columns:
-            ns_df["Date"] = pd.to_datetime(ns_df["Date"])
-            ns_df.sort_values("Date", inplace=True)
+    # Normalize residual column naming
+    if "RESIDUAL" in ns_df.columns and "RESIDUAL_NS" not in ns_df.columns:
+        ns_df.rename(columns={"RESIDUAL": "RESIDUAL_NS"}, inplace=True)
+    if "RESIDUAL_NS" not in ns_df.columns:
+        ns_df["RESIDUAL_NS"] = pd.NA
 
-        if "Country" in ns_df.columns:
-            print("Unique country codes in NS DF:", ns_df['Country'].unique())
+    # Sort chronologically
+    ns_df.sort_values("Date", inplace=True)
 
-        return ns_df
+    # 🧩 Debug output (can remove later)
+    st.write("🧩 DEBUG inside load_full_ns_df:")
+    st.write("columns:", ns_df.columns.tolist())
+    st.write("sample ISINs:", ns_df["ISIN"].head().tolist() if "ISIN" in ns_df.columns else "MISSING")
 
-    st.warning(f"No parquet files found for country code '{country_code}' in folder '{folder}'.")
+    return ns_df
 
-    if dfs:
-        ns_df = pd.concat(dfs, ignore_index=True)
-
-        st.write("🧩 DEBUG inside load_full_ns_df:")
-        st.write("columns:", ns_df.columns.tolist())
-        st.write("sample ISINs:", ns_df["ISIN"].head().tolist() if "ISIN" in ns_df.columns else "MISSING")
-
-    return pd.DataFrame()
 
 # -------------------
 # Load NS curve for a specific date
 # -------------------
 def load_ns_curve(country_code: str, date_str: str, zip_hash: str) -> pd.DataFrame | None:
-    """
-    Load NS curve for a single day from the full dataset.
-    Passing zip_hash ensures cache invalidation when ns_curves.zip changes.
-    """
+    """Load NS curve for a single day from the full dataset."""
     df = load_full_ns_df(country_code, zip_hash=zip_hash)
-
     if df is not None and not df.empty:
-        df = df[df["Date"] == pd.to_datetime(date_str)]
+        df = df[df["Date"].dt.date == pd.to_datetime(date_str).date()]
         if not df.empty:
             return df
-
     return None
+
 
 
 # Make page use full width
@@ -1487,6 +1491,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
