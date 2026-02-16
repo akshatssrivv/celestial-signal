@@ -92,38 +92,41 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     """Load all NS curves for a country. Cache invalidates if ZIP changes."""
     folder, _ = unzip_ns_curves(force=True)
 
-    all_files = sorted([
-        f for f in os.listdir(folder)
-        if f.startswith(country_code) and f.endswith(".parquet")
-    ])
+    all_files = [
+        f"{country_code}.parquet"
+    ]
 
-    dfs = []
-    for f in all_files:
-        try:
-            df = pd.read_parquet(os.path.join(folder, f))
 
-            # 🩹 Ensure ISIN and Date survive correctly
-            if "ISIN" in df.columns:
-                df["ISIN"] = df["ISIN"].astype(str).str.strip()
-            if "Date" in df.columns:
-                df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    file_path = os.path.join(folder, f"{country_code}.parquet")
 
-            # 🩹 Ensure Country info exists
-            if "Country" not in df.columns:
-                df["Country"] = country_code
-
-            dfs.append(df)
-
-        except Exception as e:
-            st.warning(f"Error loading file {f}: {e}")
-            continue
-
-    if not dfs:
-        st.warning(f"No parquet files found for country code '{country_code}' in folder '{folder}'.")
+    # Check file exists
+    if not os.path.exists(file_path):
+        st.warning(
+            f"No parquet file found for country code '{country_code}' in folder '{folder}'."
+        )
+        return pd.DataFrame()
+    
+    try:
+        ns_df = pd.read_parquet(file_path)
+    
+        # 🩹 Ensure ISIN and Date survive correctly
+        if "ISIN" in ns_df.columns:
+            ns_df["ISIN"] = ns_df["ISIN"].astype(str).str.strip()
+    
+        if "Date" in ns_df.columns:
+            ns_df["Date"] = pd.to_datetime(ns_df["Date"], errors="coerce")
+    
+        # 🩹 Ensure Country info exists
+        if "Country" not in ns_df.columns:
+            ns_df["Country"] = country_code
+    
+    except Exception as e:
+        st.warning(f"Error loading parquet file {file_path}: {e}")
         return pd.DataFrame()
 
+
     # ✅ Concatenate everything
-    ns_df = pd.concat(dfs, ignore_index=True)
+    ns_df = pd.read_parquet(file_path)
 
     # Normalize residual column naming
     if "RESIDUAL" in ns_df.columns and "RESIDUAL_NS" not in ns_df.columns:
@@ -1506,6 +1509,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
