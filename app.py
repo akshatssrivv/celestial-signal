@@ -26,8 +26,8 @@ import altair as alt
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")      # Your Access Key ID
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")  # Your Secret Access Key
 BUCKET_NAME = "celestial-signal"    # The S3 bucket you created
-LOCAL_ZIP = "ns_curves_20252810.zip"
-LOCAL_FOLDER = "ns_curves_2810"
+LOCAL_ZIP = "ns_curves_20250611.zip"
+LOCAL_FOLDER = "ns_curves_06_11"
 
 
 # -------------------
@@ -67,7 +67,7 @@ def file_hash(filepath: str) -> str:
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
     """Unzip NS curves from S3 and return (folder, zip_hash)."""
     # Download latest zip from S3
-    zip_path = download_from_s3(file_key="ns_curves_2810.zip", local_path=zip_path, force=force)
+    zip_path = download_from_s3(file_key="ns_curves_06_11.zip", local_path=zip_path, force=force)
     
     # Compute file hash
     zip_hash = file_hash(zip_path)
@@ -550,7 +550,7 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves", "New Bond Prediction")
     )
 
-    S3_BUCKET_FILE = "ns_curves_2810.zip"
+    S3_BUCKET_FILE = "ns_curves_06_11.zip"
     
     try:
         # Download from S3 instead of B2
@@ -1506,6 +1506,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
