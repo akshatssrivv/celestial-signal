@@ -193,9 +193,6 @@ top_trades_agent = load_trades()
 tab1, tab2, tab3, tab4 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis", "AI Assisstant"])
 
 
-st.write(ns_df.columns)
-st.write(type(ns_df['NS_PARAMS'].iloc[0]))
-st.write(ns_df['NS_PARAMS'].iloc[0])
 with tab2:
             
     st.markdown("""
@@ -588,7 +585,8 @@ with tab1:
             'Netherlands 🇳🇱': 'NETHER',
             'Belgium 🇧🇪': 'BGB'
         }
-        
+
+
         selected_country = country_code_map[country_option]
         
         final_signal_df = pd.read_csv("today_all_signals.csv")
@@ -602,6 +600,10 @@ with tab1:
         
 
         if ns_df is not None and not ns_df.empty:
+
+            st.write(ns_df.columns)
+            st.write(type(ns_df['NS_PARAMS'].iloc[0]))
+            st.write(ns_df['NS_PARAMS'].iloc[0])
             # --- Normalize column names for consistency ---
             col_map = {c.lower(): c for c in ns_df.columns}
             if "z_sprd_val" in col_map:
@@ -1525,6 +1527,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
