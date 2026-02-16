@@ -604,6 +604,7 @@ with tab1:
             st.write(ns_df.columns)
             st.write(type(ns_df['NS_PARAMS'].iloc[0]))
             st.write(ns_df['NS_PARAMS'].iloc[0])
+
             # --- Normalize column names for consistency ---
             col_map = {c.lower(): c for c in ns_df.columns}
             if "z_sprd_val" in col_map:
@@ -674,44 +675,49 @@ with tab1:
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
                     ns_params = None
-            
-                    # 🩹 Handle NS_PARAMS column if it exists
-                    if 'NS_PARAMS' in ns_df.columns:
+
+                    if "NS_PARAMS" in ns_df.columns:
                     
-                        ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
+                        raw = ns_df["NS_PARAMS"].iloc[0]
                     
-                        try:
+                        if isinstance(raw, str):
                     
-                            # Case 1 — already iterable (list / array / tuple)
-                            if isinstance(ns_params_raw, (list, tuple, np.ndarray)):
-                                ns_params = list(ns_params_raw)
+                            import re
+                            import ast
                     
-                            # Case 2 — stringified list
-                            elif isinstance(ns_params_raw, str):
-                                import ast
-                                parsed = ast.literal_eval(ns_params_raw)
-                                if isinstance(parsed, (list, tuple, np.ndarray)):
+                            # 🔧 Remove numpy wrappers
+                            cleaned = re.sub(r"np\.float64\((.*?)\)", r"\1", raw)
+                    
+                            try:
+                                parsed = ast.literal_eval(cleaned)
+                    
+                                if isinstance(parsed, (list, tuple)):
                                     ns_params = list(parsed)
                     
-                            # Case 3 — pyarrow scalar / weird object
-                            else:
-                                ns_params = list(ns_params_raw)
+                            except Exception:
+                                ns_params = None
                     
-                        except Exception:
-                            ns_params = None
-
-                    # 🩹 Fallback: read individual NS_PARAM_* columns if tuple not parsed
-                    if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
+                        elif isinstance(raw, (list, tuple, np.ndarray)):
+                            ns_params = list(raw)
+                    
+                    
+                    # --- fallback to separate param columns ---
+                    param_cols = ["NS_PARAM_1","NS_PARAM_2","NS_PARAM_3","NS_PARAM_4"]
+                    
+                    if ns_params is None and all(c in ns_df.columns for c in param_cols):
+                    
                         ns_params = [
                             ns_df["NS_PARAM_1"].iloc[0],
                             ns_df["NS_PARAM_2"].iloc[0],
                             ns_df["NS_PARAM_3"].iloc[0],
                             ns_df["NS_PARAM_4"].iloc[0],
                         ]
-            
-                    # 🧩 sanity check
-                    if not isinstance(ns_params, (list, tuple, np.ndarray)):
+                    
+                    
+                    # --- sanity check ---
+                    if ns_params is None or len(ns_params) != 4:
                         raise ValueError(f"Invalid NS parameters: {ns_params}")
+
             
                     # --- Compute NS curve
                     maturity_range = np.linspace(ns_df['YTM'].min(), ns_df['YTM'].max(), 100)
@@ -1527,6 +1533,7 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
+
 
 
 
