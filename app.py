@@ -683,9 +683,15 @@ with tab1:
             
                     # Handle NS_PARAMS column
                     if 'NS_PARAMS' in ns_df.columns:
-                        ns_row = ns_df.dropna(subset=['NS_PARAMS']).iloc[0]
-                        ns_params_raw = ns_row['NS_PARAMS']
-            
+                        ns_row = ns_df[
+                            (ns_df['ISIN'] == selected_isin)  # if available
+                        ].dropna(subset=['NS_PARAMS'])
+                        
+                        if not ns_row.empty:
+                            ns_params_raw = ns_row.iloc[0]['NS_PARAMS']
+                        else:
+                            ns_params_raw = None
+                                    
                     # Fallback: individual columns
                     if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                         ns_params = [
