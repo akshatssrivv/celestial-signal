@@ -684,10 +684,6 @@ with tab1:
                     # Handle NS_PARAMS column
                     if 'NS_PARAMS' in ns_df.columns:
                         ns_params_raw = ns_df['NS_PARAMS'].dropna().iloc[0] if ns_df['NS_PARAMS'].notna().any() else None
-                        if not ns_row.empty:
-                            ns_params_raw = ns_row.iloc[0]['NS_PARAMS']
-                        else:
-                            ns_params_raw = None
                                     
                     # Fallback: individual columns
                     if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
