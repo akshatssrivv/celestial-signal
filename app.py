@@ -683,7 +683,8 @@ with tab1:
             
                     # Handle NS_PARAMS column
                     if 'NS_PARAMS' in ns_df.columns:
-                        ns_params = parse_ns_params(ns_df['NS_PARAMS'].iloc[0])
+                        ns_row = ns_df.dropna(subset=['NS_PARAMS']).iloc[0]
+                        ns_params_raw = ns_row['NS_PARAMS']
             
                     # Fallback: individual columns
                     if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
