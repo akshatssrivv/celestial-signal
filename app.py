@@ -683,10 +683,7 @@ with tab1:
             
                     # Handle NS_PARAMS column
                     if 'NS_PARAMS' in ns_df.columns:
-                        ns_row = ns_df[
-                            (ns_df['ISIN'] == selected_isin)  # if available
-                        ].dropna(subset=['NS_PARAMS'])
-                        
+                        ns_params_raw = ns_df['NS_PARAMS'].dropna().iloc[0] if ns_df['NS_PARAMS'].notna().any() else None
                         if not ns_row.empty:
                             ns_params_raw = ns_row.iloc[0]['NS_PARAMS']
                         else:
