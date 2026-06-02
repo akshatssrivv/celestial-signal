@@ -677,6 +677,7 @@ with tab1:
                     ))
         
             # Nelson-Siegel fit
+            st.write("NS_PARAMS sample:", ns_df['NS_PARAMS'].dropna().iloc[0] if ns_df['NS_PARAMS'].notna().any() else "ALL NULL")
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
                     ns_params = None
