@@ -694,24 +694,32 @@ with tab1:
                         ]
                     
                     # safety check
-                    if not isinstance(ns_params, (list, tuple, np.ndarray)):
-                        raise ValueError(f"Invalid NS params format: {ns_params}")
+                    if ns_params is None or not isinstance(ns_params, (list, tuple, np.ndarray)):
+                        st.warning("NS parameters missing for this date/bond — skipping curve fit")
+                        ns_params = None
             
                     # 🧩 sanity check
                     if not isinstance(ns_params, (list, tuple, np.ndarray)):
                         raise ValueError(f"Invalid NS parameters: {ns_params}")
             
-                    # --- Compute NS curve
-                    maturity_range = np.linspace(ns_df['YTM'].min(), ns_df['YTM'].max(), 100)
-                    ns_curve = nelson_siegel(maturity_range, *ns_params)
-            
-                    fig.add_trace(go.Scatter(
-                        x=maturity_range,
-                        y=ns_curve,
-                        mode='lines',
-                        name='Nelson-Siegel Fit',
-                        line=dict(color='deepskyblue', width=3)
-                    ))
+                    if ns_params is not None:
+                        maturity_range = np.linspace(
+                            ns_df['YTM'].min(),
+                            ns_df['YTM'].max(),
+                            100
+                        )
+                    
+                        ns_curve = nelson_siegel(maturity_range, *ns_params)
+                    
+                        fig.add_trace(go.Scatter(
+                            x=maturity_range,
+                            y=ns_curve,
+                            mode='lines',
+                            name='Nelson-Siegel Fit',
+                            line=dict(color='deepskyblue', width=3)
+                        ))
+                    else:
+                        st.warning("NS curve not available for this selection")
             
                 except Exception as e:
                     st.error(f"Error plotting Nelson-Siegel curve: {e}")
@@ -924,27 +932,28 @@ with tab1:
         
                 ns_params = parse_ns_params(ns_params_raw)
         
+                # 🚨 instead of crashing, just skip if missing
                 if ns_params is None:
-                    raise ValueError(f"Invalid NS_PARAMS format: {ns_params_raw}")
+                    st.warning("NS parameters missing — skipping curve fit")
+                else:
+                    maturity_range = np.linspace(
+                        ns_today_plot['YearsToMaturity'].min(),
+                        ns_today_plot['YearsToMaturity'].max(),
+                        100
+                    )
         
-                maturity_range = np.linspace(
-                    ns_today_plot['YearsToMaturity'].min(),
-                    ns_today_plot['YearsToMaturity'].max(),
-                    100
-                )
+                    ns_curve = nelson_siegel(maturity_range, *ns_params)
         
-                ns_curve = nelson_siegel(maturity_range, *ns_params)
-        
-                fig.add_trace(go.Scatter(
-                    x=maturity_range,
-                    y=ns_curve,
-                    mode='lines',
-                    name='Nelson-Siegel Fit',
-                    line=dict(color='deepskyblue', width=3)
-                ))
+                    fig.add_trace(go.Scatter(
+                        x=maturity_range,
+                        y=ns_curve,
+                        mode='lines',
+                        name='Nelson-Siegel Fit',
+                        line=dict(color='deepskyblue', width=3)
+                    ))
         
             except Exception as e:
-                st.error(f"Error plotting NS curve: {e}")
+                st.warning(f"NS curve skipped due to error: {e}")
     
         # Add predicted Z-spread point
         fig.add_trace(go.Scatter(
