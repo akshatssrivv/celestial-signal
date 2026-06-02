@@ -677,6 +677,7 @@ with tab1:
                     ))
         
             # Nelson-Siegel fit
+            st.write("ns_params used:", ns_params)
             import re
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
@@ -688,9 +689,14 @@ with tab1:
                             if isinstance(ns_params_raw, (tuple, list, np.ndarray)):
                                 ns_params = list(ns_params_raw)
                             elif isinstance(ns_params_raw, str):
-                                nums = re.findall(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', ns_params_raw)
+                                nums = re.findall(r'np\.float64\(([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\)', ns_params_raw)
                                 if len(nums) >= 4:
                                     ns_params = [float(n) for n in nums[:4]]
+                                else:
+                                    # fallback for plain tuple strings like "(0.5, 0.3, -0.2, 1.5)"
+                                    nums = re.findall(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', ns_params_raw)
+                                    if len(nums) >= 4:
+                                        ns_params = [float(n) for n in nums[:4]]
             
                     # Fallback: individual columns
                     if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
