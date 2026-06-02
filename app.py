@@ -677,7 +677,6 @@ with tab1:
                     ))
         
             # Nelson-Siegel fit
-            st.write("ns_params used:", ns_params)
             import re
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
