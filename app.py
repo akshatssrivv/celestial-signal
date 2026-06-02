@@ -677,15 +677,16 @@ with tab1:
                     ))
         
             # Nelson-Siegel fit
-            st.write("NS_PARAMS sample:", ns_df['NS_PARAMS'].dropna().iloc[0] if ns_df['NS_PARAMS'].notna().any() else "ALL NULL")
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
                     ns_params = None
             
-                    # Handle NS_PARAMS column
+                    # Handle NS_PARAMS column — just take the first valid row
                     if 'NS_PARAMS' in ns_df.columns:
                         ns_params_raw = ns_df['NS_PARAMS'].dropna().iloc[0] if ns_df['NS_PARAMS'].notna().any() else None
-                                    
+                        if ns_params_raw is not None:
+                            ns_params = parse_ns_params(ns_params_raw)
+            
                     # Fallback: individual columns
                     if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                         ns_params = [
@@ -695,18 +696,11 @@ with tab1:
                             ns_df["NS_PARAM_4"].iloc[0],
                         ]
             
-                    # 🚨 HARD GUARD: stop early
                     if ns_params is None or not isinstance(ns_params, (list, tuple, np.ndarray)):
                         st.info("NS curve not available for this selection")
                     else:
-                        maturity_range = np.linspace(
-                            ns_df['YTM'].min(),
-                            ns_df['YTM'].max(),
-                            100
-                        )
-            
+                        maturity_range = np.linspace(ns_df['YTM'].min(), ns_df['YTM'].max(), 100)
                         ns_curve = nelson_siegel(maturity_range, *ns_params)
-            
                         fig.add_trace(go.Scatter(
                             x=maturity_range,
                             y=ns_curve,
@@ -717,7 +711,6 @@ with tab1:
             
                 except Exception as e:
                     st.error(f"Error plotting Nelson-Siegel curve: {e}")
-
         
             fig.update_layout(
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
