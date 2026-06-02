@@ -680,10 +680,11 @@ with tab1:
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
                     ns_params = None
+            
                     # Handle NS_PARAMS column
                     if 'NS_PARAMS' in ns_df.columns:
                         ns_params = parse_ns_params(ns_df['NS_PARAMS'].iloc[0])
-                    
+            
                     # Fallback: individual columns
                     if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                         ns_params = [
@@ -692,25 +693,19 @@ with tab1:
                             ns_df["NS_PARAM_3"].iloc[0],
                             ns_df["NS_PARAM_4"].iloc[0],
                         ]
-                    
-                    # safety check
+            
+                    # 🚨 HARD GUARD: stop early
                     if ns_params is None or not isinstance(ns_params, (list, tuple, np.ndarray)):
-                        st.warning("NS parameters missing for this date/bond — skipping curve fit")
-                        ns_params = None
-            
-                    # 🧩 sanity check
-                    if not isinstance(ns_params, (list, tuple, np.ndarray)):
-                        raise ValueError(f"Invalid NS parameters: {ns_params}")
-            
-                    if ns_params is not None:
+                        st.info("NS curve not available for this selection")
+                    else:
                         maturity_range = np.linspace(
                             ns_df['YTM'].min(),
                             ns_df['YTM'].max(),
                             100
                         )
-                    
+            
                         ns_curve = nelson_siegel(maturity_range, *ns_params)
-                    
+            
                         fig.add_trace(go.Scatter(
                             x=maturity_range,
                             y=ns_curve,
@@ -718,8 +713,6 @@ with tab1:
                             name='Nelson-Siegel Fit',
                             line=dict(color='deepskyblue', width=3)
                         ))
-                    else:
-                        st.warning("NS curve not available for this selection")
             
                 except Exception as e:
                     st.error(f"Error plotting Nelson-Siegel curve: {e}")
