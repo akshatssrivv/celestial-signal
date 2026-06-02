@@ -25,7 +25,7 @@ import altair as alt
 # -------------------
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")      # Your Access Key ID
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")  # Your Secret Access Key
-BUCKET_NAME = "celestial-signal"    # The S3 bucket you created
+BUCKET_NAME = "bonds-celestial-signal"    # The S3 bucket you created
 LOCAL_ZIP = "ns_curves_20260106.zip"
 LOCAL_FOLDER = "ns_curves_0106"
 
