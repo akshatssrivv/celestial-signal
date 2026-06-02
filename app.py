@@ -186,6 +186,20 @@ def load_trades():
 # Load trades into memory
 top_trades_agent = load_trades()
 
+import json
+
+def parse_ns_params(x):
+    if isinstance(x, (list, tuple, np.ndarray)):
+        return x
+    
+    if isinstance(x, str):
+        try:
+            return json.loads(x)
+        except:
+            return None
+    
+    return None
+
 
 tab1, tab2, tab3, tab4 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis", "AI Assisstant"])
 
@@ -666,20 +680,11 @@ with tab1:
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
                     ns_params = None
-            
-                    # 🩹 Handle NS_PARAMS column if it exists
+                    # Handle NS_PARAMS column
                     if 'NS_PARAMS' in ns_df.columns:
-                        ns_params_raw = ns_df['NS_PARAMS'].iloc[0]
-            
-                        if isinstance(ns_params_raw, str):
-                            import ast
-                            parsed = ast.literal_eval(ns_params_raw)
-                            if isinstance(parsed, (list, tuple, np.ndarray)):
-                                ns_params = parsed
-                        elif isinstance(ns_params_raw, (list, tuple, np.ndarray)):
-                            ns_params = ns_params_raw
-            
-                    # 🩹 Fallback: read individual NS_PARAM_* columns if tuple not parsed
+                        ns_params = parse_ns_params(ns_df['NS_PARAMS'].iloc[0])
+                    
+                    # Fallback: individual columns
                     if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                         ns_params = [
                             ns_df["NS_PARAM_1"].iloc[0],
@@ -687,6 +692,10 @@ with tab1:
                             ns_df["NS_PARAM_3"].iloc[0],
                             ns_df["NS_PARAM_4"].iloc[0],
                         ]
+                    
+                    # safety check
+                    if not isinstance(ns_params, (list, tuple, np.ndarray)):
+                        raise ValueError(f"Invalid NS params format: {ns_params}")
             
                     # 🧩 sanity check
                     if not isinstance(ns_params, (list, tuple, np.ndarray)):
@@ -912,14 +921,20 @@ with tab1:
         if 'NS_PARAMS' in ns_today_plot.columns:
             try:
                 ns_params_raw = ns_today_plot['NS_PARAMS'].iloc[0]
-                if isinstance(ns_params_raw, str):
-                    import ast
-                    ns_params = ast.literal_eval(ns_params_raw)
-                else:
-                    ns_params = ns_params_raw
-                maturity_range = np.linspace(ns_today_plot['YearsToMaturity'].min(),
-                                             ns_today_plot['YearsToMaturity'].max(), 100)
+        
+                ns_params = parse_ns_params(ns_params_raw)
+        
+                if ns_params is None:
+                    raise ValueError(f"Invalid NS_PARAMS format: {ns_params_raw}")
+        
+                maturity_range = np.linspace(
+                    ns_today_plot['YearsToMaturity'].min(),
+                    ns_today_plot['YearsToMaturity'].max(),
+                    100
+                )
+        
                 ns_curve = nelson_siegel(maturity_range, *ns_params)
+        
                 fig.add_trace(go.Scatter(
                     x=maturity_range,
                     y=ns_curve,
@@ -927,6 +942,7 @@ with tab1:
                     name='Nelson-Siegel Fit',
                     line=dict(color='deepskyblue', width=3)
                 ))
+        
             except Exception as e:
                 st.error(f"Error plotting NS curve: {e}")
     
@@ -1093,15 +1109,16 @@ with tab1:
                     ns_df_curve = load_ns_curve(country_code_map[c], d, zip_hash=zip_hash)
                     if ns_df_curve is not None and 'NS_PARAMS' in ns_df_curve.columns:
                         ns_params_raw = ns_df_curve['NS_PARAMS'].iloc[0]
-                        if isinstance(ns_params_raw, str):
-                            import ast
-                            ns_params = ast.literal_eval(ns_params_raw)
-                        else:
-                            ns_params = ns_params_raw
-            
+                        ns_params = parse_ns_params(ns_params_raw)
+                        
+                        if ns_params is None:
+                            continue  # skip this curve instead of crashing
+                        
                         max_maturity = min(30, ns_df_curve['YTM'].max())
                         maturities = np.linspace(0, max_maturity, 100)
+                        
                         ns_values = nelson_siegel(maturities, *ns_params)
+                        
                         fig.add_trace(go.Scatter(
                             x=maturities,
                             y=ns_values,
