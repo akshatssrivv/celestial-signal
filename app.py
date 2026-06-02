@@ -677,31 +677,20 @@ with tab1:
                     ))
         
             # Nelson-Siegel fit
-            raw = ns_df['NS_PARAMS'].dropna().iloc[0] if ns_df['NS_PARAMS'].notna().any() else None
-            st.write("raw type:", type(raw))
-            st.write("raw value:", raw)
-            st.write("isinstance tuple:", isinstance(raw, tuple))
-            st.write("isinstance list:", isinstance(raw, list))
-            st.write("isinstance ndarray:", isinstance(raw, np.ndarray))
-            
-            if raw is not None:
-                if isinstance(raw, (tuple, list, np.ndarray)):
-                    ns_params = list(raw)
-                else:
-                    ns_params = parse_ns_params(raw)
-            
-            st.write("ns_params after assignment:", ns_params)
-            st.write("ns_params is None:", ns_params is None)
-            st.write("isinstance check:", isinstance(ns_params, (list, tuple, np.ndarray)))
+            import re
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
                     ns_params = None
             
-                    # Handle NS_PARAMS column — just take the first valid row
                     if 'NS_PARAMS' in ns_df.columns:
                         ns_params_raw = ns_df['NS_PARAMS'].dropna().iloc[0] if ns_df['NS_PARAMS'].notna().any() else None
                         if ns_params_raw is not None:
-                            ns_params = parse_ns_params(ns_params_raw)
+                            if isinstance(ns_params_raw, (tuple, list, np.ndarray)):
+                                ns_params = list(ns_params_raw)
+                            elif isinstance(ns_params_raw, str):
+                                nums = re.findall(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', ns_params_raw)
+                                if len(nums) >= 4:
+                                    ns_params = [float(n) for n in nums[:4]]
             
                     # Fallback: individual columns
                     if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
