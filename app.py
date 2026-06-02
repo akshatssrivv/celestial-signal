@@ -677,6 +677,22 @@ with tab1:
                     ))
         
             # Nelson-Siegel fit
+            raw = ns_df['NS_PARAMS'].dropna().iloc[0] if ns_df['NS_PARAMS'].notna().any() else None
+            st.write("raw type:", type(raw))
+            st.write("raw value:", raw)
+            st.write("isinstance tuple:", isinstance(raw, tuple))
+            st.write("isinstance list:", isinstance(raw, list))
+            st.write("isinstance ndarray:", isinstance(raw, np.ndarray))
+            
+            if raw is not None:
+                if isinstance(raw, (tuple, list, np.ndarray)):
+                    ns_params = list(raw)
+                else:
+                    ns_params = parse_ns_params(raw)
+            
+            st.write("ns_params after assignment:", ns_params)
+            st.write("ns_params is None:", ns_params is None)
+            st.write("isinstance check:", isinstance(ns_params, (list, tuple, np.ndarray)))
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
                     ns_params = None
