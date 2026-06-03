@@ -6,6 +6,7 @@ import zipfile
 import shutil
 import hashlib
 import os
+import json
 from nelson_siegel_fn import plot_ns_animation, nelson_siegel
 from ai_explainer_utils import format_bond_diagnostics, generate_ai_explanation
 import ast
@@ -15,6 +16,98 @@ import boto3
 from scipy.interpolate import interp1d
 import altair as alt
 from curve_trade_agent1 import chat_with_trades, get_system_prompt
+
+# ─────────────────────────────────────────────
+# Constants & helpers — defined first so sidebar
+# and all tabs can reference them safely
+# ─────────────────────────────────────────────
+COUNTRY_OPTIONS = [
+    "Italy 🇮🇹", "Spain 🇪🇸", "France 🇫🇷", "Germany 🇩🇪",
+    "Finland 🇫🇮", "EU 🇪🇺", "Austria 🇦🇹", "Netherlands 🇳🇱", "Belgium 🇧🇪",
+]
+COUNTRY_CODE_MAP = {
+    "Italy 🇮🇹": "BTPS",   "Spain 🇪🇸": "SPGB",  "France 🇫🇷": "FRTR",
+    "Germany 🇩🇪": "BUNDS", "Finland 🇫🇮": "RFGB",  "EU 🇪🇺": "EU",
+    "Austria 🇦🇹": "RAGB",  "Netherlands 🇳🇱": "NETHER", "Belgium 🇧🇪": "BGB",
+}
+LEGEND_SIGNALS = {"strong buy", "moderate buy", "strong sell", "moderate sell"}
+_FIXED_SIGNALS = [
+    "STRONG BUY", "STRONG SELL", "MODERATE BUY",
+    "MODERATE SELL", "WEAK BUY", "WEAK SELL", "NO ACTION",
+]
+
+def get_country_from_isin(isin):
+    country_map = {
+        "IT": "🇮🇹 Italy", "ES": "🇪🇸 Spain",  "FR": "🇫🇷 France",
+        "DE": "🇩🇪 Germany", "FI": "🇫🇮 Finland", "EU": "🇪🇺 EU",
+        "AT": "🇦🇹 Austria", "NL": "🇳🇱 Netherlands", "BE": "🇧🇪 Belgium",
+    }
+    return country_map.get(isin[:2], "🌍 Unknown")
+
+def parse_ns_params(x):
+    if isinstance(x, (list, tuple, np.ndarray)):
+        return x
+    if isinstance(x, str):
+        try:
+            return json.loads(x)
+        except Exception:
+            return None
+    return None
+
+# Chart theme constants
+CHART_PAPER   = "#ffffff"
+CHART_PLOT    = "#fafbfc"
+CHART_GRID    = "#e8ecf0"
+CHART_AXIS    = "#8892a4"
+CHART_FONT    = dict(family="Space Mono, monospace", color="#1a2030", size=10)
+NS_LINE_COLOR = "#e8b84b"
+PRED_COLOR    = "#7c3aed"
+
+# Signal dot colours — vivid on white chart bg
+SIGNAL_COLOR_MAP = {
+    "strong buy":    "#16a34a",
+    "moderate buy":  "#4ade80",
+    "weak buy":      "#94a3b8",
+    "strong sell":   "#dc2626",
+    "moderate sell": "#ea580c",
+    "weak sell":     "#94a3b8",
+}
+
+def dark_layout(fig, title="", height=620, xaxis_title="", yaxis_title=""):
+    """Light-interior chart card on the dark page shell."""
+    fig.update_layout(
+        title=dict(
+            text=title,
+            font=dict(family="Space Mono, monospace", size=11, color="#1a2030"),
+            x=0.01, xanchor="left", pad=dict(l=0, b=6),
+        ),
+        height=height,
+        paper_bgcolor=CHART_PAPER,
+        plot_bgcolor=CHART_PLOT,
+        font=CHART_FONT,
+        margin=dict(l=52, r=20, t=44, b=44),
+        xaxis=dict(
+            title=dict(text=xaxis_title, font=dict(**CHART_FONT, size=9)),
+            gridcolor=CHART_GRID, linecolor=CHART_GRID,
+            tickfont=dict(family="Space Mono, monospace", color=CHART_AXIS, size=9),
+            zeroline=False, showgrid=True,
+        ),
+        yaxis=dict(
+            title=dict(text=yaxis_title, font=dict(**CHART_FONT, size=9)),
+            gridcolor=CHART_GRID, linecolor=CHART_GRID,
+            tickfont=dict(family="Space Mono, monospace", color=CHART_AXIS, size=9),
+            zeroline=True, zerolinecolor=CHART_GRID, zerolinewidth=1, showgrid=True,
+        ),
+        legend=dict(
+            bgcolor="rgba(255,255,255,0.92)", bordercolor=CHART_GRID, borderwidth=1,
+            font=dict(family="Space Mono, monospace", size=9, color="#1a2030"),
+        ),
+        hoverlabel=dict(
+            bgcolor="#1c2333", bordercolor="#263047",
+            font=dict(family="Space Mono, monospace", size=10, color="#dde3ee"),
+        ),
+    )
+    return fig
 
 # ─────────────────────────────────────────────
 # Page config — must be first Streamlit call
@@ -432,6 +525,9 @@ hr { border-color: var(--border) !important; margin: 0.75rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
+
+# (constants, helpers and chart theme defined at top of file)
+
 # ─────────────────────────────────────────────
 # Page header
 # ─────────────────────────────────────────────
@@ -608,109 +704,6 @@ def load_ns_curve(country_code: str, date_str: str, zip_hash: str):
             return sub
     return None
 
-
-# ─────────────────────────────────────────────
-# Shared helpers
-# ─────────────────────────────────────────────
-COUNTRY_OPTIONS = [
-    "Italy 🇮🇹", "Spain 🇪🇸", "France 🇫🇷", "Germany 🇩🇪",
-    "Finland 🇫🇮", "EU 🇪🇺", "Austria 🇦🇹", "Netherlands 🇳🇱", "Belgium 🇧🇪",
-]
-COUNTRY_CODE_MAP = {
-    "Italy 🇮🇹": "BTPS",   "Spain 🇪🇸": "SPGB",  "France 🇫🇷": "FRTR",
-    "Germany 🇩🇪": "BUNDS", "Finland 🇫🇮": "RFGB",  "EU 🇪🇺": "EU",
-    "Austria 🇦🇹": "RAGB",  "Netherlands 🇳🇱": "NETHER", "Belgium 🇧🇪": "BGB",
-}
-LEGEND_SIGNALS = {"strong buy", "moderate buy", "strong sell", "moderate sell"}
-
-import json
-
-def parse_ns_params(x):
-    if isinstance(x, (list, tuple, np.ndarray)):
-        return x
-    if isinstance(x, str):
-        try:
-            return json.loads(x)
-        except Exception:
-            return None
-    return None
-
-
-# ─────────────────────────────────────────────
-# Chart theme — light interior, vivid traces
-# Charts float as white cards on the dark shell
-# ─────────────────────────────────────────────
-CHART_PAPER = "#ffffff"   # outer chart bg
-CHART_PLOT  = "#fafbfc"   # inner plot area
-CHART_GRID  = "#e8ecf0"   # grid lines
-CHART_AXIS  = "#8892a4"   # axis text / lines
-CHART_FONT  = dict(family="Space Mono, monospace", color="#1a2030", size=10)
-NS_LINE_COLOR = "#e8b84b"   # amber for NS fit
-PRED_COLOR    = "#7c3aed"   # violet for prediction
-
-def dark_layout(fig, title="", height=620, xaxis_title="", yaxis_title=""):
-    """Light-interior chart that floats as a card on the dark page shell."""
-    fig.update_layout(
-        title=dict(
-            text=title,
-            font=dict(family="Space Mono, monospace", size=11, color="#1a2030"),
-            x=0.01, xanchor="left", pad=dict(l=0, b=6),
-        ),
-        height=height,
-        paper_bgcolor=CHART_PAPER,
-        plot_bgcolor=CHART_PLOT,
-        font=CHART_FONT,
-        margin=dict(l=52, r=20, t=44, b=44),
-        xaxis=dict(
-            title=dict(text=xaxis_title, font=dict(**CHART_FONT, size=9)),
-            gridcolor=CHART_GRID,
-            linecolor=CHART_GRID,
-            tickfont=dict(family="Space Mono, monospace", color=CHART_AXIS, size=9),
-            zeroline=False,
-            showgrid=True,
-        ),
-        yaxis=dict(
-            title=dict(text=yaxis_title, font=dict(**CHART_FONT, size=9)),
-            gridcolor=CHART_GRID,
-            linecolor=CHART_GRID,
-            tickfont=dict(family="Space Mono, monospace", color=CHART_AXIS, size=9),
-            zeroline=True,
-            zerolinecolor=CHART_GRID,
-            zerolinewidth=1,
-            showgrid=True,
-        ),
-        legend=dict(
-            bgcolor="rgba(255,255,255,0.92)",
-            bordercolor=CHART_GRID,
-            borderwidth=1,
-            font=dict(family="Space Mono, monospace", size=9, color="#1a2030"),
-        ),
-        hoverlabel=dict(
-            bgcolor="#1c2333",
-            bordercolor="#263047",
-            font=dict(family="Space Mono, monospace", size=10, color="#dde3ee"),
-        ),
-    )
-    return fig
-
-
-# Signal dot colours — deep & vivid against white chart background
-SIGNAL_COLOR_MAP = {
-    "strong buy":    "#16a34a",
-    "moderate buy":  "#4ade80",
-    "weak buy":      "#94a3b8",
-    "strong sell":   "#dc2626",
-    "moderate sell": "#ea580c",
-    "weak sell":     "#94a3b8",
-}
-
-def get_country_from_isin(isin):
-    country_map = {
-        "IT": "🇮🇹 Italy", "ES": "🇪🇸 Spain",  "FR": "🇫🇷 France",
-        "DE": "🇩🇪 Germany", "FI": "🇫🇮 Finland", "EU": "🇪🇺 EU",
-        "AT": "🇦🇹 Austria", "NL": "🇳🇱 Netherlands", "BE": "🇧🇪 Belgium",
-    }
-    return country_map.get(isin[:2], "🌍 Unknown")
 
 
 # ─────────────────────────────────────────────
