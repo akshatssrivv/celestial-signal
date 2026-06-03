@@ -540,84 +540,46 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# Sidebar — all controls live here
+# Sidebar shell — wordmark always visible
+# Context-specific controls are injected inside
+# each tab/subtab via _sidebar_controls()
 # ─────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("""
+def _sb_header():
+    """Render wordmark into sidebar. Call once at top of each tab."""
+    with st.sidebar:
+        st.markdown("""
 <div class="sb-wordmark">◈ CELESTIAL <span>AM</span></div>
 <div class="sb-sub">Fixed Income · Bond Analytics</div>
 """, unsafe_allow_html=True)
 
-    # ── NS Curves controls ──────────────────
-    st.markdown('<div class="sb-section">NS Curves</div>', unsafe_allow_html=True)
-    sb_country = st.selectbox(
-        "Country", COUNTRY_OPTIONS, key="sb_country"
-    )
-    sb_selected_country = COUNTRY_CODE_MAP[sb_country]
 
-    _sig_df_tmp = pd.read_csv("today_all_signals.csv") if os.path.exists("today_all_signals.csv") else pd.DataFrame(columns=["Date"])
-    _avail_dates = pd.to_datetime(_sig_df_tmp["Date"].unique()) if not _sig_df_tmp.empty else [pd.Timestamp.today()]
-    sb_date = st.date_input(
-        "Curve date",
-        value=pd.Timestamp(_avail_dates.max()).date(),
-        key="sb_date",
-    )
-    sb_date_str = pd.Timestamp(sb_date).strftime("%Y-%m-%d")
-
-    # ── Signal Dashboard controls ───────────
-    st.markdown('<div class="sb-section">Signal Dashboard</div>', unsafe_allow_html=True)
-
-    _sig_data_path = "issuer_signals.csv"
-    _all_countries_tmp = []
-    if os.path.exists(_sig_data_path):
-        _tmp_df = pd.read_csv(_sig_data_path)
-        _tmp_df["Country"] = _tmp_df["ISIN"].apply(get_country_from_isin)
-        _all_countries_tmp = sorted(_tmp_df["Country"].unique().tolist())
-
-    sb_countries = st.multiselect(
-        "Countries",
-        options=_all_countries_tmp,
-        default=_all_countries_tmp,
-        key="sb_sig_countries",
-    )
-    _FIXED_SIGNALS = [
-        "STRONG BUY", "STRONG SELL", "MODERATE BUY",
-        "MODERATE SELL", "WEAK BUY", "WEAK SELL", "NO ACTION",
-    ]
-    sb_signals = st.multiselect(
-        "Signals",
-        options=_FIXED_SIGNALS,
-        default=[s for s in _FIXED_SIGNALS if s != "NO ACTION"],
-        key="sb_sig_signals",
-    )
-    sb_search = st.text_input(
-        "Search ISIN / name",
-        placeholder="e.g. IT0001234567",
-        key="sb_search",
-    )
-
-    # ── Analysis controls ────────────────────
-    st.markdown('<div class="sb-section">Analysis</div>', unsafe_allow_html=True)
-    sb_metric = st.radio(
-        "Curve metric",
-        options=["Z-Spread", "Residuals"],
-        horizontal=False,
-        key="sb_metric",
-    )
-
-    # ── Utility ─────────────────────────────
-    st.markdown('<div class="sb-section">System</div>', unsafe_allow_html=True)
-    if st.button("↺  Refresh data", key="sb_refresh"):
-        st.cache_data.clear()
-        st.rerun()
-
-    st.markdown(f"""
+def _sb_footer():
+    with st.sidebar:
+        st.markdown('<div class="sb-section">System</div>', unsafe_allow_html=True)
+        if st.button("↺  Refresh data", key="sb_refresh"):
+            st.cache_data.clear()
+            st.rerun()
+        st.markdown("""
 <div style="margin-top:1.5rem;font-family:var(--mono);font-size:0.52rem;
             color:var(--muted);line-height:2;letter-spacing:0.06em">
   DHARMA ASSET MANAGEMENT<br>
   CELESTIAL TEAM · INTERNAL USE
 </div>
 """, unsafe_allow_html=True)
+
+
+# ── Pre-load dates for the date picker ──────
+_sig_df_tmp   = pd.read_csv("today_all_signals.csv") if os.path.exists("today_all_signals.csv") else pd.DataFrame(columns=["Date"])
+_avail_dates  = pd.to_datetime(_sig_df_tmp["Date"].unique()) if not _sig_df_tmp.empty else pd.DatetimeIndex([pd.Timestamp.today()])
+_MAX_DATE     = pd.Timestamp(_avail_dates.max()).date()
+
+# ── Pre-load country list for signal dashboard ──
+_sig_data_path     = "issuer_signals.csv"
+_all_sig_countries = []
+if os.path.exists(_sig_data_path):
+    _tmp_df = pd.read_csv(_sig_data_path)
+    _tmp_df["Country"] = _tmp_df["ISIN"].apply(get_country_from_isin)
+    _all_sig_countries = sorted(_tmp_df["Country"].unique().tolist())
 
 # ─────────────────────────────────────────────
 # AWS / S3
@@ -756,7 +718,28 @@ with tab1:
 
     # ── Single Day ────────────────────────────
     with sub1:
-        # Controls come from sidebar — sb_selected_country, sb_date_str
+        # ── Sidebar for this subtab ──
+        _sb_header()
+        with st.sidebar:
+            st.markdown('<div class="sb-section">Single Day Curve</div>', unsafe_allow_html=True)
+            sb_country = st.selectbox("Country", COUNTRY_OPTIONS, key="sb_country")
+            sb_selected_country = COUNTRY_CODE_MAP[sb_country]
+            sb_date = st.date_input("Curve date", value=_MAX_DATE, key="sb_date")
+            sb_date_str = pd.Timestamp(sb_date).strftime("%Y-%m-%d")
+            st.markdown('<div class="sb-section">Legend</div>', unsafe_allow_html=True)
+            st.markdown("""
+<div style="font-family:var(--mono);font-size:0.62rem;line-height:2.2;color:var(--muted)">
+  <span style="color:#16a34a">●</span> Strong buy<br>
+  <span style="color:#4ade80">●</span> Moderate buy<br>
+  <span style="color:#dc2626">●</span> Strong sell<br>
+  <span style="color:#ea580c">●</span> Moderate sell<br>
+  <span style="color:#94a3b8">●</span> Weak / no signal<br>
+  <span style="color:#e8b84b">—</span> NS fit
+</div>
+""", unsafe_allow_html=True)
+        _sb_footer()
+
+        # Controls come from sidebar
         final_signal_df = pd.read_csv("today_all_signals.csv")
         ns_df = load_ns_curve(sb_selected_country, sb_date_str, zip_hash=zip_hash)
 
@@ -887,8 +870,12 @@ with tab1:
 
     # ── Animated Curves ───────────────────────
     with sub2:
-        # Country from sidebar
-        selected_country = sb_selected_country
+        # ── Sidebar for this subtab ──
+        _sb_header()
+        with st.sidebar:
+            st.markdown('<div class="sb-section">Animated Curves</div>', unsafe_allow_html=True)
+            sb_anim_country = st.selectbox("Country", COUNTRY_OPTIONS, key="sb_anim_country")
+            selected_country = COUNTRY_CODE_MAP[sb_anim_country]
 
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         if ns_df is not None and not ns_df.empty:
@@ -909,33 +896,41 @@ with tab1:
                     return f"{bond_labels.get(isin, isin)} ({pd.to_datetime(mat[0]).strftime('%Y-%m-%d')})"
                 return f"{bond_labels.get(isin, isin)} (N/A)"
 
-            show_all = st.checkbox(f"Show all {sb_country} bonds", key="anim_all")
-            if show_all:
-                selected_animation_bonds = bond_opts["ISIN"].tolist()
-            else:
-                selected_animation_bonds = st.multiselect(
-                    "Select bonds for animation",
-                    options=bond_opts["ISIN"].tolist(),
-                    format_func=fmt_anim,
-                    default=[],
-                    key="anim_bonds",
-                )
+            with st.sidebar:
+                st.markdown('<div class="sb-section">Bond Selection</div>', unsafe_allow_html=True)
+                show_all = st.checkbox(f"Show all {sb_anim_country} bonds", key="anim_all")
+                if not show_all:
+                    selected_animation_bonds = st.multiselect(
+                        "Select bonds",
+                        options=bond_opts["ISIN"].tolist(),
+                        format_func=fmt_anim,
+                        default=[],
+                        key="anim_bonds",
+                    )
+                else:
+                    selected_animation_bonds = bond_opts["ISIN"].tolist()
+                    st.caption(f"{len(selected_animation_bonds)} bonds selected")
+        _sb_footer()
 
-            if not selected_animation_bonds:
-                st.info("Select at least one bond to display the animation.")
-            else:
-                ns_filt = ns_df[ns_df["ISIN"].isin(selected_animation_bonds)].copy()
-                ns_filt = ns_filt.merge(final_signal_df[["ISIN", "SIGNAL"]], on="ISIN", how="left")
-                fig = plot_ns_animation(ns_filt, issuer_label=selected_country,
-                                        highlight_isins=selected_animation_bonds)
-                st.plotly_chart(fig, use_container_width=True)
-        else:
+        if ns_df is None or ns_df.empty:
             st.warning("No NS data available for the selected country.")
+        elif not selected_animation_bonds:
+            st.info("Select at least one bond in the sidebar to display the animation.")
+        else:
+            ns_filt = ns_df[ns_df["ISIN"].isin(selected_animation_bonds)].copy()
+            ns_filt = ns_filt.merge(final_signal_df[["ISIN", "SIGNAL"]], on="ISIN", how="left")
+            fig = plot_ns_animation(ns_filt, issuer_label=selected_country,
+                                    highlight_isins=selected_animation_bonds)
+            st.plotly_chart(fig, use_container_width=True)
 
     # ── Residuals Analysis ────────────────────
     with sub3:
-        # Country from sidebar
-        selected_country = sb_selected_country
+        # ── Sidebar ──
+        _sb_header()
+        with st.sidebar:
+            st.markdown('<div class="sb-section">Residuals Analysis</div>', unsafe_allow_html=True)
+            sb_res_country = st.selectbox("Country", COUNTRY_OPTIONS, key="sb_res_country")
+            selected_country = COUNTRY_CODE_MAP[sb_res_country]
 
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         if ns_df is not None and not ns_df.empty:
@@ -955,41 +950,57 @@ with tab1:
                     return f"{bond_labels.get(isin, isin)} ({pd.to_datetime(mat[0]).strftime('%Y-%m-%d')})"
                 return f"{bond_labels.get(isin, isin)} (N/A)"
 
-            selected_bonds = st.multiselect(
-                "Select bonds for residual analysis",
-                options=bond_opts["ISIN"].tolist(),
-                format_func=fmt_res,
-                default=[],
-                key="res_bonds",
-            )
+            with st.sidebar:
+                st.markdown('<div class="sb-section">Bond Selection</div>', unsafe_allow_html=True)
+                selected_bonds = st.multiselect(
+                    "Bonds to plot",
+                    options=bond_opts["ISIN"].tolist(),
+                    format_func=fmt_res,
+                    default=[],
+                    key="res_bonds",
+                )
+                st.markdown('<div class="sb-section">Display</div>', unsafe_allow_html=True)
+                show_velocity = st.checkbox("Show velocity chart", value=True, key="res_velocity")
+        _sb_footer()
 
-            if not selected_bonds:
-                st.info("Select at least one bond to display residuals.")
-            else:
-                res_df = ns_df[ns_df["ISIN"].isin(selected_bonds)].copy()
-                fig_r = go.Figure()
-                fig_v = go.Figure()
-                for isin in selected_bonds:
-                    bd = res_df[res_df["ISIN"] == isin].sort_values("Date")
-                    if bd.empty:
-                        continue
-                    lbl = bond_labels.get(isin, isin)
-                    fig_r.add_trace(go.Scatter(x=bd["Date"], y=bd["RESIDUAL_NS"],
-                                               mode="lines+markers", name=lbl))
-                    fig_v.add_trace(go.Scatter(x=bd["Date"], y=bd["RESIDUAL_VELOCITY"],
-                                               mode="lines+markers", name=lbl))
-                dark_layout(fig_r, title="Residuals over time", height=440,
-                            xaxis_title="Date", yaxis_title="Residual (bps)")
-                dark_layout(fig_v, title="Residual velocity over time", height=440,
-                            xaxis_title="Date", yaxis_title="Velocity (bps/day)")
-                st.plotly_chart(fig_r, use_container_width=True)
-                st.plotly_chart(fig_v, use_container_width=True)
-        else:
+        if ns_df is None or ns_df.empty:
             st.warning("No NS data available.")
+        elif not selected_bonds:
+            st.info("Select bonds in the sidebar to display residuals.")
+        else:
+            res_df = ns_df[ns_df["ISIN"].isin(selected_bonds)].copy()
+            fig_r = go.Figure()
+            fig_v = go.Figure()
+            for isin in selected_bonds:
+                bd = res_df[res_df["ISIN"] == isin].sort_values("Date")
+                if bd.empty:
+                    continue
+                lbl = bond_labels.get(isin, isin)
+                fig_r.add_trace(go.Scatter(x=bd["Date"], y=bd["RESIDUAL_NS"],
+                                           mode="lines+markers", name=lbl))
+                fig_v.add_trace(go.Scatter(x=bd["Date"], y=bd["RESIDUAL_VELOCITY"],
+                                           mode="lines+markers", name=lbl))
+            dark_layout(fig_r, title="Residuals over time", height=440,
+                        xaxis_title="Date", yaxis_title="Residual (bps)")
+            dark_layout(fig_v, title="Residual velocity over time", height=440,
+                        xaxis_title="Date", yaxis_title="Velocity (bps/day)")
+            st.plotly_chart(fig_r, use_container_width=True)
+            if show_velocity:
+                st.plotly_chart(fig_v, use_container_width=True)
 
     # ── Compare NS Curves ─────────────────────
     with sub4:
-        countries = st.multiselect("Select countries", options=COUNTRY_OPTIONS, key="cmp_countries")
+        # ── Sidebar ──
+        _sb_header()
+        with st.sidebar:
+            st.markdown('<div class="sb-section">Compare NS Curves</div>', unsafe_allow_html=True)
+            countries = st.multiselect(
+                "Countries to compare",
+                options=COUNTRY_OPTIONS,
+                default=COUNTRY_OPTIONS[:2],
+                key="sb_cmp_countries",
+            )
+        _sb_footer()
         if countries:
             all_dates = {}
             for c in countries:
@@ -1032,14 +1043,16 @@ with tab1:
 
     # ── New Bond Prediction ───────────────────
     with sub5:
-        # Country from sidebar
-        selected_country = sb_selected_country
-
-        col_a, col_b = st.columns(2)
-        with col_a:
-            new_bond_input = st.text_input("New bond maturity (MM/YY)", value="10/55")
-        with col_b:
-            auction_concession = st.number_input("Auction concession (bps)", value=0, step=1)
+        # ── Sidebar ──
+        _sb_header()
+        with st.sidebar:
+            st.markdown('<div class="sb-section">New Bond Prediction</div>', unsafe_allow_html=True)
+            sb_pred_country = st.selectbox("Country", COUNTRY_OPTIONS, key="sb_pred_country")
+            selected_country = COUNTRY_CODE_MAP[sb_pred_country]
+            st.markdown('<div class="sb-section">Bond Parameters</div>', unsafe_allow_html=True)
+            new_bond_input = st.text_input("Maturity (MM/YY)", value="10/55", key="sb_pred_maturity")
+            auction_concession = st.number_input("Auction concession (bps)", value=0, step=1, key="sb_pred_concession")
+        _sb_footer()
 
         today_ts = pd.Timestamp.today().normalize()
         start_date = today_ts - pd.Timedelta(days=14)
@@ -1176,6 +1189,23 @@ with tab1:
 # TAB 2 — Signal Dashboard
 # ═════════════════════════════════════════════
 with tab2:
+    # ── Sidebar ──
+    _sb_header()
+    with st.sidebar:
+        st.markdown('<div class="sb-section">Signal Dashboard</div>', unsafe_allow_html=True)
+        sb_countries = st.multiselect(
+            "Countries",
+            options=_all_sig_countries,
+            default=_all_sig_countries,
+            key="sb_sig_countries",
+        )
+        sb_signals = st.multiselect(
+            "Signals",
+            options=_FIXED_SIGNALS,
+            default=[s for s in _FIXED_SIGNALS if s != "NO ACTION"],
+            key="sb_sig_signals",
+        )
+    _sb_footer()
 
     @st.cache_data(ttl=300)
     def load_signal_data(force: bool = False) -> pd.DataFrame:
@@ -1423,15 +1453,34 @@ with tab3:
 
     # ── Multi-curve ───────────────────────────
     with an1:
+        # ── Sidebar ──
+        _sb_header()
+        with st.sidebar:
+            st.markdown('<div class="sb-section">Multi-Curve Analysis</div>', unsafe_allow_html=True)
+            sb_metric = st.radio(
+                "Metric",
+                options=["Z-Spread", "Residuals"],
+                horizontal=False,
+                key="sb_metric",
+            )
+            st.markdown('<div class="sb-section">Curve 1</div>', unsafe_allow_html=True)
+            sb_c1_country = st.selectbox("Country", COUNTRY_OPTIONS, key="sb_an_c1_country")
+            st.markdown('<div class="sb-section">Curve 2</div>', unsafe_allow_html=True)
+            sb_c2_country = st.selectbox("Country", COUNTRY_OPTIONS, key="sb_an_c2_country")
+        _sb_footer()
+
         metric_option = sb_metric
         metric_col_map = {"Z-Spread": "Z_SPRD_VAL", "Residuals": "RESIDUAL_NS"}
         selected_metric_col = metric_col_map[metric_option]
 
+        # Override session_state curves country from sidebar
         if "curves" not in st.session_state or len(st.session_state.curves) != 2:
             st.session_state.curves = [
-                {"id": "curve1", "country": "Italy 🇮🇹", "bond1": None, "bond2": None},
-                {"id": "curve2", "country": "Italy 🇮🇹", "bond1": None, "bond2": None},
+                {"id": "curve1", "country": sb_c1_country, "bond1": None, "bond2": None},
+                {"id": "curve2", "country": sb_c2_country, "bond1": None, "bond2": None},
             ]
+        st.session_state.curves[0]["country"] = sb_c1_country
+        st.session_state.curves[1]["country"] = sb_c2_country
 
         @st.cache_data(ttl=300)
         def load_issuer_signal():
@@ -1526,6 +1575,12 @@ with tab3:
 
     # ── Top Trades ────────────────────────────
     with an2:
+        _sb_header()
+        with st.sidebar:
+            st.markdown('<div class="sb-section">Top Trades</div>', unsafe_allow_html=True)
+            st.caption("Showing top 50 trades ranked by score.")
+        _sb_footer()
+
         cols_top50 = [
             "A_ISIN", "B_ISIN", "C_ISIN", "D_ISIN",
             "LEG_1", "LEG_2",
@@ -1558,6 +1613,18 @@ with tab3:
 # TAB 4 — AI Assistant (chat only)
 # ═════════════════════════════════════════════
 with tab4:
+    # ── Sidebar ──
+    _sb_header()
+    with st.sidebar:
+        st.markdown('<div class="sb-section">AI Assistant</div>', unsafe_allow_html=True)
+        st.markdown("""
+<div style="font-family:var(--mono);font-size:0.62rem;color:var(--muted);line-height:1.9">
+  Ask about top trades,<br>
+  bond signals, residuals,<br>
+  or specific ISINs.
+</div>
+""", unsafe_allow_html=True)
+    _sb_footer()
     _chat_hdr, _chat_btn = st.columns([6, 1])
     with _chat_hdr:
         st.markdown('<div class="cel-section-title">Bond AI assistant</div>', unsafe_allow_html=True)
