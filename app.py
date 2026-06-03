@@ -19,141 +19,275 @@ from curve_trade_agent1 import chat_with_trades, get_system_prompt
 # ─────────────────────────────────────────────
 # Page config — must be first Streamlit call
 # ─────────────────────────────────────────────
-st.set_page_config(page_title="Celestial Bond Analytics", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="Celestial Bond Analytics",
+    page_icon="◈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
 
-/* ── Reset & page shell ── */
-html, body, [class*="css"] { font-family: 'Syne', sans-serif !important; }
+/* ─── Design tokens ─── */
+:root {
+    --bg0:    #080b12;
+    --bg1:    #0d1117;
+    --bg2:    #111827;
+    --border: #1c2333;
+    --bord2:  #263047;
+    --amber:  #e8b84b;
+    --sky:    #38bdf8;
+    --green:  #4ade80;
+    --red:    #f87171;
+    --muted:  #8892a4;
+    --text:   #dde3ee;
+    --mono:   'Space Mono', monospace;
+    --sans:   'DM Sans', sans-serif;
+}
 
+/* ─── Reset ─── */
+html, body, [class*="css"] { font-family: var(--sans) !important; }
+.stApp { background-color: var(--bg0) !important; }
 main .block-container {
-    padding: 0.75rem 1.5rem 2rem 1.5rem !important;
+    padding: 0 1.5rem 2rem 1.5rem !important;
     max-width: 100% !important;
 }
-
-/* ── Hide default Streamlit chrome ── */
 #MainMenu, footer, header { visibility: hidden; }
 
-/* ── Custom top header bar ── */
-.cel-header {
+/* ─── Sidebar ─── */
+section[data-testid="stSidebar"] {
+    background-color: var(--bg1) !important;
+    border-right: 1px solid var(--border) !important;
+    min-width: 240px !important;
+}
+section[data-testid="stSidebar"] > div { padding: 1.25rem 1rem 2rem 1rem !important; }
+
+/* Sidebar wordmark */
+.sb-wordmark {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #fff;
+    margin-bottom: 0.15rem;
+}
+.sb-wordmark span { color: var(--amber); }
+.sb-sub {
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+}
+
+/* Sidebar section dividers */
+.sb-section {
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.6rem 0 1rem 0;
-    border-bottom: 1px solid #1e293b;
-    margin-bottom: 1rem;
+    gap: 0.5rem;
+    margin: 1.2rem 0 0.7rem 0;
 }
-.cel-header .cel-logo {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.25rem;
+.sb-section::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 1.5px;
+    background: var(--amber);
+    flex-shrink: 0;
+}
+
+/* Sidebar labels */
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] .stSelectbox label,
+section[data-testid="stSidebar"] .stMultiSelect label,
+section[data-testid="stSidebar"] .stRadio label,
+section[data-testid="stSidebar"] .stDateInput label,
+section[data-testid="stSidebar"] .stCheckbox label {
+    font-family: var(--mono) !important;
+    font-size: 0.58rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    color: var(--muted) !important;
+}
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span { color: var(--text) !important; }
+
+/* Sidebar inputs */
+section[data-testid="stSidebar"] div[data-baseweb="select"] > div,
+section[data-testid="stSidebar"] div[data-baseweb="input"] > div {
+    background: var(--bg2) !important;
+    border: 1px solid var(--bord2) !important;
+    border-radius: 3px !important;
+    font-family: var(--mono) !important;
+    font-size: 0.7rem !important;
+    color: var(--text) !important;
+}
+section[data-testid="stSidebar"] div[data-baseweb="select"] > div:hover {
+    border-color: var(--amber) !important;
+}
+
+/* ─── Main area inputs ─── */
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div {
+    background: var(--bg2) !important;
+    border-color: var(--border) !important;
+    border-radius: 3px !important;
+    font-family: var(--mono) !important;
+    font-size: 0.72rem !important;
+    color: var(--text) !important;
+    transition: border-color 0.15s !important;
+}
+div[data-baseweb="select"] > div:hover,
+div[data-baseweb="input"] > div:focus-within {
+    border-color: var(--amber) !important;
+}
+
+/* ─── Tabs ─── */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+}
+.stTabs [data-baseweb="tab"] {
+    font-family: var(--mono) !important;
+    font-size: 0.58rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    color: var(--muted) !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    padding: 0.65rem 1.3rem !important;
+    transition: color 0.15s !important;
+}
+.stTabs [data-baseweb="tab"]:hover { color: var(--text) !important; }
+.stTabs [aria-selected="true"] {
+    color: var(--amber) !important;
+    border-bottom: 2px solid var(--amber) !important;
+    background: transparent !important;
+}
+.stTabs [data-baseweb="tab-panel"] { padding-top: 1.25rem !important; }
+
+/* ─── Page header bar ─── */
+.cel-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 1rem 0 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.25rem;
+}
+.cel-logo {
+    font-family: var(--mono);
+    font-size: 1.1rem;
     font-weight: 700;
     letter-spacing: 0.04em;
-    color: #e2e8f0;
+    color: #fff;
 }
-.cel-header .cel-logo span { color: #38bdf8; }
+.cel-logo span { color: var(--amber); }
 .cel-datestamp {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.72rem;
-    color: #64748b;
-    letter-spacing: 0.05em;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
 }
 
-/* ── Tab pill styling ── */
-div[role="tablist"] {
-    gap: 4px !important;
-    border-bottom: 1px solid #1e293b !important;
-    padding-bottom: 0 !important;
-}
-button[role="tab"] {
-    font-family: 'Syne', sans-serif !important;
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.04em !important;
-    padding: 0.45rem 1.1rem !important;
-    border-radius: 6px 6px 0 0 !important;
-    border: none !important;
-    color: #64748b !important;
-    background: transparent !important;
-    transition: color 0.18s, background 0.18s !important;
-}
-button[role="tab"]:hover { color: #e2e8f0 !important; background: #1e293b !important; }
-button[role="tab"][aria-selected="true"] {
-    color: #38bdf8 !important;
-    background: #0f172a !important;
-    border-bottom: 2px solid #38bdf8 !important;
-}
-
-/* ── Section headings ── */
+/* ─── Section labels ─── */
 .cel-section-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 0.68rem;
+    font-family: var(--mono);
+    font-size: 0.52rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: #475569;
-    margin: 1.2rem 0 0.5rem 0;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.4rem 0 0.6rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+.cel-section-title::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 1.5px;
+    background: var(--amber);
+    flex-shrink: 0;
 }
 
-/* ── Control card (filter sidebar feel) ── */
-.ctrl-card {
-    background: #0f172a;
-    border: 1px solid #1e293b;
-    border-radius: 10px;
-    padding: 1rem 1rem 0.75rem 1rem;
+/* ─── Chart card wrapper — white interior floats on dark shell ─── */
+.js-plotly-plot {
+    background: #ffffff !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.45) !important;
 }
-.ctrl-card label {
-    font-family: 'Syne', sans-serif !important;
-    font-size: 0.7rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
-    color: #475569 !important;
-}
+.js-plotly-plot .plotly { border-radius: 4px !important; }
 
-/* ── Signal metric cards ── */
-.sig-row { display: flex; gap: 0.5rem; margin: 0.5rem 0 1rem 0; }
+/* ─── Signal metric cards ─── */
+.sig-row { display: flex; gap: 0.45rem; margin: 0.5rem 0 1rem 0; }
 .sig-box {
     flex: 1;
-    padding: 0.9rem 0.6rem 0.8rem 0.85rem;
-    border-radius: 8px;
+    padding: 0.85rem 0.65rem 0.75rem 0.85rem;
+    border-radius: 3px;
     border-left: 3px solid transparent;
-    background: #0f172a;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     cursor: default;
     min-width: 0;
 }
-.sig-box:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+.sig-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    border-top-color: var(--bord2);
+}
 .sig-box .sig-count {
-    font-family: 'DM Mono', monospace;
-    font-size: 1.8rem;
-    font-weight: 500;
+    font-family: var(--mono);
+    font-size: 1.75rem;
+    font-weight: 700;
     line-height: 1;
-    color: #e2e8f0;
+    color: #fff;
 }
 .sig-box .sig-label {
-    font-size: 0.62rem;
+    font-family: var(--mono);
+    font-size: 0.55rem;
     font-weight: 700;
-    letter-spacing: 0.09em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     margin-top: 0.3rem;
-    opacity: 0.7;
+    opacity: 0.65;
 }
 .sig-box .sig-delta {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
+    font-family: var(--mono);
+    font-size: 0.65rem;
     margin-top: 0.35rem;
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    padding: 1px 6px;
-    border-radius: 99px;
-    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-weight: 700;
 }
-.delta-up   { background: rgba(52,211,153,0.15); color: #34d399; }
-.delta-down { background: rgba(248,113,113,0.15); color: #f87171; }
-.delta-flat { background: rgba(100,116,139,0.12); color: #64748b; }
+.delta-up   { background: rgba(74,222,128,0.12); color: var(--green); }
+.delta-down { background: rgba(248,113,113,0.12); color: var(--red); }
+.delta-flat { background: rgba(136,146,164,0.1);  color: var(--muted); }
 
 /* Signal accent colours */
 .sig-strong-buy  { border-left-color: #22c55e; } .sig-strong-buy  .sig-label { color: #22c55e; }
@@ -162,195 +296,230 @@ button[role="tab"][aria-selected="true"] {
 .sig-mod-sell    { border-left-color: #fb923c; } .sig-mod-sell    .sig-label { color: #fb923c; }
 .sig-weak-buy    { border-left-color: #38bdf8; } .sig-weak-buy    .sig-label { color: #38bdf8; }
 .sig-weak-sell   { border-left-color: #f59e0b; } .sig-weak-sell   .sig-label { color: #f59e0b; }
-.sig-no-action   { border-left-color: #475569; } .sig-no-action   .sig-label { color: #94a3b8; }
+.sig-no-action   { border-left-color: #475569; } .sig-no-action   .sig-label { color: var(--muted); }
 
-/* ── Filter row ── */
-.filter-bar {
-    background: #0f172a;
-    border: 1px solid #1e293b;
-    border-radius: 10px;
-    padding: 0.75rem 1rem;
-    margin-bottom: 0.75rem;
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-end;
-}
-
-/* ── Streamlit inputs override ── */
-div[data-baseweb="select"] > div,
-div[data-baseweb="input"] > div {
-    background: #0f172a !important;
-    border-color: #1e293b !important;
-    border-radius: 6px !important;
-    font-family: 'Syne', sans-serif !important;
-    font-size: 0.82rem !important;
-    color: #cbd5e1 !important;
-    transition: border-color 0.15s !important;
-}
-div[data-baseweb="select"] > div:hover,
-div[data-baseweb="input"] > div:focus-within {
-    border-color: #38bdf8 !important;
-}
-
-/* ── Buttons ── */
+/* ─── Buttons ─── */
 .stButton > button {
-    font-family: 'Syne', sans-serif !important;
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.05em !important;
-    background: #0f172a !important;
-    border: 1px solid #1e293b !important;
-    color: #94a3b8 !important;
-    border-radius: 6px !important;
-    padding: 0.4rem 0.9rem !important;
+    font-family: var(--mono) !important;
+    font-size: 0.6rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    background: transparent !important;
+    border: 1px solid var(--bord2) !important;
+    color: var(--muted) !important;
+    border-radius: 2px !important;
+    padding: 0.35rem 0.85rem !important;
     transition: all 0.15s !important;
 }
 .stButton > button:hover {
-    border-color: #38bdf8 !important;
-    color: #38bdf8 !important;
-    background: #0f172a !important;
+    border-color: var(--amber) !important;
+    color: var(--amber) !important;
 }
 
-/* ── Download button ── */
+/* ─── Download button ─── */
 .stDownloadButton > button {
-    font-family: 'Syne', sans-serif !important;
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    background: rgba(56,189,248,0.1) !important;
-    border: 1px solid rgba(56,189,248,0.3) !important;
-    color: #38bdf8 !important;
-    border-radius: 6px !important;
-    padding: 0.4rem 0.9rem !important;
+    font-family: var(--mono) !important;
+    font-size: 0.6rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    background: transparent !important;
+    border: 1px solid var(--bord2) !important;
+    color: var(--amber) !important;
+    border-radius: 2px !important;
     transition: all 0.15s !important;
 }
 .stDownloadButton > button:hover {
-    background: rgba(56,189,248,0.2) !important;
-    border-color: #38bdf8 !important;
+    border-color: var(--amber) !important;
+    background: rgba(232,184,75,0.08) !important;
 }
 
-/* ── Dataframe ── */
+/* ─── Dataframe ─── */
 .stDataFrame {
-    border: 1px solid #1e293b !important;
-    border-radius: 8px !important;
-    overflow: hidden;
+    border: 1px solid var(--border) !important;
+    border-radius: 3px !important;
+    font-family: var(--mono) !important;
+    font-size: 0.7rem !important;
 }
 
-/* ── Metric widget ── */
+/* ─── Metric widget ─── */
 div[data-testid="metric-container"] {
-    background: #0f172a;
-    border: 1px solid #1e293b;
-    border-radius: 8px;
-    padding: 0.8rem 1rem !important;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--amber);
+    border-radius: 2px;
+    padding: 0.85rem 1rem !important;
 }
 div[data-testid="metric-container"] label {
-    font-size: 0.68rem !important;
-    letter-spacing: 0.08em !important;
+    font-family: var(--mono) !important;
+    font-size: 0.58rem !important;
+    letter-spacing: 0.16em !important;
     text-transform: uppercase !important;
-    color: #475569 !important;
+    color: var(--muted) !important;
     font-weight: 700 !important;
 }
 div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
-    font-family: 'DM Mono', monospace !important;
-    color: #e2e8f0 !important;
-    font-size: 1.6rem !important;
+    font-family: var(--mono) !important;
+    color: #fff !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
 }
 
-/* ── Chat bubbles ── */
+/* ─── Chat bubbles ─── */
 div[data-testid="stChatMessage"] {
-    border-radius: 10px !important;
-    padding: 0.6rem 0.9rem !important;
+    border-radius: 3px !important;
+    padding: 0.65rem 0.9rem !important;
     margin-bottom: 0.4rem !important;
-    border: 1px solid #1e293b !important;
-    background: #0f172a !important;
-}
-div[data-testid="stChatMessage"][data-testid*="user"] {
-    border-left: 3px solid #38bdf8 !important;
-}
-div[data-testid="stChatMessage"][data-testid*="assistant"] {
-    border-left: 3px solid #e8c547 !important;
+    border: 1px solid var(--border) !important;
+    background: var(--bg2) !important;
 }
 div[data-testid="stChatMessage"] p {
-    font-size: 0.88rem !important;
-    line-height: 1.6 !important;
-    color: #cbd5e1 !important;
+    font-family: var(--sans) !important;
+    font-size: 0.86rem !important;
+    line-height: 1.65 !important;
+    color: var(--text) !important;
 }
 div[data-testid="stChatInputContainer"] {
-    background: #0f172a !important;
-    border: 1px solid #1e293b !important;
-    border-radius: 8px !important;
-    padding: 0.3rem 0.5rem !important;
+    background: var(--bg2) !important;
+    border: 1px solid var(--bord2) !important;
+    border-radius: 3px !important;
     margin-top: 0.5rem !important;
 }
 div[data-testid="stChatInputContainer"]:focus-within {
-    border-color: #38bdf8 !important;
+    border-color: var(--amber) !important;
 }
 
-/* ── Expander ── */
-div[data-testid="stExpander"] {
-    border: 1px solid #1e293b !important;
-    border-radius: 8px !important;
-    background: #0f172a !important;
-}
-div[data-testid="stExpander"] summary {
-    font-family: 'Syne', sans-serif !important;
-    font-size: 0.8rem !important;
-    font-weight: 600 !important;
-    color: #94a3b8 !important;
-    letter-spacing: 0.04em !important;
-}
-
-/* ── Checkbox & radio ── */
-label[data-baseweb="checkbox"] span,
-label[data-baseweb="radio"] span {
-    font-family: 'Syne', sans-serif !important;
-    font-size: 0.82rem !important;
-    color: #94a3b8 !important;
-}
-
-/* ── Horizontal rule ── */
-hr { border-color: #1e293b !important; margin: 0.75rem 0 !important; }
-
-/* ── st.info / warning / error ── */
+/* ─── Alerts ─── */
 div[data-testid="stAlert"] {
-    border-radius: 8px !important;
-    border: 1px solid #1e293b !important;
-    font-size: 0.82rem !important;
+    border-radius: 3px !important;
+    border: 1px solid var(--border) !important;
+    background: var(--bg2) !important;
+    font-family: var(--mono) !important;
+    font-size: 0.72rem !important;
+    color: var(--text) !important;
 }
 
-/* ── Subheader & title ── */
+/* ─── Typography ─── */
 h1 {
-    font-family: 'Syne', sans-serif !important;
-    font-size: 1.5rem !important;
+    font-family: var(--mono) !important;
+    font-size: 1.25rem !important;
     font-weight: 700 !important;
-    color: #e2e8f0 !important;
+    color: #fff !important;
+    letter-spacing: -0.01em !important;
     margin-bottom: 0.1rem !important;
 }
 h2, h3 {
-    font-family: 'Syne', sans-serif !important;
-    font-weight: 600 !important;
-    color: #cbd5e1 !important;
+    font-family: var(--sans) !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
 }
-p, li, span { color: #94a3b8 !important; }
+p, li { color: var(--muted) !important; }
+label { color: var(--muted) !important; }
+small, .stCaption {
+    font-family: var(--mono) !important;
+    color: var(--muted) !important;
+    font-size: 0.62rem !important;
+    letter-spacing: 0.06em !important;
+}
+hr { border-color: var(--border) !important; margin: 0.75rem 0 !important; }
 
-/* ── Caption ── */
-small, .stCaption { color: #475569 !important; font-size: 0.72rem !important; }
-
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #0f172a; }
-::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #334155; }
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg1); }
+::-webkit-scrollbar-thumb { background: var(--bord2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 </style>
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# Branded header
+# Page header
 # ─────────────────────────────────────────────
 _now = __import__("datetime").datetime.now()
 st.markdown(f"""
 <div class="cel-header">
-  <div class="cel-logo">CELESTIAL <span>BOND ANALYTICS</span></div>
-  <div class="cel-datestamp">{_now.strftime("%A, %d %b %Y  ·  %H:%M")} UTC</div>
+  <div class="cel-logo">◈ CELESTIAL <span>BOND ANALYTICS</span></div>
+  <div class="cel-datestamp">{_now.strftime("%a %d %b %Y · %H:%M UTC")}</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+# Sidebar — all controls live here
+# ─────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("""
+<div class="sb-wordmark">◈ CELESTIAL <span>AM</span></div>
+<div class="sb-sub">Fixed Income · Bond Analytics</div>
+""", unsafe_allow_html=True)
+
+    # ── NS Curves controls ──────────────────
+    st.markdown('<div class="sb-section">NS Curves</div>', unsafe_allow_html=True)
+    sb_country = st.selectbox(
+        "Country", COUNTRY_OPTIONS, key="sb_country"
+    )
+    sb_selected_country = COUNTRY_CODE_MAP[sb_country]
+
+    _sig_df_tmp = pd.read_csv("today_all_signals.csv") if os.path.exists("today_all_signals.csv") else pd.DataFrame(columns=["Date"])
+    _avail_dates = pd.to_datetime(_sig_df_tmp["Date"].unique()) if not _sig_df_tmp.empty else [pd.Timestamp.today()]
+    sb_date = st.date_input(
+        "Curve date",
+        value=pd.Timestamp(_avail_dates.max()).date(),
+        key="sb_date",
+    )
+    sb_date_str = pd.Timestamp(sb_date).strftime("%Y-%m-%d")
+
+    # ── Signal Dashboard controls ───────────
+    st.markdown('<div class="sb-section">Signal Dashboard</div>', unsafe_allow_html=True)
+
+    _sig_data_path = "issuer_signals.csv"
+    _all_countries_tmp = []
+    if os.path.exists(_sig_data_path):
+        _tmp_df = pd.read_csv(_sig_data_path)
+        _tmp_df["Country"] = _tmp_df["ISIN"].apply(get_country_from_isin)
+        _all_countries_tmp = sorted(_tmp_df["Country"].unique().tolist())
+
+    sb_countries = st.multiselect(
+        "Countries",
+        options=_all_countries_tmp,
+        default=_all_countries_tmp,
+        key="sb_sig_countries",
+    )
+    _FIXED_SIGNALS = [
+        "STRONG BUY", "STRONG SELL", "MODERATE BUY",
+        "MODERATE SELL", "WEAK BUY", "WEAK SELL", "NO ACTION",
+    ]
+    sb_signals = st.multiselect(
+        "Signals",
+        options=_FIXED_SIGNALS,
+        default=[s for s in _FIXED_SIGNALS if s != "NO ACTION"],
+        key="sb_sig_signals",
+    )
+    sb_search = st.text_input(
+        "Search ISIN / name",
+        placeholder="e.g. IT0001234567",
+        key="sb_search",
+    )
+
+    # ── Analysis controls ────────────────────
+    st.markdown('<div class="sb-section">Analysis</div>', unsafe_allow_html=True)
+    sb_metric = st.radio(
+        "Curve metric",
+        options=["Z-Spread", "Residuals"],
+        horizontal=False,
+        key="sb_metric",
+    )
+
+    # ── Utility ─────────────────────────────
+    st.markdown('<div class="sb-section">System</div>', unsafe_allow_html=True)
+    if st.button("↺  Refresh data", key="sb_refresh"):
+        st.cache_data.clear()
+        st.rerun()
+
+    st.markdown(f"""
+<div style="margin-top:1.5rem;font-family:var(--mono);font-size:0.52rem;
+            color:var(--muted);line-height:2;letter-spacing:0.06em">
+  DHARMA ASSET MANAGEMENT<br>
+  CELESTIAL TEAM · INTERNAL USE
 </div>
 """, unsafe_allow_html=True)
 
@@ -468,60 +637,70 @@ def parse_ns_params(x):
 
 
 # ─────────────────────────────────────────────
-# Shared dark Plotly theme
+# Chart theme — light interior, vivid traces
+# Charts float as white cards on the dark shell
 # ─────────────────────────────────────────────
-CHART_BG   = "#080f1a"
-CHART_GRID = "#1e293b"
-CHART_TEXT = "#94a3b8"
-CHART_FONT = dict(family="DM Mono, monospace", color=CHART_TEXT, size=11)
-NS_LINE_COLOR = "#e8c547"   # gold for NS fit
-PRED_COLOR    = "#a78bfa"   # violet for prediction
+CHART_PAPER = "#ffffff"   # outer chart bg
+CHART_PLOT  = "#fafbfc"   # inner plot area
+CHART_GRID  = "#e8ecf0"   # grid lines
+CHART_AXIS  = "#8892a4"   # axis text / lines
+CHART_FONT  = dict(family="Space Mono, monospace", color="#1a2030", size=10)
+NS_LINE_COLOR = "#e8b84b"   # amber for NS fit
+PRED_COLOR    = "#7c3aed"   # violet for prediction
 
-def dark_layout(fig, title="", height=640, xaxis_title="", yaxis_title=""):
+def dark_layout(fig, title="", height=620, xaxis_title="", yaxis_title=""):
+    """Light-interior chart that floats as a card on the dark page shell."""
     fig.update_layout(
-        title=dict(text=title, font=dict(family="Syne, sans-serif", size=13,
-                   color="#cbd5e1"), x=0, xanchor="left", pad=dict(l=0, b=8)),
+        title=dict(
+            text=title,
+            font=dict(family="Space Mono, monospace", size=11, color="#1a2030"),
+            x=0.01, xanchor="left", pad=dict(l=0, b=6),
+        ),
         height=height,
-        paper_bgcolor=CHART_BG,
-        plot_bgcolor=CHART_BG,
+        paper_bgcolor=CHART_PAPER,
+        plot_bgcolor=CHART_PLOT,
         font=CHART_FONT,
-        margin=dict(l=48, r=20, t=44, b=44),
+        margin=dict(l=52, r=20, t=44, b=44),
         xaxis=dict(
-            title=dict(text=xaxis_title, font=CHART_FONT),
+            title=dict(text=xaxis_title, font=dict(**CHART_FONT, size=9)),
             gridcolor=CHART_GRID,
             linecolor=CHART_GRID,
-            tickfont=CHART_FONT,
+            tickfont=dict(family="Space Mono, monospace", color=CHART_AXIS, size=9),
             zeroline=False,
+            showgrid=True,
         ),
         yaxis=dict(
-            title=dict(text=yaxis_title, font=CHART_FONT),
+            title=dict(text=yaxis_title, font=dict(**CHART_FONT, size=9)),
             gridcolor=CHART_GRID,
             linecolor=CHART_GRID,
-            tickfont=CHART_FONT,
-            zeroline=False,
+            tickfont=dict(family="Space Mono, monospace", color=CHART_AXIS, size=9),
+            zeroline=True,
+            zerolinecolor=CHART_GRID,
+            zerolinewidth=1,
+            showgrid=True,
         ),
         legend=dict(
-            bgcolor="rgba(8,15,26,0.85)",
+            bgcolor="rgba(255,255,255,0.92)",
             bordercolor=CHART_GRID,
             borderwidth=1,
-            font=dict(family="DM Mono, monospace", size=10, color=CHART_TEXT),
+            font=dict(family="Space Mono, monospace", size=9, color="#1a2030"),
         ),
         hoverlabel=dict(
-            bgcolor="#0f172a",
-            bordercolor=CHART_GRID,
-            font=dict(family="DM Mono, monospace", size=11, color="#e2e8f0"),
+            bgcolor="#1c2333",
+            bordercolor="#263047",
+            font=dict(family="Space Mono, monospace", size=10, color="#dde3ee"),
         ),
     )
     return fig
 
 
-# Signal dot colours — vivid against the dark bg
+# Signal dot colours — deep & vivid against white chart background
 SIGNAL_COLOR_MAP = {
-    "strong buy":    "#22c55e",
+    "strong buy":    "#16a34a",
     "moderate buy":  "#4ade80",
     "weak buy":      "#94a3b8",
-    "strong sell":   "#ef4444",
-    "moderate sell": "#fb923c",
+    "strong sell":   "#dc2626",
+    "moderate sell": "#ea580c",
     "weak sell":     "#94a3b8",
 }
 
@@ -584,18 +763,11 @@ with tab1:
 
     # ── Single Day ────────────────────────────
     with sub1:
-        col_ctrl, col_chart, col_ai = st.columns([1, 3, 2])
+        # Controls come from sidebar — sb_selected_country, sb_date_str
+        final_signal_df = pd.read_csv("today_all_signals.csv")
+        ns_df = load_ns_curve(sb_selected_country, sb_date_str, zip_hash=zip_hash)
 
-        with col_ctrl:
-            country_option = st.selectbox("Country", COUNTRY_OPTIONS, key="sd_country")
-            selected_country = COUNTRY_CODE_MAP[country_option]
-            final_signal_df = pd.read_csv("today_all_signals.csv")
-            available_dates = pd.to_datetime(final_signal_df["Date"].unique())
-            default_date = available_dates.max()
-            date_input = st.date_input("Date", value=default_date, key="sd_date")
-            date_str = date_input.strftime("%Y-%m-%d")
-
-        ns_df = load_ns_curve(selected_country, date_str, zip_hash=zip_hash)
+        col_chart, col_ai = st.columns([3, 2])
 
         if ns_df is not None and not ns_df.empty:
             col_map = {c.lower(): c for c in ns_df.columns}
@@ -605,10 +777,10 @@ with tab1:
                     ns_df.rename(columns={col_map[alias]: canonical}, inplace=True)
 
             ns_df["Maturity"] = pd.to_datetime(ns_df["Maturity"])
-            ns_df["YTM"] = (ns_df["Maturity"] - pd.to_datetime(date_input)).dt.days / 365.25
+            ns_df["YTM"] = (ns_df["Maturity"] - pd.to_datetime(sb_date)).dt.days / 365.25
             ns_df = ns_df.merge(final_signal_df[["ISIN", "SIGNAL"]], on="ISIN", how="left")
             ns_df["SIGNAL"] = ns_df["SIGNAL"].str.strip().str.lower()
-            ns_df["Signal_Color"] = ns_df["SIGNAL"].map(SIGNAL_COLOR_MAP).fillna("black")
+            ns_df["Signal_Color"] = ns_df["SIGNAL"].map(SIGNAL_COLOR_MAP).fillna("#94a3b8")
 
             fig = go.Figure()
             for signal, df_sub in ns_df.groupby("SIGNAL"):
@@ -666,18 +838,14 @@ with tab1:
                         fig.add_trace(go.Scatter(
                             x=mr, y=nelson_siegel(mr, *ns_params),
                             mode="lines", name="Nelson-Siegel fit",
-                            line=dict(color="deepskyblue", width=3),
+                            line=dict(color=NS_LINE_COLOR, width=2.5),
                         ))
                 except Exception as e:
                     st.warning(f"NS curve skipped: {e}")
 
-            dark_layout(fig, title=f"NS curve — {selected_country}  ·  {date_str}",
+            dark_layout(fig, title=f"NS curve — {sb_selected_country}  ·  {sb_date_str}",
                         height=620, xaxis_title="Years to maturity",
                         yaxis_title="Z-spread (bps)")
-            # override NS fit line colour
-            for trace in fig.data:
-                if trace.name == "Nelson-Siegel fit":
-                    trace.line.color = NS_LINE_COLOR
 
             with col_chart:
                 event = st.plotly_chart(fig, use_container_width=True, on_select="rerun",
@@ -726,8 +894,8 @@ with tab1:
 
     # ── Animated Curves ───────────────────────
     with sub2:
-        country_option = st.selectbox("Country", COUNTRY_OPTIONS, key="anim_country")
-        selected_country = COUNTRY_CODE_MAP[country_option]
+        # Country from sidebar
+        selected_country = sb_selected_country
 
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         if ns_df is not None and not ns_df.empty:
@@ -748,7 +916,7 @@ with tab1:
                     return f"{bond_labels.get(isin, isin)} ({pd.to_datetime(mat[0]).strftime('%Y-%m-%d')})"
                 return f"{bond_labels.get(isin, isin)} (N/A)"
 
-            show_all = st.checkbox(f"Show all {country_option} bonds", key="anim_all")
+            show_all = st.checkbox(f"Show all {sb_country} bonds", key="anim_all")
             if show_all:
                 selected_animation_bonds = bond_opts["ISIN"].tolist()
             else:
@@ -773,8 +941,8 @@ with tab1:
 
     # ── Residuals Analysis ────────────────────
     with sub3:
-        country_option = st.selectbox("Country", COUNTRY_OPTIONS, key="res_country")
-        selected_country = COUNTRY_CODE_MAP[country_option]
+        # Country from sidebar
+        selected_country = sb_selected_country
 
         ns_df = load_full_ns_df(selected_country, zip_hash=zip_hash)
         if ns_df is not None and not ns_df.empty:
@@ -871,8 +1039,8 @@ with tab1:
 
     # ── New Bond Prediction ───────────────────
     with sub5:
-        country_option = st.selectbox("Country", COUNTRY_OPTIONS, key="pred_country")
-        selected_country = COUNTRY_CODE_MAP[country_option]
+        # Country from sidebar
+        selected_country = sb_selected_country
 
         col_a, col_b = st.columns(2)
         with col_a:
@@ -1055,33 +1223,23 @@ with tab2:
     st.title("Bond Analytics Dashboard")
     st.caption(f"Data as of {today_date.strftime('%d %b %Y')}  ·  Δ vs {yesterday_date.strftime('%d %b %Y')}")
 
-    st.markdown('<div class="cel-section-title">Filters</div>', unsafe_allow_html=True)
+    # ── Filters from sidebar + inline search ──
+    selected_countries = sb_countries if sb_countries else sorted(df["Country"].unique().tolist())
+    selected_signals   = sb_signals   if sb_signals   else [s for s in _FIXED_SIGNALS if s != "NO ACTION"]
+    search_term        = sb_search
 
-    # ── Filters (above the counts so deltas reflect filtered view) ──
-    f_col1, f_col2, f_col3, f_col4 = st.columns([2, 2, 3, 1])
-    with f_col1:
-        selected_countries = st.multiselect(
-            "Countries", options=sorted(df["Country"].unique()),
-            default=sorted(df["Country"].unique()), key="sig_countries",
+    st.markdown('<div class="cel-section-title">Filters</div>', unsafe_allow_html=True)
+    # Inline search only (country + signal are in sidebar)
+    _s_col, _r_col = st.columns([5, 1])
+    with _s_col:
+        search_term = st.text_input(
+            "Search ISIN / name", value=sb_search,
+            placeholder="Type to search…", key="sig_search",
         )
-    with f_col2:
-        FIXED_SIGNALS = [
-            "STRONG BUY", "STRONG SELL", "MODERATE BUY",
-            "MODERATE SELL", "WEAK BUY", "WEAK SELL", "NO ACTION",
-        ]
-        selected_signals = st.multiselect(
-            "Signals", options=FIXED_SIGNALS,
-            default=[s for s in FIXED_SIGNALS if s != "NO ACTION"],
-            key="sig_signals",
-        )
-    with f_col3:
-        search_term = st.text_input("Search ISIN or name", placeholder="Type to search…",
-                                    key="sig_search")
-    with f_col4:
+    with _r_col:
         st.write("")
         st.write("")
-        refresh = st.button("🔄 Refresh", key="sig_refresh")
-        if refresh:
+        if st.button("↺ Refresh", key="sig_refresh"):
             st.cache_data.clear()
             st.rerun()
 
@@ -1272,9 +1430,7 @@ with tab3:
 
     # ── Multi-curve ───────────────────────────
     with an1:
-        metric_option = st.radio(
-            "Metric", options=["Z-Spread", "Residuals"], horizontal=True, key="an_metric"
-        )
+        metric_option = sb_metric
         metric_col_map = {"Z-Spread": "Z_SPRD_VAL", "Residuals": "RESIDUAL_NS"}
         selected_metric_col = metric_col_map[metric_option]
 
