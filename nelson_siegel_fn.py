@@ -1,7 +1,31 @@
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
+import json
+import re
+
+
+def parse_ns_params(x):
+    if isinstance(x, (list, tuple, np.ndarray)):
+        return list(x)
+    if isinstance(x, str):
+        # Handle "np.float64(...)" format
+        nums = re.findall(r"np\.float64\(([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\)", x)
+        if len(nums) >= 4:
+            return [float(n) for n in nums[:4]]
+        # Handle plain JSON array or comma-separated numbers
+        try:
+            parsed = json.loads(x)
+            if isinstance(parsed, list) and len(parsed) >= 4:
+                return [float(v) for v in parsed[:4]]
+        except Exception:
+            pass
+        # Fallback: extract any numbers
+        nums = re.findall(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", x)
+        if len(nums) >= 4:
+            return [float(n) for n in nums[:4]]
+    return None
+
 
 def nelson_siegel(t, beta0, beta1, beta2, tau):
     t = np.array(t)
@@ -9,6 +33,7 @@ def nelson_siegel(t, beta0, beta1, beta2, tau):
         term1 = (1 - np.exp(-t / tau)) / (t / tau)
         term2 = term1 - np.exp(-t / tau)
         return beta0 + beta1 * term1 + beta2 * term2
+
 
 def plot_ns_animation(
     ns_df,
@@ -20,52 +45,52 @@ def plot_ns_animation(
 ):
     highlight_isins = highlight_isins or []
 
-    # Map SIGNAL to colors
     signal_color_map = {
-        'STRONG BUY': 'darkgreen',
-        'MODERATE BUY': 'green',
-        'STRONG SELL': 'darkred',
-        'MODERATE SELL': 'orange'
+        'STRONG BUY':    'darkgreen',
+        'MODERATE BUY':  'green',
+        'STRONG SELL':   'darkred',
+        'MODERATE SELL': 'orange',
     }
 
-    # Ensure dates exist
     dates = sorted(ns_df['Date'].unique())
     if not dates:
         print(f"[{issuer_label}] No available dates to animate.")
-        return
+        return go.Figure()
 
-    # Determine fixed axis ranges
+    # Fixed axis ranges with padding
     x_min, x_max = ns_df['YTM'].min(), ns_df['YTM'].max()
     y_min, y_max = ns_df['Z_SPRD_VAL'].min(), ns_df['Z_SPRD_VAL'].max()
-    
-    # Add a small buffer to avoid points being on the edge
     x_pad = (x_max - x_min) * 0.05
     y_pad = (y_max - y_min) * 0.05
-    
-    fig = go.Figure()
 
-    # Helper for marker style
+    # ── Helper ────────────────────────────────
     def get_marker_style(row):
         signal = row.get('SIGNAL', None)
-        isin = row['ISIN']
+        isin   = row['ISIN']
         if signal in signal_color_map:
             color = signal_color_map[signal]
-            size = 8 if isin in highlight_isins else 7
+            size  = 8 if isin in highlight_isins else 7
         else:
-            color = 'black'
-            size = 6
-        symbol = 'circle' if abs(row['RESIDUAL_NS']) >= resid_threshold else 'circle'
-        return color, size, symbol
+            color = 'grey'
+            size  = 6
+        return color, size, 'circle'
 
-    # INITIAL frame
+    # ── Initial trace (first date) ────────────
     first_daily = ns_df[ns_df['Date'] == dates[0]]
     colors, sizes, symbols = zip(*first_daily.apply(get_marker_style, axis=1))
+
+    fig = go.Figure()
 
     fig.add_trace(go.Scatter(
         x=first_daily['YTM'],
         y=first_daily['Z_SPRD_VAL'],
         mode='markers',
-        marker=dict(color=colors, size=sizes, symbol=symbols, line=dict(width=1, color="black")),
+        marker=dict(
+            color=list(colors),
+            size=list(sizes),
+            symbol=list(symbols),
+            line=dict(width=1, color='black'),
+        ),
         text=first_daily['SECURITY_NAME'],
         customdata=np.stack([first_daily['RESIDUAL_NS'], first_daily['SIGNAL']], axis=-1),
         hovertemplate=(
@@ -75,91 +100,148 @@ def plot_ns_animation(
             "Signal: %{customdata[1]}<br>"
             "%{text}<extra></extra>"
         ),
-        name="Bonds"
+        name='Bonds',
     ))
 
-    # NS curve
-    try:
-        ns_params = first_daily['NS_PARAMS'].iloc[0]
+    # Initial NS fit line
+    ns_params_init = parse_ns_params(first_daily['NS_PARAMS'].iloc[0])
+    if ns_params_init is not None:
         fig.add_trace(go.Scatter(
             x=ytm_range,
-            y=nelson_siegel(ytm_range, *ns_params),
+            y=nelson_siegel(ytm_range, *ns_params_init),
             mode='lines',
             line=dict(color='deepskyblue', width=3),
-            name='Nelson-Siegel Fit'
+            name='Nelson-Siegel Fit',
         ))
-    except Exception as e:
-        print(f"[ERROR] Could not plot NS curve: {e}")
+    else:
+        # Placeholder so trace index stays consistent with frames
+        fig.add_trace(go.Scatter(x=[], y=[], mode='lines',
+                                 line=dict(color='deepskyblue', width=3),
+                                 name='Nelson-Siegel Fit'))
 
-    # Frames
+    # ── Frames ────────────────────────────────
     frames = []
     for d in dates:
         daily = ns_df[ns_df['Date'] == d]
+        if daily.empty:
+            continue
+
         colors, sizes, symbols = zip(*daily.apply(get_marker_style, axis=1))
-        try:
-            fit_curve = nelson_siegel(ytm_range, *daily['NS_PARAMS'].iloc[0])
-            frames.append(go.Frame(
-                name=str(d.date()),
-                data=[
-                    go.Scatter(
-                        x=daily['YTM'],
-                        y=daily['Z_SPRD_VAL'],
-                        mode='markers',
-                        marker=dict(color=colors, size=sizes, symbol=symbols, line=dict(width=1, color="black")),
-                        text=daily['SECURITY_NAME'],
-                        customdata=np.stack([daily['RESIDUAL_NS'], daily['SIGNAL']], axis=-1),
-                        hovertemplate=(
-                            "YTM: %{x:.2f} yrs<br>"
-                            "Z-Spread: %{y:.1f} bps<br>"
-                            "Residual: %{customdata[0]:.1f} bps<br>"
-                            "Signal: %{customdata[1]}<br>"
-                            "%{text}<extra></extra>"
-                        ),
-                        name="Bonds"
+
+        ns_params = parse_ns_params(daily['NS_PARAMS'].iloc[0])
+        fit_y     = nelson_siegel(ytm_range, *ns_params) if ns_params is not None else []
+
+        frames.append(go.Frame(
+            name=str(d.date()) if hasattr(d, 'date') else str(d),
+            data=[
+                go.Scatter(
+                    x=daily['YTM'],
+                    y=daily['Z_SPRD_VAL'],
+                    mode='markers',
+                    marker=dict(
+                        color=list(colors),
+                        size=list(sizes),
+                        symbol=list(symbols),
+                        line=dict(width=1, color='black'),
                     ),
-                    go.Scatter(
-                        x=ytm_range,
-                        y=fit_curve,
-                        mode='lines',
-                        line=dict(color='deepskyblue', width=3),
-                        name='Nelson-Siegel Fit'
-                    )
-                ]
-            ))
-        except Exception as e:
-            print(f"[ERROR] Error creating frame for {d}: {e}")
+                    text=daily['SECURITY_NAME'],
+                    customdata=np.stack([daily['RESIDUAL_NS'], daily['SIGNAL']], axis=-1),
+                    hovertemplate=(
+                        "YTM: %{x:.2f} yrs<br>"
+                        "Z-Spread: %{y:.1f} bps<br>"
+                        "Residual: %{customdata[0]:.1f} bps<br>"
+                        "Signal: %{customdata[1]}<br>"
+                        "%{text}<extra></extra>"
+                    ),
+                    name='Bonds',
+                ),
+                go.Scatter(
+                    x=ytm_range if ns_params is not None else [],
+                    y=fit_y,
+                    mode='lines',
+                    line=dict(color='deepskyblue', width=3),
+                    name='Nelson-Siegel Fit',
+                ),
+            ],
+        ))
 
     fig.frames = frames
 
+    # ── Layout ────────────────────────────────
+    date_labels = [
+        str(d.date()) if hasattr(d, 'date') else str(d)
+        for d in dates
+    ]
+
     fig.update_layout(
-        xaxis=dict(title="Years to Maturity", range=[x_min - x_pad, x_max + x_pad]),
-        yaxis=dict(title="Z-Spread (bps)", range=[y_min - y_pad, y_max + y_pad]),
-        updatemenus=[{
-            "type": "buttons",
-            "x": 0.05, "y": 1.03,
-            "direction": "right",
-            "buttons": [
-                {"label": "▶️ Play", "method": "animate", "args": [None, {"frame": {"duration": 150, "redraw": True}, "fromcurrent": True, "mode": "immediate"}]},
-                {"label": "⏸️ Pause", "method": "animate", "args": [[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate"}]}
-            ],
-            "showactive": False
-        }],
-        sliders=[{
-            "steps": [dict(
-                method="animate",
-                args=[[str(d.date())], {"frame": {"duration": 0, "redraw": True}, "mode": "immediate"}],
-                label=str(d.date())
-            ) for d in dates],
-            "transition": {"duration": 0},
-            "x": 0.05,
-            "len": 0.9
-        }],
-        title=f"{issuer_label} Z-Spread Curve Animation with Nelson-Siegel Fit",
+        title=f"{issuer_label} — Z-Spread Curve Animation with Nelson-Siegel Fit",
         template=template,
         height=800,
         width=1200,
-        showlegend=True
+        showlegend=True,
+        xaxis=dict(title='Years to Maturity', range=[x_min - x_pad, x_max + x_pad]),
+        yaxis=dict(title='Z-Spread (bps)',    range=[y_min - y_pad, y_max + y_pad]),
+        updatemenus=[{
+            'type':      'buttons',
+            'x':         0.05,
+            'y':         1.08,
+            'direction': 'right',
+            'showactive': False,
+            'buttons': [
+                {
+                    'label':  '▶ Play',
+                    'method': 'animate',
+                    'args': [
+                        None,
+                        {
+                            'frame':       {'duration': 150, 'redraw': True},
+                            'fromcurrent': True,
+                            'mode':        'immediate',
+                            'transition':  {'duration': 50},
+                        },
+                    ],
+                },
+                {
+                    'label':  '⏸ Pause',
+                    'method': 'animate',
+                    'args': [
+                        [None],
+                        {
+                            'frame':      {'duration': 0, 'redraw': False},
+                            'mode':       'immediate',
+                            'transition': {'duration': 0},
+                        },
+                    ],
+                },
+            ],
+        }],
+        sliders=[{
+            'currentvalue': {
+                'prefix':  'Date: ',
+                'visible': True,
+                'xanchor': 'center',
+                'font':    {'size': 14},
+            },
+            'transition': {'duration': 50},
+            'x':   0.05,
+            'len': 0.9,
+            'pad': {'t': 50},
+            'steps': [
+                {
+                    'method': 'animate',
+                    'label':  lbl,
+                    'args': [
+                        [lbl],
+                        {
+                            'frame':      {'duration': 0, 'redraw': True},
+                            'mode':       'immediate',
+                            'transition': {'duration': 0},
+                        },
+                    ],
+                }
+                for lbl in date_labels
+            ],
+        }],
     )
 
     return fig
-
