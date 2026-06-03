@@ -25,9 +25,9 @@ import altair as alt
 # -------------------
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")      # Your Access Key ID
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")  # Your Secret Access Key
-BUCKET_NAME = "celestial-signal"    # The S3 bucket you created
-LOCAL_ZIP = "ns_curves_20250611.zip"
-LOCAL_FOLDER = "ns_curves_06_11"
+BUCKET_NAME = "bonds-celestial-signal"    # The S3 bucket you created
+LOCAL_ZIP = "ns_curves_20260106.zip"
+LOCAL_FOLDER = "ns_curves_0106"
 
 
 # -------------------
@@ -67,7 +67,7 @@ def file_hash(filepath: str) -> str:
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False) -> tuple[str, str]:
     """Unzip NS curves from S3 and return (folder, zip_hash)."""
     # Download latest zip from S3
-    zip_path = download_from_s3(file_key="ns_curves_06_11.zip", local_path=zip_path, force=force)
+    zip_path = download_from_s3(file_key="ns_curves_0106.zip", local_path=zip_path, force=force)
     
     # Compute file hash
     zip_hash = file_hash(zip_path)
@@ -92,41 +92,38 @@ def load_full_ns_df(country_code: str, zip_hash: str) -> pd.DataFrame:
     """Load all NS curves for a country. Cache invalidates if ZIP changes."""
     folder, _ = unzip_ns_curves(force=True)
 
-    all_files = [
-        f"{country_code}.parquet"
-    ]
+    all_files = sorted([
+        f for f in os.listdir(folder)
+        if f.startswith(country_code) and f.endswith(".parquet")
+    ])
 
+    dfs = []
+    for f in all_files:
+        try:
+            df = pd.read_parquet(os.path.join(folder, f))
 
-    file_path = os.path.join(folder, f"{country_code}.parquet")
+            # 🩹 Ensure ISIN and Date survive correctly
+            if "ISIN" in df.columns:
+                df["ISIN"] = df["ISIN"].astype(str).str.strip()
+            if "Date" in df.columns:
+                df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 
-    # Check file exists
-    if not os.path.exists(file_path):
-        st.warning(
-            f"No parquet file found for country code '{country_code}' in folder '{folder}'."
-        )
+            # 🩹 Ensure Country info exists
+            if "Country" not in df.columns:
+                df["Country"] = country_code
+
+            dfs.append(df)
+
+        except Exception as e:
+            st.warning(f"Error loading file {f}: {e}")
+            continue
+
+    if not dfs:
+        st.warning(f"No parquet files found for country code '{country_code}' in folder '{folder}'.")
         return pd.DataFrame()
-    
-    try:
-        ns_df = pd.read_parquet(file_path)
-    
-        # 🩹 Ensure ISIN and Date survive correctly
-        if "ISIN" in ns_df.columns:
-            ns_df["ISIN"] = ns_df["ISIN"].astype(str).str.strip()
-    
-        if "Date" in ns_df.columns:
-            ns_df["Date"] = pd.to_datetime(ns_df["Date"], errors="coerce")
-    
-        # 🩹 Ensure Country info exists
-        if "Country" not in ns_df.columns:
-            ns_df["Country"] = country_code
-    
-    except Exception as e:
-        st.warning(f"Error loading parquet file {file_path}: {e}")
-        return pd.DataFrame()
-
 
     # ✅ Concatenate everything
-    ns_df = pd.read_parquet(file_path)
+    ns_df = pd.concat(dfs, ignore_index=True)
 
     # Normalize residual column naming
     if "RESIDUAL" in ns_df.columns and "RESIDUAL_NS" not in ns_df.columns:
@@ -188,6 +185,20 @@ def load_trades():
 
 # Load trades into memory
 top_trades_agent = load_trades()
+
+import json
+
+def parse_ns_params(x):
+    if isinstance(x, (list, tuple, np.ndarray)):
+        return x
+    
+    if isinstance(x, str):
+        try:
+            return json.loads(x)
+        except:
+            return None
+    
+    return None
 
 
 tab1, tab2, tab3, tab4 = st.tabs(["Nelson-Siegel Curves", "Signal Dashboard", "Analysis", "AI Assisstant"])
@@ -553,7 +564,7 @@ with tab1:
         ("Single Day Curve", "Animated Curves", "Residuals Analysis", "Compare NS Curves", "New Bond Prediction")
     )
 
-    S3_BUCKET_FILE = "ns_curves_06_11.zip"
+    S3_BUCKET_FILE = "ns_curves_0106.zip"
     
     try:
         # Download from S3 instead of B2
@@ -585,8 +596,7 @@ with tab1:
             'Netherlands 🇳🇱': 'NETHER',
             'Belgium 🇧🇪': 'BGB'
         }
-
-
+        
         selected_country = country_code_map[country_option]
         
         final_signal_df = pd.read_csv("today_all_signals.csv")
@@ -600,7 +610,6 @@ with tab1:
         
 
         if ns_df is not None and not ns_df.empty:
-
             # --- Normalize column names for consistency ---
             col_map = {c.lower(): c for c in ns_df.columns}
             if "z_sprd_val" in col_map:
@@ -668,68 +677,50 @@ with tab1:
                     ))
         
             # Nelson-Siegel fit
+            import re
             if 'NS_PARAMS' in ns_df.columns or any(col in ns_df.columns for col in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                 try:
                     ns_params = None
-
-                    if "NS_PARAMS" in ns_df.columns:
-                    
-                        raw = ns_df["NS_PARAMS"].iloc[0]
-                    
-                        if isinstance(raw, str):
-                    
-                            import re
-                            import ast
-                    
-                            # 🔧 Remove numpy wrappers
-                            cleaned = re.sub(r"np\.float64\((.*?)\)", r"\1", raw)
-                    
-                            try:
-                                parsed = ast.literal_eval(cleaned)
-                    
-                                if isinstance(parsed, (list, tuple)):
-                                    ns_params = list(parsed)
-                    
-                            except Exception:
-                                ns_params = None
-                    
-                        elif isinstance(raw, (list, tuple, np.ndarray)):
-                            ns_params = list(raw)
-                    
-                    
-                    # --- fallback to separate param columns ---
-                    param_cols = ["NS_PARAM_1","NS_PARAM_2","NS_PARAM_3","NS_PARAM_4"]
-                    
-                    if ns_params is None and all(c in ns_df.columns for c in param_cols):
-                    
+            
+                    if 'NS_PARAMS' in ns_df.columns:
+                        ns_params_raw = ns_df['NS_PARAMS'].dropna().iloc[0] if ns_df['NS_PARAMS'].notna().any() else None
+                        if ns_params_raw is not None:
+                            if isinstance(ns_params_raw, (tuple, list, np.ndarray)):
+                                ns_params = list(ns_params_raw)
+                            elif isinstance(ns_params_raw, str):
+                                nums = re.findall(r'np\.float64\(([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\)', ns_params_raw)
+                                if len(nums) >= 4:
+                                    ns_params = [float(n) for n in nums[:4]]
+                                else:
+                                    # fallback for plain tuple strings like "(0.5, 0.3, -0.2, 1.5)"
+                                    nums = re.findall(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', ns_params_raw)
+                                    if len(nums) >= 4:
+                                        ns_params = [float(n) for n in nums[:4]]
+            
+                    # Fallback: individual columns
+                    if ns_params is None and all(c in ns_df.columns for c in ["NS_PARAM_1", "NS_PARAM_2", "NS_PARAM_3", "NS_PARAM_4"]):
                         ns_params = [
                             ns_df["NS_PARAM_1"].iloc[0],
                             ns_df["NS_PARAM_2"].iloc[0],
                             ns_df["NS_PARAM_3"].iloc[0],
                             ns_df["NS_PARAM_4"].iloc[0],
                         ]
-                    
-                    
-                    # --- sanity check ---
-                    if ns_params is None or len(ns_params) != 4:
-                        raise ValueError(f"Invalid NS parameters: {ns_params}")
-
             
-                    # --- Compute NS curve
-                    maturity_range = np.linspace(ns_df['YTM'].min(), ns_df['YTM'].max(), 100)
-                    ns_curve = nelson_siegel(maturity_range, *ns_params)
-            
-                    fig.add_trace(go.Scatter(
-                        x=maturity_range,
-                        y=ns_curve,
-                        mode='lines',
-                        name='Nelson-Siegel Fit',
-                        line=dict(color='deepskyblue', width=3)
-                    ))
+                    if ns_params is None or not isinstance(ns_params, (list, tuple, np.ndarray)):
+                        st.info("NS curve not available for this selection")
+                    else:
+                        maturity_range = np.linspace(ns_df['YTM'].min(), ns_df['YTM'].max(), 100)
+                        ns_curve = nelson_siegel(maturity_range, *ns_params)
+                        fig.add_trace(go.Scatter(
+                            x=maturity_range,
+                            y=ns_curve,
+                            mode='lines',
+                            name='Nelson-Siegel Fit',
+                            line=dict(color='deepskyblue', width=3)
+                        ))
             
                 except Exception as e:
                     st.error(f"Error plotting Nelson-Siegel curve: {e}")
-
         
             fig.update_layout(
                 title=f"Nelson-Siegel Curve for {selected_country} on {date_str}",
@@ -935,23 +926,31 @@ with tab1:
         if 'NS_PARAMS' in ns_today_plot.columns:
             try:
                 ns_params_raw = ns_today_plot['NS_PARAMS'].iloc[0]
-                if isinstance(ns_params_raw, str):
-                    import ast
-                    ns_params = ast.literal_eval(ns_params_raw)
+        
+                ns_params = parse_ns_params(ns_params_raw)
+        
+                # 🚨 instead of crashing, just skip if missing
+                if ns_params is None:
+                    st.warning("NS parameters missing — skipping curve fit")
                 else:
-                    ns_params = ns_params_raw
-                maturity_range = np.linspace(ns_today_plot['YearsToMaturity'].min(),
-                                             ns_today_plot['YearsToMaturity'].max(), 100)
-                ns_curve = nelson_siegel(maturity_range, *ns_params)
-                fig.add_trace(go.Scatter(
-                    x=maturity_range,
-                    y=ns_curve,
-                    mode='lines',
-                    name='Nelson-Siegel Fit',
-                    line=dict(color='deepskyblue', width=3)
-                ))
+                    maturity_range = np.linspace(
+                        ns_today_plot['YearsToMaturity'].min(),
+                        ns_today_plot['YearsToMaturity'].max(),
+                        100
+                    )
+        
+                    ns_curve = nelson_siegel(maturity_range, *ns_params)
+        
+                    fig.add_trace(go.Scatter(
+                        x=maturity_range,
+                        y=ns_curve,
+                        mode='lines',
+                        name='Nelson-Siegel Fit',
+                        line=dict(color='deepskyblue', width=3)
+                    ))
+        
             except Exception as e:
-                st.error(f"Error plotting NS curve: {e}")
+                st.warning(f"NS curve skipped due to error: {e}")
     
         # Add predicted Z-spread point
         fig.add_trace(go.Scatter(
@@ -1113,24 +1112,35 @@ with tab1:
             fig = go.Figure()
             for c in countries:
                 for d in selected_dates.get(c, []):
-                    ns_df_curve = load_ns_curve(country_code_map[c], d, zip_hash=zip_hash)
-                    if ns_df_curve is not None and 'NS_PARAMS' in ns_df_curve.columns:
-                        ns_params_raw = ns_df_curve['NS_PARAMS'].iloc[0]
-                        if isinstance(ns_params_raw, str):
-                            import ast
-                            ns_params = ast.literal_eval(ns_params_raw)
-                        else:
-                            ns_params = ns_params_raw
             
-                        max_maturity = min(30, ns_df_curve['YTM'].max())
-                        maturities = np.linspace(0, max_maturity, 100)
-                        ns_values = nelson_siegel(maturities, *ns_params)
-                        fig.add_trace(go.Scatter(
-                            x=maturities,
-                            y=ns_values,
-                            mode='lines',
-                            name=f"{c} - {d}"
-                        ))
+                    ns_df_curve = load_ns_curve(country_code_map[c], d, zip_hash=zip_hash)
+            
+                    if ns_df_curve is None or ns_df_curve.empty:
+                        continue
+            
+                    if 'NS_PARAMS' not in ns_df_curve.columns:
+                        continue
+            
+                    ns_params_raw = ns_df_curve['NS_PARAMS'].iloc[0]
+                    ns_params = parse_ns_params(ns_params_raw)
+            
+                    if ns_params is None:
+                        continue  # skip bad curve safely
+            
+                    if 'YTM' not in ns_df_curve.columns or ns_df_curve['YTM'].isna().all():
+                        continue
+            
+                    max_maturity = min(30, ns_df_curve['YTM'].max())
+                    maturities = np.linspace(0, max_maturity, 100)
+            
+                    ns_values = nelson_siegel(maturities, *ns_params)
+            
+                    fig.add_trace(go.Scatter(
+                        x=maturities,
+                        y=ns_values,
+                        mode='lines',
+                        name=f"{c} - {d}"
+                    ))
             
                 
             fig.update_layout(
@@ -1529,15 +1539,6 @@ with tab4:
         st.altair_chart(z_diff_chart)
     except Exception as e:
         st.warning(f"Heatmap unavailable: {e}")
-
-
-
-
-
-
-
-
-
 
 
 
