@@ -71,7 +71,7 @@ div[role="tablist"] { width: 100% !important; }
 # ─────────────────────────────────────────────
 AWS_ACCESS_KEY_ID     = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-BUCKET_NAME  = "bonds-celestial-signal"
+BUCKET_NAME  = "celestial-signal"
 LOCAL_ZIP    = "ns_curves_20260806.zip"
 LOCAL_FOLDER = "ns_curves_0806"
 
