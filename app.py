@@ -89,6 +89,10 @@ def download_from_s3(file_key: str, local_path: str, force: bool = False):
         s3.download_file(BUCKET_NAME, file_key, local_path)
     return local_path
 
+s3 = boto3.client("s3", ...)
+for obj in s3.list_objects_v2(Bucket=BUCKET_NAME)["Contents"]:
+    print(obj["Key"])
+
 
 def file_hash(filepath: str) -> str:
     hasher = hashlib.md5()
