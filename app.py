@@ -81,18 +81,13 @@ def download_from_s3(file_key: str, local_path: str, force: bool = False):
         return local_path
     with st.spinner(f"Downloading {file_key} from S3…"):
         s3 = boto3.client(
-    "s3",
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    region_name="eu-west-2",  # whatever region your bucket is in
-)
+            "s3",
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+            region_name="eu-north-1",
+        )
         s3.download_file(BUCKET_NAME, file_key, local_path)
     return local_path
-
-s3 = boto3.client("s3", ...)
-for obj in s3.list_objects_v2(Bucket=BUCKET_NAME)["Contents"]:
-    print(obj["Key"])
-
 
 def file_hash(filepath: str) -> str:
     hasher = hashlib.md5()
