@@ -501,7 +501,7 @@ with tab1:
                     all_dates[c] = pd.Series(dates).sort_values(ascending=False)
                 else:
                     all_dates[c] = pd.Series(dtype="datetime64[ns]")
-
+    
             selected_dates = {}
             for c in countries:
                 if len(all_dates[c]):
@@ -509,34 +509,79 @@ with tab1:
                     selected_dates[c] = st.multiselect(
                         f"Dates — {c}", options=fmts, default=[fmts[0]], key=f"cmp_dates_{c}"
                     )
-
+    
             fig = go.Figure()
+            any_plotted = False
+    
             for c in countries:
                 for d in selected_dates.get(c, []):
                     curve_df = load_ns_curve(COUNTRY_CODE_MAP[c], d, zip_hash=zip_hash)
-                    if curve_df is None or curve_df.empty or "NS_PARAMS" not in curve_df.columns:
+                    if curve_df is None or curve_df.empty:
+                        st.warning(f"No data for {c} on {d}")
                         continue
-                    ns_params = parse_ns_params(curve_df["NS_PARAMS"].iloc[0])
+    
+                    # ── Parse NS params ───────────────────────────────────────
+                    ns_params = None
+                    if "NS_PARAMS" in curve_df.columns and curve_df["NS_PARAMS"].notna().any():
+                        ns_params = parse_ns_params(curve_df["NS_PARAMS"].dropna().iloc[0])
+                    elif all(f"NS_PARAM_{i}" in curve_df.columns for i in range(1, 5)):
+                        ns_params = [curve_df[f"NS_PARAM_{i}"].iloc[0] for i in range(1, 5)]
+    
                     if ns_params is None:
+                        st.warning(f"No NS params found for {c} on {d}")
                         continue
-                    if "YTM" not in curve_df.columns or curve_df["YTM"].isna().all():
-                        continue
-                    max_mat = min(30, curve_df["YTM"].max())
-                    mats = np.linspace(0, max_mat, 100)
+    
+                    # ── Compute YTM from Maturity ─────────────────────────────
+                    ref_date = pd.to_datetime(d)
+                    if "Maturity" in curve_df.columns:
+                        curve_df["Maturity"] = pd.to_datetime(curve_df["Maturity"], errors="coerce")
+                        curve_df["YTM"] = (curve_df["Maturity"] - ref_date).dt.days / 365.25
+                        curve_df = curve_df[curve_df["YTM"] > 0]   # drop expired bonds
+                        max_mat = min(30, curve_df["YTM"].max()) if not curve_df.empty else 30
+                    else:
+                        max_mat = 30
+    
+                    mats = np.linspace(0.25, max_mat, 200)
+                    ys   = nelson_siegel(mats, *ns_params)
+    
                     fig.add_trace(go.Scatter(
-                        x=mats, y=nelson_siegel(mats, *ns_params),
-                        mode="lines", name=f"{c} — {d}",
+                        x=mats, y=ys,
+                        mode="lines",
+                        name=f"{c} — {d}",
                     ))
-            fig.update_layout(
-                title="NS curves comparison",
-                xaxis_title="Years to maturity",
-                yaxis_title="Z-spread (bps)",
-                xaxis=dict(range=[0, 30]),
-                template="plotly_white",
-                height=700,
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
+    
+                    # ── Overlay bond scatter for this country/date ────────────
+                    if not curve_df.empty and "Z_SPRD_VAL" in curve_df.columns:
+                        fig.add_trace(go.Scatter(
+                            x=curve_df["YTM"],
+                            y=curve_df["Z_SPRD_VAL"],
+                            mode="markers",
+                            name=f"{c} — {d} (bonds)",
+                            marker=dict(size=5, opacity=0.5),
+                            text=curve_df.get("SECURITY_NAME", curve_df["ISIN"]),
+                            hovertemplate=(
+                                "YTM: %{x:.2f}y<br>"
+                                "Z-spread: %{y:.1f} bps<br>"
+                                "%{text}<extra></extra>"
+                            ),
+                            showlegend=False,
+                        ))
+    
+                    any_plotted = True
+    
+            if any_plotted:
+                fig.update_layout(
+                    title="NS curves comparison",
+                    xaxis_title="Years to maturity",
+                    yaxis_title="Z-spread (bps)",
+                    xaxis=dict(range=[0, 30]),
+                    template="plotly_white",
+                    height=700,
+                    hovermode="x unified",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Select at least one country and date to plot.")
     # ── New Bond Prediction ───────────────────
     with sub5:
         country_option = st.selectbox("Country", COUNTRY_OPTIONS, key="pred_country")
