@@ -501,7 +501,7 @@ with tab1:
                     all_dates[c] = pd.Series(dates).sort_values(ascending=False)
                 else:
                     all_dates[c] = pd.Series(dtype="datetime64[ns]")
-
+    
             selected_dates = {}
             for c in countries:
                 if len(all_dates[c]):
@@ -509,34 +509,79 @@ with tab1:
                     selected_dates[c] = st.multiselect(
                         f"Dates — {c}", options=fmts, default=[fmts[0]], key=f"cmp_dates_{c}"
                     )
-
+    
             fig = go.Figure()
+            any_plotted = False
+    
             for c in countries:
                 for d in selected_dates.get(c, []):
                     curve_df = load_ns_curve(COUNTRY_CODE_MAP[c], d, zip_hash=zip_hash)
-                    if curve_df is None or curve_df.empty or "NS_PARAMS" not in curve_df.columns:
+                    if curve_df is None or curve_df.empty:
+                        st.warning(f"No data for {c} on {d}")
                         continue
-                    ns_params = parse_ns_params(curve_df["NS_PARAMS"].iloc[0])
+    
+                    # ── Parse NS params ───────────────────────────────────────
+                    ns_params = None
+                    if "NS_PARAMS" in curve_df.columns and curve_df["NS_PARAMS"].notna().any():
+                        ns_params = parse_ns_params(curve_df["NS_PARAMS"].dropna().iloc[0])
+                    elif all(f"NS_PARAM_{i}" in curve_df.columns for i in range(1, 5)):
+                        ns_params = [curve_df[f"NS_PARAM_{i}"].iloc[0] for i in range(1, 5)]
+    
                     if ns_params is None:
+                        st.warning(f"No NS params found for {c} on {d}")
                         continue
-                    if "YTM" not in curve_df.columns or curve_df["YTM"].isna().all():
-                        continue
-                    max_mat = min(30, curve_df["YTM"].max())
-                    mats = np.linspace(0, max_mat, 100)
+    
+                    # ── Compute YTM from Maturity ─────────────────────────────
+                    ref_date = pd.to_datetime(d)
+                    if "Maturity" in curve_df.columns:
+                        curve_df["Maturity"] = pd.to_datetime(curve_df["Maturity"], errors="coerce")
+                        curve_df["YTM"] = (curve_df["Maturity"] - ref_date).dt.days / 365.25
+                        curve_df = curve_df[curve_df["YTM"] > 0]   # drop expired bonds
+                        max_mat = min(30, curve_df["YTM"].max()) if not curve_df.empty else 30
+                    else:
+                        max_mat = 30
+    
+                    mats = np.linspace(0.25, max_mat, 200)
+                    ys   = nelson_siegel(mats, *ns_params)
+    
                     fig.add_trace(go.Scatter(
-                        x=mats, y=nelson_siegel(mats, *ns_params),
-                        mode="lines", name=f"{c} — {d}",
+                        x=mats, y=ys,
+                        mode="lines",
+                        name=f"{c} — {d}",
                     ))
-            fig.update_layout(
-                title="NS curves comparison",
-                xaxis_title="Years to maturity",
-                yaxis_title="Z-spread (bps)",
-                xaxis=dict(range=[0, 30]),
-                template="plotly_white",
-                height=700,
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
+    
+                    # ── Overlay bond scatter for this country/date ────────────
+                    if not curve_df.empty and "Z_SPRD_VAL" in curve_df.columns:
+                        fig.add_trace(go.Scatter(
+                            x=curve_df["YTM"],
+                            y=curve_df["Z_SPRD_VAL"],
+                            mode="markers",
+                            name=f"{c} — {d} (bonds)",
+                            marker=dict(size=5, opacity=0.5),
+                            text=curve_df.get("SECURITY_NAME", curve_df["ISIN"]),
+                            hovertemplate=(
+                                "YTM: %{x:.2f}y<br>"
+                                "Z-spread: %{y:.1f} bps<br>"
+                                "%{text}<extra></extra>"
+                            ),
+                            showlegend=False,
+                        ))
+    
+                    any_plotted = True
+    
+            if any_plotted:
+                fig.update_layout(
+                    title="NS curves comparison",
+                    xaxis_title="Years to maturity",
+                    yaxis_title="Z-spread (bps)",
+                    xaxis=dict(range=[0, 30]),
+                    template="plotly_white",
+                    height=700,
+                    hovermode="x unified",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Select at least one country and date to plot.")
     # ── New Bond Prediction ───────────────────
     with sub5:
         country_option = st.selectbox("Country", COUNTRY_OPTIONS, key="pred_country")
@@ -932,114 +977,306 @@ with tab2:
 # ═════════════════════════════════════════════
 with tab3:
     an1, an2 = st.tabs(["Multi-curve comparison", "Top trades"])
-
     # ── Multi-curve ───────────────────────────
     with an1:
-        metric_option = st.radio(
-            "Metric", options=["Z-Spread", "Residuals"], horizontal=True, key="an_metric"
-        )
-        metric_col_map = {"Z-Spread": "Z_SPRD_VAL", "Residuals": "RESIDUAL_NS"}
+        # ── Top controls ──────────────────────────────────────────────────────────
+        ctrl_1, ctrl_2, ctrl_3 = st.columns([2, 2, 2])
+        with ctrl_1:
+            n_bonds = st.radio(
+                "Structure", options=[2, 3, 4, 6],
+                format_func=lambda n: {
+                    2: "2  —  Spread",
+                    3: "3  —  Butterfly",
+                    4: "4  —  Condor",
+                    6: "6  —  Cross-mkt butterfly",
+                }[n],
+                horizontal=True,
+                key="an_n_bonds",
+            )
+        with ctrl_2:
+            # replace the two lines at the top of an1
+            metric_option = st.radio(
+                "Metric", options=["Z-Spread", "NS Fitted", "Residuals"],
+                horizontal=True, key="an_metric",
+            )
+            metric_col_map = {
+                "Z-Spread":  "Z_SPRD_VAL",
+                "NS Fitted": "NS_FITTED",
+                "Residuals": "RESIDUAL_NS",
+            }
+        with ctrl_3:
+            lookback_map   = {"1Y": 365, "3Y": 1095, "5Y": 1825, "Max": None}
+            lookback_label = st.radio(
+                "Lookback", options=list(lookback_map.keys()),
+                horizontal=True, key="an_lookback", index=0,
+            )
+    
+        lookback_days      = lookback_map[lookback_label]
         selected_metric_col = metric_col_map[metric_option]
-
-        if "curves" not in st.session_state or len(st.session_state.curves) != 2:
-            st.session_state.curves = [
-                {"id": "curve1", "country": "Italy 🇮🇹", "bond1": None, "bond2": None},
-                {"id": "curve2", "country": "Italy 🇮🇹", "bond1": None, "bond2": None},
-            ]
-
+    
+        STRUCTURE_META = {
+            2: {"name": "Spread",                   "formula": "B2 − B1"},
+            3: {"name": "Butterfly",                "formula": "2×B2 − B1 − B3"},
+            4: {"name": "Condor",                   "formula": "B4 − B3 − B2 + B1"},
+            6: {"name": "Cross-market butterfly",   "formula": "(2×B2 − B1 − B3) − (2×B5 − B4 − B6)"},
+        }
+        WEIGHTS = {
+            2: [-1,  1,  0,  0,  0,  0],
+            3: [-1,  2, -1,  0,  0,  0],
+            4: [ 1, -1, -1,  1,  0,  0],
+            6: [-1,  2, -1,  1, -2,  1],   # group A: -B1+2B2-B3, group B: +B4-2B5+B6 → A-B
+        }
+        SLOT_COLORS = ["#378ADD", "#1D9E75", "#BA7517", "#D85A30", "#7F77DD", "#D4537E"]
+    
+        st.caption(
+            f"**{STRUCTURE_META[n_bonds]['name']}**  ·  "
+            f"Resultant = {STRUCTURE_META[n_bonds]['formula']}"
+        )
+    
+        # ── Helpers ───────────────────────────────────────────────────────────────
         @st.cache_data(ttl=300)
         def load_issuer_signal():
             try:
                 return pd.read_csv("issuer_signals.csv")
-            except Exception as e:
-                st.error(f"Failed to load issuer_signal: {e}")
+            except Exception:
                 return pd.DataFrame()
-
+    
         issuer_signal = load_issuer_signal()
-
-        # Build global legend labels
-        global_legend_labels = {}
-        for curve in st.session_state.curves:
-            tmp = load_full_ns_df(COUNTRY_CODE_MAP[curve["country"]], zip_hash=zip_hash)
-            if tmp is None or tmp.empty:
-                continue
-            tmp["Date"] = pd.to_datetime(tmp["Date"]).dt.normalize()
-            opts = tmp[["ISIN", "SECURITY_NAME", "Maturity"]].drop_duplicates()
-            opts = opts.merge(issuer_signal[["ISIN", "SIGNAL"]], on="ISIN", how="left")
+    
+        def get_bond_opts(country):
+            ns = load_full_ns_df(COUNTRY_CODE_MAP[country], zip_hash=zip_hash)
+            if ns is None or ns.empty:
+                return None, None
+            ns["Date"] = pd.to_datetime(ns["Date"]).dt.normalize()
+        
+            # ── Derive NS fitted value ────────────────────────────────────────────
+            if "Z_SPRD_VAL" in ns.columns and "RESIDUAL_NS" in ns.columns:
+                ns["NS_FITTED"] = ns["Z_SPRD_VAL"] - ns["RESIDUAL_NS"]
+            else:
+                ns["NS_FITTED"] = pd.NA
+            # ─────────────────────────────────────────────────────────────────────
+        
+            opts = ns[["ISIN", "SECURITY_NAME", "Maturity"]].drop_duplicates()
+            if not issuer_signal.empty:
+                opts = opts.merge(issuer_signal[["ISIN", "SIGNAL"]], on="ISIN", how="left")
+            else:
+                opts["SIGNAL"] = None
             opts["Maturity"] = pd.to_datetime(opts["Maturity"], errors="coerce")
-            for _, row in opts.iterrows():
-                mat = pd.to_datetime(row["Maturity"]).strftime("%Y-%m-%d") if pd.notnull(row["Maturity"]) else "N/A"
-                global_legend_labels[row["ISIN"]] = f"{row['SECURITY_NAME']} ({mat})"
-
-        curve_dfs = []
-        for i, curve in enumerate(st.session_state.curves):
-            st.subheader(f"Curve {i + 1}")
-            cc1, cc2 = st.columns(2)
-            with cc1:
-                curve["country"] = st.selectbox(
-                    f"Country (Curve {i + 1})", COUNTRY_OPTIONS,
-                    index=COUNTRY_OPTIONS.index(curve["country"]),
-                    key=f"an_country_{curve['id']}",
-                )
-                ns_df = load_full_ns_df(COUNTRY_CODE_MAP[curve["country"]], zip_hash=zip_hash)
-                ns_df["Date"] = pd.to_datetime(ns_df["Date"]).dt.normalize()
-                bond_opts = ns_df[["ISIN", "SECURITY_NAME", "Maturity"]].drop_duplicates()
-                bond_opts = bond_opts.merge(issuer_signal[["ISIN", "SIGNAL"]], on="ISIN", how="left")
-                bond_opts["Maturity"] = pd.to_datetime(bond_opts["Maturity"], errors="coerce")
-                bond_opts.sort_values("Maturity", inplace=True)
-                bond_labels_c = {}
-                for _, row in bond_opts.iterrows():
-                    mat = pd.to_datetime(row["Maturity"]).strftime("%Y-%m-%d") if pd.notnull(row["Maturity"]) else "N/A"
-                    sig = row["SIGNAL"] if "SIGNAL" in row and pd.notnull(row["SIGNAL"]) else "No signal"
-                    bond_labels_c[row["ISIN"]] = f"{row['SECURITY_NAME']} ({mat}) [{sig}]"
-
-            with cc2:
-                curve["bond1"] = st.selectbox(
-                    f"Bond 1 (Curve {i + 1})", bond_opts["ISIN"],
-                    format_func=lambda isin: bond_labels_c.get(isin, isin),
-                    key=f"an_bond1_{curve['id']}",
-                )
-                curve["bond2"] = st.selectbox(
-                    f"Bond 2 (Curve {i + 1})", bond_opts["ISIN"],
-                    format_func=lambda isin: bond_labels_c.get(isin, isin),
-                    key=f"an_bond2_{curve['id']}",
-                )
-
-            if curve["bond1"] and curve["bond2"]:
-                df1 = ns_df[ns_df["ISIN"] == curve["bond1"]][["Date", selected_metric_col]].rename(
-                    columns={selected_metric_col: "B1"})
-                df2 = ns_df[ns_df["ISIN"] == curve["bond2"]][["Date", selected_metric_col]].rename(
-                    columns={selected_metric_col: "B2"})
-                df_c = df1.merge(df2, on="Date", how="outer").sort_values("Date")
-                b1_mat = pd.to_datetime(ns_df.loc[ns_df["ISIN"] == curve["bond1"], "Maturity"].iloc[0])
-                b2_mat = pd.to_datetime(ns_df.loc[ns_df["ISIN"] == curve["bond2"], "Maturity"].iloc[0])
-                df_c["Curve"] = (df_c["B1"] - df_c["B2"]) if b1_mat <= b2_mat else (df_c["B2"] - df_c["B1"])
-                df_c["Bond1_ISIN"] = curve["bond1"]
-                df_c["Bond2_ISIN"] = curve["bond2"]
-                curve_dfs.append(df_c)
-
-        if len(curve_dfs) == 2:
-            diff_df = curve_dfs[1][["Date", "Curve"]].merge(
-                curve_dfs[0][["Date", "Curve"]], on="Date", suffixes=("_2", "_1")
+            opts.sort_values("Maturity", inplace=True)
+            return ns, opts
+    
+        def fmt_bond(isin, opts):
+            row = opts[opts["ISIN"] == isin]
+            if row.empty:
+                return isin
+            r   = row.iloc[0]
+            mat = r["Maturity"].strftime("%b %Y") if pd.notnull(r["Maturity"]) else "?"
+            sig = r.get("SIGNAL", None)
+            sig_str = f" [{sig}]" if pd.notnull(sig) and sig else ""
+            return f"{r['SECURITY_NAME']} ({mat}){sig_str}"
+    
+        def slot_selector(idx, group_label=""):
+            """Render country + bond selectors for one slot. Returns (label, color, df)."""
+            sid   = f"{n_bonds}_{idx}"          # key includes n_bonds so switching resets
+            color = SLOT_COLORS[idx]
+            dot   = (
+                f"<span style='display:inline-block;width:9px;height:9px;"
+                f"border-radius:50%;background:{color};margin-right:5px;"
+                f"vertical-align:middle'></span>"
             )
-            diff_df["Curve"] = diff_df["Curve_2"] - diff_df["Curve_1"]
-            fig = go.Figure()
-            for i, cdf in enumerate(curve_dfs):
-                c = st.session_state.curves[i]
-                lbl = (f"{global_legend_labels.get(c['bond2'], c['bond2'])} "
-                       f"− {global_legend_labels.get(c['bond1'], c['bond1'])}")
-                fig.add_trace(go.Scatter(x=cdf["Date"], y=cdf["Curve"], mode="lines", name=lbl))
-            fig.add_trace(go.Scatter(
-                x=diff_df["Date"], y=diff_df["Curve"],
-                mode="lines", name="Differenced curve (Curve 2 − Curve 1)",
-                line=dict(color="black", width=3, dash="dot"),
-            ))
+            label_md = f"{dot}**B{idx + 1}**" + (f" <span style='color:gray;font-size:11px'>({group_label})</span>" if group_label else "")
+            st.markdown(label_md, unsafe_allow_html=True)
+    
+            country = st.selectbox(
+                "Issuer", COUNTRY_OPTIONS,
+                key=f"an_country_{sid}",
+                label_visibility="collapsed",
+            )
+            ns_df, bond_opts = get_bond_opts(country)
+            if ns_df is None:
+                st.warning(f"No data for {country}")
+                return None, color, None
+    
+            isin = st.selectbox(
+                "Security", bond_opts["ISIN"].tolist(),
+                format_func=lambda x, o=bond_opts: fmt_bond(x, o),
+                key=f"an_bond_{sid}",
+                label_visibility="collapsed",
+            )
+    
+            df_bond = (
+                ns_df[ns_df["ISIN"] == isin][["Date", selected_metric_col]]
+                .rename(columns={selected_metric_col: "value"})
+                .dropna(subset=["value"])
+                .sort_values("Date")
+            )
+            if lookback_days:
+                cutoff  = pd.Timestamp.today().normalize() - pd.Timedelta(days=lookback_days)
+                df_bond = df_bond[df_bond["Date"] >= cutoff]
+    
+            return fmt_bond(isin, bond_opts), color, df_bond
+    
+        # ── Slot layout ───────────────────────────────────────────────────────────
+        slot_series = []   # list of (label, color, df)
+    
+        if n_bonds in (2, 3, 4):
+            # Flat grid: 2 cols for 2 bonds, 3 cols for 3 and 4
+            n_cols  = min(n_bonds, 3) if n_bonds != 4 else 2
+            grid    = st.columns(n_cols)
+            pairs   = [(0, ""), (1, ""), (2, ""), (3, "")]
+            indices = list(range(n_bonds))
+            col_idx = [i % n_cols for i in range(n_bonds)]
+    
+            for i in range(n_bonds):
+                with grid[col_idx[i]]:
+                    label, color, df = slot_selector(i)
+                    slot_series.append((label, color, df))
+    
+        else:  # n_bonds == 6 — two side-by-side groups
+            st.markdown(
+                "<div style='display:grid;grid-template-columns:1fr 1fr;gap:0'>"
+                "<div style='font-size:12px;font-weight:500;color:gray;padding-bottom:4px'>Group A — Long butterfly</div>"
+                "<div style='font-size:12px;font-weight:500;color:gray;padding-bottom:4px'>Group B — Short butterfly</div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+            left_col, right_col = st.columns(2)
+    
+            for i in range(3):
+                with left_col:
+                    label, color, df = slot_selector(i, group_label="A")
+                    slot_series.append((label, color, df))
+    
+            for i in range(3, 6):
+                with right_col:
+                    label, color, df = slot_selector(i, group_label="B")
+                    slot_series.append((label, color, df))
+    
+        # ── Resultant ─────────────────────────────────────────────────────────────
+        def build_resultant(slot_series, weights, n):
+            dfs = [df for _, _, df in slot_series[:n] if df is not None and not df.empty]
+            if len(dfs) < n:
+                return pd.DataFrame(columns=["Date", "Resultant"])
+            merged = dfs[0].rename(columns={"value": "v0"})
+            for i, df in enumerate(dfs[1:], 1):
+                merged = merged.merge(df.rename(columns={"value": f"v{i}"}), on="Date", how="inner")
+            merged["Resultant"] = sum(weights[i] * merged[f"v{i}"] for i in range(n))
+            return merged[["Date", "Resultant"]]
+    
+        # ── Dual-panel chart ──────────────────────────────────────────────────────
+        valid_series = [(l, c, df) for l, c, df in slot_series if df is not None and not df.empty]
+    
+        if len(valid_series) == n_bonds:
+            from plotly.subplots import make_subplots
+    
+            resultant_df = build_resultant(slot_series, WEIGHTS[n_bonds], n_bonds)
+            meta         = STRUCTURE_META[n_bonds]
+    
+            fig = make_subplots(
+                rows=2, cols=1,
+                shared_xaxes=True,
+                row_heights=[0.55, 0.45],
+                vertical_spacing=0.06,
+                subplot_titles=[
+                    f"Individual bond {metric_option} (bps)",
+                    f"{meta['name']} — {meta['formula']} (bps)",
+                ],
+            )
+    
+            # Top panel — individual levels
+            for label, color, df_bond in valid_series:
+                fig.add_trace(
+                    go.Scatter(
+                        x=df_bond["Date"], y=df_bond["value"],
+                        mode="lines", name=label,
+                        line=dict(color=color, width=2),
+                    ),
+                    row=1, col=1,
+                )
+    
+            # For 6-bond: also overlay the two sub-butterflies as dashed lines
+            if n_bonds == 6 and not resultant_df.empty:
+                # Rebuild group series to plot butterfly A and B separately
+                def sub_butterfly(dfs_3, w3, name, color_sub):
+                    m = dfs_3[0].rename(columns={"value": "v0"})
+                    for i, d in enumerate(dfs_3[1:], 1):
+                        m = m.merge(d.rename(columns={"value": f"v{i}"}), on="Date", how="inner")
+                    m["val"] = sum(w3[i] * m[f"v{i}"] for i in range(3))
+                    return m[["Date", "val"]]
+    
+                dfs_A = [df for _, _, df in valid_series[:3]]
+                dfs_B = [df for _, _, df in valid_series[3:]]
+                bf_A  = sub_butterfly(dfs_A, [-1, 2, -1], "Butterfly A", "#378ADD")
+                bf_B  = sub_butterfly(dfs_B, [-1, 2, -1], "Butterfly B", "#D85A30")
+    
+                for bf, name, clr in [(bf_A, "Butterfly A (long)", "#378ADD"), (bf_B, "Butterfly B (short)", "#D85A30")]:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=bf["Date"], y=bf["val"],
+                            mode="lines", name=name,
+                            line=dict(color=clr, width=1.5, dash="dash"),
+                            opacity=0.6,
+                        ),
+                        row=2, col=1,
+                    )
+    
+            # Bottom panel — resultant
+            if not resultant_df.empty:
+                fig.add_trace(
+                    go.Scatter(
+                        x=resultant_df["Date"], y=resultant_df["Resultant"],
+                        mode="lines",
+                        name=f"{meta['name']} resultant",
+                        line=dict(color="#534AB7", width=2.5),
+                        fill="tozeroy",
+                        fillcolor="rgba(83,74,183,0.08)",
+                    ),
+                    row=2, col=1,
+                )
+                p10 = resultant_df["Resultant"].quantile(0.10)
+                p90 = resultant_df["Resultant"].quantile(0.90)
+                for level, lbl in [(p10, "10th pct"), (p90, "90th pct")]:
+                    fig.add_hline(
+                        y=level, line_dash="dot",
+                        line_color="rgba(100,100,100,0.4)",
+                        annotation_text=lbl,
+                        annotation_position="right",
+                        row=2, col=1,
+                    )
+    
             fig.update_layout(
-                title=f"Two-curve {metric_option} comparison",
-                xaxis_title="Date", yaxis_title=f"{metric_option} difference (bps)",
-                template="plotly_white", height=700,
+                template="plotly_white",
+                height=700,
+                legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="left", x=0),
+                margin=dict(t=60, b=40, l=60, r=80),
+                hovermode="x unified",
             )
+            fig.update_xaxes(showgrid=False)
+            fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.05)")
             st.plotly_chart(fig, use_container_width=True)
+    
+        # ── Summary cards ─────────────────────────────────────────────────────────
+        valid_meta_series = [(l, c, df) for l, c, df in slot_series if df is not None and not df.empty]
+        if valid_meta_series:
+            card_cols = st.columns(len(valid_meta_series))
+            for col, (label, color, df_bond) in zip(card_cols, valid_meta_series):
+                dot_html    = (
+                    f"<span style='display:inline-block;width:9px;height:9px;"
+                    f"border-radius:50%;background:{color};margin-right:4px;"
+                    f"vertical-align:middle'></span>"
+                )
+                today_val   = df_bond["value"].iloc[-1]  if not df_bond.empty else None
+                d30         = df_bond[df_bond["Date"] >= (df_bond["Date"].max() - pd.Timedelta(days=30))]["value"]
+                delta30     = (df_bond["value"].iloc[-1] - d30.iloc[0]) if len(d30) >= 2 else None
+                today_str   = f"{today_val:.1f}"   if today_val  is not None else "—"
+                delta_str   = f"{delta30:+.1f}"    if delta30    is not None else "—"
+                delta_color = "color:steelblue"    if (delta30 or 0) >= 0   else "color:coral"
+                col.markdown(
+                    f"{dot_html}**{label[:28]}**<br>"
+                    f"<span style='font-size:12px;color:gray'>Today: {today_str} bps</span><br>"
+                    f"<span style='font-size:12px;{delta_color}'>30D Δ: {delta_str} bps</span>",
+                    unsafe_allow_html=True,
+                )
 
     # ── Top Trades ────────────────────────────
     with an2:
@@ -1069,8 +1306,6 @@ with tab3:
             st.altair_chart(z_chart)
         except Exception as e:
             st.warning(f"Heatmap unavailable: {e}")
-
-
 # ═════════════════════════════════════════════
 # TAB 4 — AI Assistant (chat only)
 # ═════════════════════════════════════════════
