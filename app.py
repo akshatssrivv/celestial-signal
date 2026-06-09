@@ -953,7 +953,7 @@ with tab3:
         if "bond_slots" not in st.session_state:
             st.session_state.bond_slots = [{"id": 0}, {"id": 1}]
     
-        col_add, col_rm = st.columns([1, 5])
+        col_add, col_rm, _ = st.columns([1, 1, 4])
         with col_add:
             if len(st.session_state.bond_slots) < 4:
                 if st.button("＋ Add bond", key="an_add_bond"):
@@ -966,9 +966,16 @@ with tab3:
                     st.session_state.bond_slots.pop()
                     st.rerun()
     
-        st.caption(f"{len(st.session_state.bond_slots)} bonds selected  ·  max 4")
+        n_bonds = len(st.session_state.bond_slots)
+        structure_name = {2: "Spread", 3: "Butterfly", 4: "Condor"}[n_bonds]
+        resultant_formula = {
+            2: "B2 − B1",
+            3: "2×B2 − B1 − B3",
+            4: "B4 − B3 − B2 + B1",
+        }[n_bonds]
+        st.caption(f"{n_bonds} bonds  ·  {structure_name}  ·  Resultant = {resultant_formula}")
     
-        # ── Issuer/bond helpers ───────────────────────────────────────────────────
+        # ── Helpers ───────────────────────────────────────────────────────────────
         @st.cache_data(ttl=300)
         def load_issuer_signal():
             try:
@@ -978,23 +985,22 @@ with tab3:
                 return pd.DataFrame()
     
         issuer_signal = load_issuer_signal()
-    
         SLOT_COLORS = ["#378ADD", "#1D9E75", "#BA7517", "#D85A30"]
     
         # ── Per-slot selectors ────────────────────────────────────────────────────
-        slot_series = []     # list of (label, pd.Series with Date + value)
-        slot_meta  = []      # list of dicts for summary cards
+        slot_series = []
+        slot_meta   = []
     
         for idx, slot in enumerate(st.session_state.bond_slots):
-            sid = slot["id"]
+            sid   = slot["id"]
             color = SLOT_COLORS[idx]
-            dot = f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:{color};margin-right:6px;vertical-align:middle'></span>"
-    
+            dot   = (
+                f"<span style='display:inline-block;width:10px;height:10px;"
+                f"border-radius:50%;background:{color};margin-right:6px;"
+                f"vertical-align:middle'></span>"
+            )
             with st.container():
-                st.markdown(
-                    f"{dot}**Bond {idx + 1}**",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"{dot}**Bond {idx + 1}**", unsafe_allow_html=True)
                 sel_l, sel_r = st.columns(2)
                 with sel_l:
                     country = st.selectbox(
@@ -1020,11 +1026,10 @@ with tab3:
                     row = _opts[_opts["ISIN"] == isin]
                     if row.empty:
                         return isin
-                    r = row.iloc[0]
+                    r   = row.iloc[0]
                     mat = r["Maturity"].strftime("%b %Y") if pd.notnull(r["Maturity"]) else "?"
                     sig = r["SIGNAL"] if pd.notnull(r.get("SIGNAL")) else ""
-                    sig_str = f" [{sig}]" if sig else ""
-                    return f"{r['SECURITY_NAME']} ({mat}){sig_str}"
+                    return f"{r['SECURITY_NAME']} ({mat}){f' [{sig}]' if sig else ''}"
     
                 with sel_r:
                     isin = st.selectbox(
@@ -1034,63 +1039,139 @@ with tab3:
                         label_visibility="collapsed",
                     )
     
-            # Slice data
-            df_bond = ns_df[ns_df["ISIN"] == isin][["Date", selected_metric_col]].copy()
-            df_bond = df_bond.rename(columns={selected_metric_col: "value"})
-            df_bond = df_bond.dropna(subset=["value"]).sort_values("Date")
+            # Slice + trim
+            df_bond = (
+                ns_df[ns_df["ISIN"] == isin][["Date", selected_metric_col]]
+                .rename(columns={selected_metric_col: "value"})
+                .dropna(subset=["value"])
+                .sort_values("Date")
+            )
             if lookback_days:
-                cutoff = pd.Timestamp.today().normalize() - pd.Timedelta(days=lookback_days)
+                cutoff  = pd.Timestamp.today().normalize() - pd.Timedelta(days=lookback_days)
                 df_bond = df_bond[df_bond["Date"] >= cutoff]
     
             label = fmt_bond(isin)
             slot_series.append((label, color, df_bond))
     
-            row_meta = bond_opts[bond_opts["ISIN"] == isin].iloc[0]
-            today_val = df_bond["value"].iloc[-1] if not df_bond.empty else None
-            d30 = df_bond[df_bond["Date"] >= (df_bond["Date"].max() - pd.Timedelta(days=30))]["value"]
-            delta30 = (df_bond["value"].iloc[-1] - d30.iloc[0]) if len(d30) >= 2 else None
+            row_meta  = bond_opts[bond_opts["ISIN"] == isin].iloc[0]
+            today_val = df_bond["value"].iloc[-1]  if not df_bond.empty else None
+            d30       = df_bond[df_bond["Date"] >= (df_bond["Date"].max() - pd.Timedelta(days=30))]["value"]
+            delta30   = (df_bond["value"].iloc[-1] - d30.iloc[0]) if len(d30) >= 2 else None
             slot_meta.append({
-                "label": label,
-                "color": color,
-                "today": today_val,
+                "label":  label,
+                "color":  color,
+                "today":  today_val,
                 "delta30": delta30,
                 "signal": row_meta.get("SIGNAL") if isinstance(row_meta, pd.Series) else None,
             })
-    
             st.divider()
     
-        # ── Chart ─────────────────────────────────────────────────────────────────
+        # ── Resultant weights ─────────────────────────────────────────────────────
+        # indexed B1=0, B2=1, B3=2, B4=3
+        WEIGHTS = {
+            2: [ -1,  1,  0,  0],
+            3: [ -1,  2, -1,  0],
+            4: [  1, -1, -1,  1],
+        }
+        weights = WEIGHTS[n_bonds]
+    
+        # ── Build resultant series (inner-join on Date) ────────────────────────────
+        def build_resultant(slot_series, weights):
+            merged = None
+            for i, (_, _, df) in enumerate(slot_series):
+                df_i = df.rename(columns={"value": f"v{i}"})
+                merged = df_i if merged is None else merged.merge(df_i, on="Date", how="inner")
+            if merged is None or merged.empty:
+                return pd.DataFrame(columns=["Date", "Resultant"])
+            merged["Resultant"] = sum(
+                weights[i] * merged[f"v{i}"] for i in range(len(slot_series))
+            )
+            return merged[["Date", "Resultant"]]
+    
+        # ── Dual-panel chart ──────────────────────────────────────────────────────
         if slot_series:
-            fig = go.Figure()
+            resultant_df = build_resultant(slot_series, weights)
+    
+            from plotly.subplots import make_subplots
+    
+            fig = make_subplots(
+                rows=2, cols=1,
+                shared_xaxes=True,
+                row_heights=[0.55, 0.45],
+                vertical_spacing=0.06,
+                subplot_titles=[
+                    f"Individual bond {metric_option} levels (bps)",
+                    f"{structure_name} resultant — {resultant_formula} (bps)",
+                ],
+            )
+    
+            # Top panel — individual bonds
             for label, color, df_bond in slot_series:
                 if df_bond.empty:
                     continue
-                fig.add_trace(go.Scatter(
-                    x=df_bond["Date"],
-                    y=df_bond["value"],
-                    mode="lines",
-                    name=label,
-                    line=dict(color=color, width=2),
-                ))
+                fig.add_trace(
+                    go.Scatter(
+                        x=df_bond["Date"], y=df_bond["value"],
+                        mode="lines", name=label,
+                        line=dict(color=color, width=2),
+                    ),
+                    row=1, col=1,
+                )
+    
+            # Bottom panel — resultant
+            if not resultant_df.empty:
+                # Zero line shading
+                fig.add_trace(
+                    go.Scatter(
+                        x=resultant_df["Date"], y=resultant_df["Resultant"],
+                        mode="lines",
+                        name=f"{structure_name} ({resultant_formula})",
+                        line=dict(color="#534AB7", width=2.5),
+                        fill="tozeroy",
+                        fillcolor="rgba(83,74,183,0.08)",
+                    ),
+                    row=2, col=1,
+                )
+                # Percentile bands (10th / 90th)
+                p10 = resultant_df["Resultant"].quantile(0.10)
+                p90 = resultant_df["Resultant"].quantile(0.90)
+                for level, label_pct, dash in [
+                    (p10, "10th pct", "dot"),
+                    (p90, "90th pct", "dot"),
+                ]:
+                    fig.add_hline(
+                        y=level, line_dash=dash,
+                        line_color="rgba(100,100,100,0.4)",
+                        annotation_text=label_pct,
+                        annotation_position="right",
+                        row=2, col=1,
+                    )
+    
             fig.update_layout(
-                xaxis_title="Date",
-                yaxis_title=f"{metric_option} (bps)",
                 template="plotly_white",
-                height=500,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-                margin=dict(t=40, b=40),
+                height=680,
+                legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="left", x=0),
+                margin=dict(t=60, b=40, l=60, r=80),
+                hovermode="x unified",
             )
+            fig.update_xaxes(showgrid=False)
+            fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.05)")
+    
             st.plotly_chart(fig, use_container_width=True)
     
         # ── Summary cards ─────────────────────────────────────────────────────────
         if slot_meta:
             card_cols = st.columns(len(slot_meta))
             for col, m in zip(card_cols, slot_meta):
-                dot_html = f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:{m['color']};margin-right:5px;vertical-align:middle'></span>"
-                today_str  = f"{m['today']:.1f}" if m["today"] is not None else "—"
-                delta_str  = f"{m['delta30']:+.1f}" if m["delta30"] is not None else "—"
-                delta_color = "color:steelblue" if (m["delta30"] or 0) >= 0 else "color:coral"
-                sig_str    = m["signal"] if m["signal"] and pd.notnull(m["signal"]) else "—"
+                dot_html    = (
+                    f"<span style='display:inline-block;width:10px;height:10px;"
+                    f"border-radius:50%;background:{m['color']};margin-right:5px;"
+                    f"vertical-align:middle'></span>"
+                )
+                today_str   = f"{m['today']:.1f}"   if m["today"]   is not None else "—"
+                delta_str   = f"{m['delta30']:+.1f}" if m["delta30"] is not None else "—"
+                delta_color = "color:steelblue"      if (m["delta30"] or 0) >= 0 else "color:coral"
+                sig_str     = m["signal"] if m["signal"] and pd.notnull(m["signal"]) else "—"
                 col.markdown(
                     f"{dot_html}**{m['label'][:30]}**<br>"
                     f"<span style='font-size:12px;color:gray'>Today: {today_str} bps</span><br>"
