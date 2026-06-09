@@ -959,7 +959,6 @@ with tab3:
                 "NS Fitted": "NS_FITTED",
                 "Residuals": "RESIDUAL_NS",
             }
-            selected_metric_col = metric_col_map[metric_option]
         with ctrl_3:
             lookback_map   = {"1Y": 365, "3Y": 1095, "5Y": 1825, "Max": None}
             lookback_label = st.radio(
@@ -968,7 +967,7 @@ with tab3:
             )
     
         lookback_days      = lookback_map[lookback_label]
-        selected_metric_col = {"Z-Spread": "Z_SPRD_VAL", "Residuals": "RESIDUAL_NS"}[metric_option]
+        selected_metric_col = metric_col_map[metric_option]
     
         STRUCTURE_META = {
             2: {"name": "Spread",                   "formula": "B2 − B1"},
