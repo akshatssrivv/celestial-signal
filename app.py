@@ -931,22 +931,42 @@ with tab2:
 # TAB 3 — Analysis  (multi-curve + trades)
 # ═════════════════════════════════════════════
 with tab3:
-    an1, an2 = st.tabs(["Multi-curve comparison", "Top trades"])
-
-    # ── Multi-curve ───────────────────────────
     with an1:
-        metric_option = st.radio(
-            "Metric", options=["Z-Spread", "Residuals"], horizontal=True, key="an_metric"
-        )
+        # ── Controls row ──────────────────────────────────────────────────────────
+        ctrl_l, ctrl_r = st.columns([1, 1])
+        with ctrl_l:
+            metric_option = st.radio(
+                "Metric", options=["Z-Spread", "Residuals"], horizontal=True, key="an_metric"
+            )
+        with ctrl_r:
+            lookback_map = {"1Y": 365, "3Y": 1095, "5Y": 1825, "Max": None}
+            lookback_label = st.radio(
+                "Lookback", options=list(lookback_map.keys()), horizontal=True, key="an_lookback", index=0
+            )
+        lookback_days = lookback_map[lookback_label]
         metric_col_map = {"Z-Spread": "Z_SPRD_VAL", "Residuals": "RESIDUAL_NS"}
         selected_metric_col = metric_col_map[metric_option]
-
-        if "curves" not in st.session_state or len(st.session_state.curves) != 2:
-            st.session_state.curves = [
-                {"id": "curve1", "country": "Italy 🇮🇹", "bond1": None, "bond2": None},
-                {"id": "curve2", "country": "Italy 🇮🇹", "bond1": None, "bond2": None},
-            ]
-
+    
+        # ── Bond slot state ───────────────────────────────────────────────────────
+        if "bond_slots" not in st.session_state:
+            st.session_state.bond_slots = [{"id": 0}, {"id": 1}]
+    
+        col_add, col_rm = st.columns([1, 5])
+        with col_add:
+            if len(st.session_state.bond_slots) < 4:
+                if st.button("＋ Add bond", key="an_add_bond"):
+                    new_id = max(s["id"] for s in st.session_state.bond_slots) + 1
+                    st.session_state.bond_slots.append({"id": new_id})
+                    st.rerun()
+        with col_rm:
+            if len(st.session_state.bond_slots) > 2:
+                if st.button("－ Remove last", key="an_rm_bond"):
+                    st.session_state.bond_slots.pop()
+                    st.rerun()
+    
+        st.caption(f"{len(st.session_state.bond_slots)} bonds selected  ·  max 4")
+    
+        # ── Issuer/bond helpers ───────────────────────────────────────────────────
         @st.cache_data(ttl=300)
         def load_issuer_signal():
             try:
@@ -954,93 +974,128 @@ with tab3:
             except Exception as e:
                 st.error(f"Failed to load issuer_signal: {e}")
                 return pd.DataFrame()
-
+    
         issuer_signal = load_issuer_signal()
-
-        # Build global legend labels
-        global_legend_labels = {}
-        for curve in st.session_state.curves:
-            tmp = load_full_ns_df(COUNTRY_CODE_MAP[curve["country"]], zip_hash=zip_hash)
-            if tmp is None or tmp.empty:
-                continue
-            tmp["Date"] = pd.to_datetime(tmp["Date"]).dt.normalize()
-            opts = tmp[["ISIN", "SECURITY_NAME", "Maturity"]].drop_duplicates()
-            opts = opts.merge(issuer_signal[["ISIN", "SIGNAL"]], on="ISIN", how="left")
-            opts["Maturity"] = pd.to_datetime(opts["Maturity"], errors="coerce")
-            for _, row in opts.iterrows():
-                mat = pd.to_datetime(row["Maturity"]).strftime("%Y-%m-%d") if pd.notnull(row["Maturity"]) else "N/A"
-                global_legend_labels[row["ISIN"]] = f"{row['SECURITY_NAME']} ({mat})"
-
-        curve_dfs = []
-        for i, curve in enumerate(st.session_state.curves):
-            st.subheader(f"Curve {i + 1}")
-            cc1, cc2 = st.columns(2)
-            with cc1:
-                curve["country"] = st.selectbox(
-                    f"Country (Curve {i + 1})", COUNTRY_OPTIONS,
-                    index=COUNTRY_OPTIONS.index(curve["country"]),
-                    key=f"an_country_{curve['id']}",
+    
+        SLOT_COLORS = ["#378ADD", "#1D9E75", "#BA7517", "#D85A30"]
+    
+        # ── Per-slot selectors ────────────────────────────────────────────────────
+        slot_series = []     # list of (label, pd.Series with Date + value)
+        slot_meta  = []      # list of dicts for summary cards
+    
+        for idx, slot in enumerate(st.session_state.bond_slots):
+            sid = slot["id"]
+            color = SLOT_COLORS[idx]
+            dot = f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:{color};margin-right:6px;vertical-align:middle'></span>"
+    
+            with st.container():
+                st.markdown(
+                    f"{dot}**Bond {idx + 1}**",
+                    unsafe_allow_html=True,
                 )
-                ns_df = load_full_ns_df(COUNTRY_CODE_MAP[curve["country"]], zip_hash=zip_hash)
+                sel_l, sel_r = st.columns(2)
+                with sel_l:
+                    country = st.selectbox(
+                        "Issuer", COUNTRY_OPTIONS,
+                        key=f"an_country_{sid}",
+                        label_visibility="collapsed",
+                    )
+                ns_df = load_full_ns_df(COUNTRY_CODE_MAP[country], zip_hash=zip_hash)
+                if ns_df is None or ns_df.empty:
+                    st.warning(f"No data for {country}")
+                    continue
                 ns_df["Date"] = pd.to_datetime(ns_df["Date"]).dt.normalize()
+    
                 bond_opts = ns_df[["ISIN", "SECURITY_NAME", "Maturity"]].drop_duplicates()
-                bond_opts = bond_opts.merge(issuer_signal[["ISIN", "SIGNAL"]], on="ISIN", how="left")
+                if not issuer_signal.empty:
+                    bond_opts = bond_opts.merge(issuer_signal[["ISIN", "SIGNAL"]], on="ISIN", how="left")
+                else:
+                    bond_opts["SIGNAL"] = None
                 bond_opts["Maturity"] = pd.to_datetime(bond_opts["Maturity"], errors="coerce")
                 bond_opts.sort_values("Maturity", inplace=True)
-                bond_labels_c = {}
-                for _, row in bond_opts.iterrows():
-                    mat = pd.to_datetime(row["Maturity"]).strftime("%Y-%m-%d") if pd.notnull(row["Maturity"]) else "N/A"
-                    sig = row["SIGNAL"] if "SIGNAL" in row and pd.notnull(row["SIGNAL"]) else "No signal"
-                    bond_labels_c[row["ISIN"]] = f"{row['SECURITY_NAME']} ({mat}) [{sig}]"
-
-            with cc2:
-                curve["bond1"] = st.selectbox(
-                    f"Bond 1 (Curve {i + 1})", bond_opts["ISIN"],
-                    format_func=lambda isin: bond_labels_c.get(isin, isin),
-                    key=f"an_bond1_{curve['id']}",
-                )
-                curve["bond2"] = st.selectbox(
-                    f"Bond 2 (Curve {i + 1})", bond_opts["ISIN"],
-                    format_func=lambda isin: bond_labels_c.get(isin, isin),
-                    key=f"an_bond2_{curve['id']}",
-                )
-
-            if curve["bond1"] and curve["bond2"]:
-                df1 = ns_df[ns_df["ISIN"] == curve["bond1"]][["Date", selected_metric_col]].rename(
-                    columns={selected_metric_col: "B1"})
-                df2 = ns_df[ns_df["ISIN"] == curve["bond2"]][["Date", selected_metric_col]].rename(
-                    columns={selected_metric_col: "B2"})
-                df_c = df1.merge(df2, on="Date", how="outer").sort_values("Date")
-                b1_mat = pd.to_datetime(ns_df.loc[ns_df["ISIN"] == curve["bond1"], "Maturity"].iloc[0])
-                b2_mat = pd.to_datetime(ns_df.loc[ns_df["ISIN"] == curve["bond2"], "Maturity"].iloc[0])
-                df_c["Curve"] = (df_c["B1"] - df_c["B2"]) if b1_mat <= b2_mat else (df_c["B2"] - df_c["B1"])
-                df_c["Bond1_ISIN"] = curve["bond1"]
-                df_c["Bond2_ISIN"] = curve["bond2"]
-                curve_dfs.append(df_c)
-
-        if len(curve_dfs) == 2:
-            diff_df = curve_dfs[1][["Date", "Curve"]].merge(
-                curve_dfs[0][["Date", "Curve"]], on="Date", suffixes=("_2", "_1")
-            )
-            diff_df["Curve"] = diff_df["Curve_2"] - diff_df["Curve_1"]
+    
+                def fmt_bond(isin, _opts=bond_opts):
+                    row = _opts[_opts["ISIN"] == isin]
+                    if row.empty:
+                        return isin
+                    r = row.iloc[0]
+                    mat = r["Maturity"].strftime("%b %Y") if pd.notnull(r["Maturity"]) else "?"
+                    sig = r["SIGNAL"] if pd.notnull(r.get("SIGNAL")) else ""
+                    sig_str = f" [{sig}]" if sig else ""
+                    return f"{r['SECURITY_NAME']} ({mat}){sig_str}"
+    
+                with sel_r:
+                    isin = st.selectbox(
+                        "Security", bond_opts["ISIN"].tolist(),
+                        format_func=fmt_bond,
+                        key=f"an_bond_{sid}",
+                        label_visibility="collapsed",
+                    )
+    
+            # Slice data
+            df_bond = ns_df[ns_df["ISIN"] == isin][["Date", selected_metric_col]].copy()
+            df_bond = df_bond.rename(columns={selected_metric_col: "value"})
+            df_bond = df_bond.dropna(subset=["value"]).sort_values("Date")
+            if lookback_days:
+                cutoff = pd.Timestamp.today().normalize() - pd.Timedelta(days=lookback_days)
+                df_bond = df_bond[df_bond["Date"] >= cutoff]
+    
+            label = fmt_bond(isin)
+            slot_series.append((label, color, df_bond))
+    
+            row_meta = bond_opts[bond_opts["ISIN"] == isin].iloc[0]
+            today_val = df_bond["value"].iloc[-1] if not df_bond.empty else None
+            d30 = df_bond[df_bond["Date"] >= (df_bond["Date"].max() - pd.Timedelta(days=30))]["value"]
+            delta30 = (df_bond["value"].iloc[-1] - d30.iloc[0]) if len(d30) >= 2 else None
+            slot_meta.append({
+                "label": label,
+                "color": color,
+                "today": today_val,
+                "delta30": delta30,
+                "signal": row_meta.get("SIGNAL") if isinstance(row_meta, pd.Series) else None,
+            })
+    
+            st.divider()
+    
+        # ── Chart ─────────────────────────────────────────────────────────────────
+        if slot_series:
             fig = go.Figure()
-            for i, cdf in enumerate(curve_dfs):
-                c = st.session_state.curves[i]
-                lbl = (f"{global_legend_labels.get(c['bond2'], c['bond2'])} "
-                       f"− {global_legend_labels.get(c['bond1'], c['bond1'])}")
-                fig.add_trace(go.Scatter(x=cdf["Date"], y=cdf["Curve"], mode="lines", name=lbl))
-            fig.add_trace(go.Scatter(
-                x=diff_df["Date"], y=diff_df["Curve"],
-                mode="lines", name="Differenced curve (Curve 2 − Curve 1)",
-                line=dict(color="black", width=3, dash="dot"),
-            ))
+            for label, color, df_bond in slot_series:
+                if df_bond.empty:
+                    continue
+                fig.add_trace(go.Scatter(
+                    x=df_bond["Date"],
+                    y=df_bond["value"],
+                    mode="lines",
+                    name=label,
+                    line=dict(color=color, width=2),
+                ))
             fig.update_layout(
-                title=f"Two-curve {metric_option} comparison",
-                xaxis_title="Date", yaxis_title=f"{metric_option} difference (bps)",
-                template="plotly_white", height=700,
+                xaxis_title="Date",
+                yaxis_title=f"{metric_option} (bps)",
+                template="plotly_white",
+                height=500,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+                margin=dict(t=40, b=40),
             )
             st.plotly_chart(fig, use_container_width=True)
-
+    
+        # ── Summary cards ─────────────────────────────────────────────────────────
+        if slot_meta:
+            card_cols = st.columns(len(slot_meta))
+            for col, m in zip(card_cols, slot_meta):
+                dot_html = f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:{m['color']};margin-right:5px;vertical-align:middle'></span>"
+                today_str  = f"{m['today']:.1f}" if m["today"] is not None else "—"
+                delta_str  = f"{m['delta30']:+.1f}" if m["delta30"] is not None else "—"
+                delta_color = "color:steelblue" if (m["delta30"] or 0) >= 0 else "color:coral"
+                sig_str    = m["signal"] if m["signal"] and pd.notnull(m["signal"]) else "—"
+                col.markdown(
+                    f"{dot_html}**{m['label'][:30]}**<br>"
+                    f"<span style='font-size:12px;color:gray'>Today: {today_str} bps</span><br>"
+                    f"<span style='font-size:12px;{delta_color}'>30D Δ: {delta_str} bps</span><br>"
+                    f"<span style='font-size:12px'>Signal: {sig_str}</span>",
+                    unsafe_allow_html=True,
+                )
     # ── Top Trades ────────────────────────────
     with an2:
         cols_top50 = [
