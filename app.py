@@ -931,6 +931,8 @@ with tab2:
 # TAB 3 — Analysis  (multi-curve + trades)
 # ═════════════════════════════════════════════
 with tab3:
+    an1, an2 = st.tabs(["Multi-curve comparison", "Top trades"])
+    # ── Multi-curve ───────────────────────────
     with an1:
         # ── Controls row ──────────────────────────────────────────────────────────
         ctrl_l, ctrl_r = st.columns([1, 1])
@@ -1096,6 +1098,7 @@ with tab3:
                     f"<span style='font-size:12px'>Signal: {sig_str}</span>",
                     unsafe_allow_html=True,
                 )
+
     # ── Top Trades ────────────────────────────
     with an2:
         cols_top50 = [
@@ -1124,8 +1127,6 @@ with tab3:
             st.altair_chart(z_chart)
         except Exception as e:
             st.warning(f"Heatmap unavailable: {e}")
-
-
 # ═════════════════════════════════════════════
 # TAB 4 — AI Assistant (chat only)
 # ═════════════════════════════════════════════
