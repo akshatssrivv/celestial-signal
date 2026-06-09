@@ -949,10 +949,17 @@ with tab3:
                 key="an_n_bonds",
             )
         with ctrl_2:
+            # replace the two lines at the top of an1
             metric_option = st.radio(
-                "Metric", options=["Z-Spread", "Residuals"],
+                "Metric", options=["Z-Spread", "NS Fitted", "Residuals"],
                 horizontal=True, key="an_metric",
             )
+            metric_col_map = {
+                "Z-Spread":  "Z_SPRD_VAL",
+                "NS Fitted": "NS_FITTED",
+                "Residuals": "RESIDUAL_NS",
+            }
+            selected_metric_col = metric_col_map[metric_option]
         with ctrl_3:
             lookback_map   = {"1Y": 365, "3Y": 1095, "5Y": 1825, "Max": None}
             lookback_label = st.radio(
@@ -997,6 +1004,14 @@ with tab3:
             if ns is None or ns.empty:
                 return None, None
             ns["Date"] = pd.to_datetime(ns["Date"]).dt.normalize()
+        
+            # ── Derive NS fitted value ────────────────────────────────────────────
+            if "Z_SPRD_VAL" in ns.columns and "RESIDUAL_NS" in ns.columns:
+                ns["NS_FITTED"] = ns["Z_SPRD_VAL"] - ns["RESIDUAL_NS"]
+            else:
+                ns["NS_FITTED"] = pd.NA
+            # ─────────────────────────────────────────────────────────────────────
+        
             opts = ns[["ISIN", "SECURITY_NAME", "Maturity"]].drop_duplicates()
             if not issuer_signal.empty:
                 opts = opts.merge(issuer_signal[["ISIN", "SIGNAL"]], on="ISIN", how="left")
@@ -1119,7 +1134,7 @@ with tab3:
                 row_heights=[0.55, 0.45],
                 vertical_spacing=0.06,
                 subplot_titles=[
-                    f"Individual bond {metric_option} levels (bps)",
+                    f"Individual bond {metric_option} (bps)",
                     f"{meta['name']} — {meta['formula']} (bps)",
                 ],
             )
