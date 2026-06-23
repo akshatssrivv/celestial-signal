@@ -72,8 +72,8 @@ div[role="tablist"] { width: 100% !important; }
 AWS_ACCESS_KEY_ID     = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 BUCKET_NAME  = "bonds-celestial-signal"
-LOCAL_ZIP    = "ns_curves_20260806.zip"
-LOCAL_FOLDER = "ns_curves_0806"
+LOCAL_ZIP    = "ns_curves_20262306.zip"
+LOCAL_FOLDER = "ns_curves_2306"
 
 
 def download_from_s3(file_key: str, local_path: str, force: bool = False):
@@ -98,7 +98,7 @@ def file_hash(filepath: str) -> str:
 
 
 def unzip_ns_curves(zip_path: str = LOCAL_ZIP, folder: str = LOCAL_FOLDER, force: bool = False):
-    zip_path = download_from_s3(file_key="ns_curves_0806.zip", local_path=zip_path, force=force)
+    zip_path = download_from_s3(file_key="ns_curves_2306.zip", local_path=zip_path, force=force)
     zip_hash = file_hash(zip_path)
     prev_hash = st.session_state.get("ns_zip_hash")
     if force or prev_hash != zip_hash or not os.path.exists(folder):
@@ -199,7 +199,7 @@ def get_country_from_isin(isin):
 # ─────────────────────────────────────────────
 # Initialise shared state
 # ─────────────────────────────────────────────
-S3_BUCKET_FILE = "ns_curves_0806.zip"
+S3_BUCKET_FILE = "ns_curves_2306.zip"
 try:
     zip_path = download_from_s3(file_key=S3_BUCKET_FILE, local_path=LOCAL_ZIP, force=False)
     if not os.path.exists(zip_path):
